@@ -1,14 +1,13 @@
 import { getServerSession } from "@ory/nextjs/app";
 import { NextRequest, NextResponse } from "next/server";
-import config from "@/ory.config";
 import { checkPermission } from "./keto";
 
 // Middleware to check if user is authenticated and has admin permissions
 export async function checkAuth(request: NextRequest) {
   try {
-    const session = await getServerSession(config);
+    const session = await getServerSession();
     
-    if (!session) {
+    if (!session || !session.identity) {
       return NextResponse.json(
         { error: "Unauthorized - Please login" },
         { status: 401 }

@@ -1,11 +1,10 @@
 import { getServerSession } from "@ory/nextjs/app";
 import { redirect } from "next/navigation";
-import config from "@/ory.config";
 
 export default async function DashboardPage() {
-  const session = await getServerSession(config);
+  const session = await getServerSession();
 
-  if (!session) {
+  if (!session || !session.identity) {
     redirect("/auth/login");
   }
 

@@ -16,7 +16,7 @@ export default async function SettingsPage(props: OryPageParams) {
     <div className="flex flex-col gap-8 items-center mb-8">
       <SessionProvider>
         <Settings
-          flow={flow}
+          flow={flow as any}
           config={config}
           components={{
             Card: {},

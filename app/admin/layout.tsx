@@ -1,6 +1,5 @@
 import { getServerSession } from "@ory/nextjs/app";
 import { redirect } from "next/navigation";
-import config from "@/ory.config";
 import Link from "next/link";
 import { ReactNode } from "react";
 
@@ -9,9 +8,9 @@ export default async function AdminLayout({
 }: {
   children: ReactNode;
 }) {
-  const session = await getServerSession(config);
+  const session = await getServerSession();
 
-  if (!session) {
+  if (!session || !session.identity) {
     redirect("/auth/login");
   }
 
@@ -118,12 +117,12 @@ export default async function AdminLayout({
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-zinc-200 dark:bg-zinc-700 rounded-full flex items-center justify-center">
                 <span className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
-                  {session.identity.traits.email?.[0]?.toUpperCase() || "A"}
+                  {session.identity?.traits.email?.[0]?.toUpperCase() || "A"}
                 </span>
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-zinc-900 dark:text-zinc-50 truncate">
-                  {session.identity.traits.email || "Admin"}
+                  {session.identity?.traits.email || "Admin"}
                 </p>
                 <p className="text-xs text-zinc-600 dark:text-zinc-400">
                   Administrator
