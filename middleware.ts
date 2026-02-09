@@ -45,6 +45,7 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith("/api/.ory") ||
     pathname.startsWith("/self-service")
   ) {
+    console.log(`[Middleware] Proxying Ory request: ${request.method} ${pathname}`);
     return oryProxy(request);
   }
 

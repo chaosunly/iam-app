@@ -8,7 +8,7 @@ const config: OryClientConfiguration = {
       : (process.env.ORY_SDK_URL || 'http://kratos.railway.internal:4433'),
   },
   project: {
-    default_redirect_url: "/",
+    default_redirect_url: "/dashboard",
     error_ui_url: "/error",
     name: "Ory Next.js App Router Example",
     registration_enabled: true,
