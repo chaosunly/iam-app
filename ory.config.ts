@@ -1,6 +1,12 @@
 import type { OryClientConfiguration } from "@ory/elements-react"
 
 const config: OryClientConfiguration = {
+  sdk: {
+    // Client uses Next.js app (for proxying), server uses actual Ory URL
+    url: typeof window !== 'undefined' 
+      ? (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3001')
+      : (process.env.ORY_SDK_URL || 'https://gateway-production-c2b4.up.railway.app'),
+  },
   project: {
     default_redirect_url: "/",
     error_ui_url: "/error",
