@@ -55,7 +55,7 @@ export async function middleware(request: NextRequest) {
 
   // 3. For protected routes, check authentication
   try {
-    const session = await getServerSession(oryConfig);
+    const session = await getServerSession();
 
     // If no session, redirect to login
     if (!session) {
