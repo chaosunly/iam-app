@@ -35,7 +35,7 @@ const PUBLIC_ROUTES = [
   /^\/api\/auth/,
 ];
 
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // 1. First, let Ory handle its authentication flows and self-service routes
