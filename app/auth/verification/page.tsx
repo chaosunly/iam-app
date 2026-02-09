@@ -1,4 +1,3 @@
-import CustomCardHeader from "@/components/custom-card-header";
 import { Verification } from "@ory/elements-react/theme";
 import { getVerificationFlow, OryPageParams } from "@ory/nextjs/app";
 
@@ -16,9 +15,7 @@ export default async function VerificationPage(props: OryPageParams) {
       flow={flow}
       config={config}
       components={{
-        Card: {
-          Header: CustomCardHeader,
-        },
+        Card: {},
       }}
     />
   );
