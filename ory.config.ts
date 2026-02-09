@@ -4,8 +4,8 @@ const config: OryClientConfiguration = {
   sdk: {
     // Client uses Next.js app (for proxying), server uses actual Ory URL
     url: typeof window !== 'undefined' 
-      ? (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3001')
-      : (process.env.ORY_SDK_URL || 'https://gateway-production-c2b4.up.railway.app'),
+      ? (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000')
+      : (process.env.ORY_SDK_URL || 'http://kratos.railway.internal:4433'),
   },
   project: {
     default_redirect_url: "/",

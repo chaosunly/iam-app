@@ -48,14 +48,14 @@ export async function middleware(request: NextRequest) {
     return oryProxy(request);
   }
 
-  // 2. Allow public routes
+  // 2. Allow public routes without session check
   if (PUBLIC_ROUTES.some((pattern) => pattern.test(pathname))) {
     return NextResponse.next();
   }
 
+  // 3. For protected routes, check authentication
   try {
-    // Check authentication
-    const session = await getServerSession();
+    const session = await getServerSession(oryConfig);
 
     // If no session, redirect to login
     if (!session) {
@@ -64,17 +64,11 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(loginUrl);
     }
 
-    // For admin routes, check additional permissions
-    if (PROTECTED_ROUTES.admin.pattern.test(pathname)) {
-      // Permission check will be done in the API layer for Zero-Trust
-      // This just ensures they have a valid session
-      return NextResponse.next();
-    }
-
     // Allow authenticated users
     return NextResponse.next();
   } catch (error) {
-    console.error("Proxy middleware error:", error);
+    console.error("Middleware auth error:", error);
+    // On error, redirect to login
     const loginUrl = new URL("/auth/login", request.url);
     loginUrl.searchParams.set("return_to", pathname);
     return NextResponse.redirect(loginUrl);
