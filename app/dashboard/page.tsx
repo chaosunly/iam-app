@@ -1,5 +1,6 @@
 import { getServerSession } from "@ory/nextjs/app";
 import { redirect } from "next/navigation";
+import { LogoutButton } from "./logout-button";
 
 export default async function DashboardPage() {
   const session = await getServerSession();
@@ -29,14 +30,7 @@ export default async function DashboardPage() {
             >
               Settings
             </a>
-            <form action="/api/auth/logout" method="POST">
-              <button
-                type="submit"
-                className="text-sm px-4 py-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-lg hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors"
-              >
-                Logout
-              </button>
-            </form>
+            <LogoutButton />
           </nav>
         </div>
       </header>

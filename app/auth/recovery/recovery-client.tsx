@@ -1,16 +1,16 @@
 "use client";
 
-import { Login } from "@ory/elements-react/theme";
+import { Recovery } from "@ory/elements-react/theme";
 import { OryClientConfiguration } from "@ory/elements-react";
-import { LoginFlow } from "@ory/client-fetch";
+import { RecoveryFlow } from "@ory/client-fetch";
 import { useEffect } from "react";
 
-interface LoginClientProps {
-  flow: LoginFlow;
+interface RecoveryClientProps {
+  flow: RecoveryFlow;
   config: OryClientConfiguration;
 }
 
-export function LoginClient({ flow, config }: LoginClientProps) {
+export function RecoveryClient({ flow, config }: RecoveryClientProps) {
   // Ensure SDK URL uses current origin for proper proxying
   const clientConfig: OryClientConfiguration = {
     ...config,
@@ -25,14 +25,14 @@ export function LoginClient({ flow, config }: LoginClientProps) {
 
   // Debug: Log the flow action URL to help troubleshoot
   useEffect(() => {
-    console.log("Login flow action:", flow?.ui?.action);
+    console.log("Recovery flow action:", flow?.ui?.action);
     console.log("SDK URL:", clientConfig.sdk?.url);
     console.log("Flow ID:", flow?.id);
   }, [flow, clientConfig.sdk?.url]);
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-zinc-50 dark:bg-black">
-      <Login
+      <Recovery
         flow={flow}
         config={clientConfig}
         components={{
