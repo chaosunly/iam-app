@@ -26,16 +26,25 @@ function formatTupleForApi(tuple: RelationTuple) {
 /**
  * Check if a subject has permission (Zero-Trust verification)
  */
-export async function checkPermission(
-  tuple: RelationTuple
-): Promise<boolean> {
+export async function checkPermission(tuple: RelationTuple): Promise<boolean> {
   try {
     // Validate input
-    if (!tuple.namespace || !tuple.object || !tuple.relation || !tuple.subject) {
+    if (
+      !tuple.namespace ||
+      !tuple.object ||
+      !tuple.relation ||
+      !tuple.subject
+    ) {
       throw new BadRequestError("Invalid permission tuple");
     }
 
     const url = `${KETO_READ_URL}/relation-tuples/check`;
+    console.log("[Keto] Checking permission:", {
+      url,
+      KETO_READ_URL,
+      tuple,
+    });
+
     const response = await fetch(url, {
       method: "POST",
       headers: {
@@ -45,14 +54,24 @@ export async function checkPermission(
     });
 
     if (!response.ok) {
-      console.error("Keto check failed:", await response.text());
+      const errorText = await response.text();
+      console.error("[Keto] Check failed:", {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorText,
+        url,
+      });
       return false; // Fail closed - deny by default
     }
 
     const data: PermissionCheck = await response.json();
+    console.log("[Keto] Check result:", { allowed: data.allowed, tuple });
     return data.allowed === true;
   } catch (error) {
-    console.error("Error checking permission:", error);
+    console.error("[Keto] Error checking permission:", error, {
+      url: `${KETO_READ_URL}/relation-tuples/check`,
+      tuple,
+    });
     return false; // Fail closed - deny by default
   }
 }
@@ -63,7 +82,12 @@ export async function checkPermission(
 export async function grantPermission(tuple: RelationTuple): Promise<void> {
   try {
     // Validate input
-    if (!tuple.namespace || !tuple.object || !tuple.relation || !tuple.subject) {
+    if (
+      !tuple.namespace ||
+      !tuple.object ||
+      !tuple.relation ||
+      !tuple.subject
+    ) {
       throw new BadRequestError("Invalid permission tuple");
     }
 
@@ -81,7 +105,10 @@ export async function grantPermission(tuple: RelationTuple): Promise<void> {
       throw new InternalServerError(`Failed to grant permission: ${error}`);
     }
   } catch (error) {
-    if (error instanceof BadRequestError || error instanceof InternalServerError) {
+    if (
+      error instanceof BadRequestError ||
+      error instanceof InternalServerError
+    ) {
       throw error;
     }
     throw new InternalServerError("Failed to grant permission");
@@ -94,7 +121,12 @@ export async function grantPermission(tuple: RelationTuple): Promise<void> {
 export async function revokePermission(tuple: RelationTuple): Promise<void> {
   try {
     // Validate input
-    if (!tuple.namespace || !tuple.object || !tuple.relation || !tuple.subject) {
+    if (
+      !tuple.namespace ||
+      !tuple.object ||
+      !tuple.relation ||
+      !tuple.subject
+    ) {
       throw new BadRequestError("Invalid permission tuple");
     }
 
@@ -115,7 +147,10 @@ export async function revokePermission(tuple: RelationTuple): Promise<void> {
       throw new InternalServerError(`Failed to revoke permission: ${error}`);
     }
   } catch (error) {
-    if (error instanceof BadRequestError || error instanceof InternalServerError) {
+    if (
+      error instanceof BadRequestError ||
+      error instanceof InternalServerError
+    ) {
       throw error;
     }
     throw new InternalServerError("Failed to revoke permission");
@@ -127,7 +162,7 @@ export async function revokePermission(tuple: RelationTuple): Promise<void> {
  */
 export async function listUserPermissions(
   userId: string,
-  namespace?: string
+  namespace?: string,
 ): Promise<RelationTuple[]> {
   try {
     if (!userId) {
@@ -163,7 +198,10 @@ export async function listUserPermissions(
       subject: rt.subject_id?.id || rt.subject_id,
     }));
   } catch (error) {
-    if (error instanceof BadRequestError || error instanceof InternalServerError) {
+    if (
+      error instanceof BadRequestError ||
+      error instanceof InternalServerError
+    ) {
       throw error;
     }
     throw new InternalServerError("Failed to list user permissions");
@@ -175,7 +213,7 @@ export async function listUserPermissions(
  */
 export async function listObjectPermissions(
   namespace: string,
-  object: string
+  object: string,
 ): Promise<RelationTuple[]> {
   try {
     if (!namespace || !object) {
@@ -208,7 +246,10 @@ export async function listObjectPermissions(
       subject: rt.subject_id?.id || rt.subject_id,
     }));
   } catch (error) {
-    if (error instanceof BadRequestError || error instanceof InternalServerError) {
+    if (
+      error instanceof BadRequestError ||
+      error instanceof InternalServerError
+    ) {
       throw error;
     }
     throw new InternalServerError("Failed to list object permissions");
@@ -219,7 +260,7 @@ export async function listObjectPermissions(
  * Batch permission check for multiple permissions
  */
 export async function checkPermissions(
-  tuples: RelationTuple[]
+  tuples: RelationTuple[],
 ): Promise<boolean[]> {
   return Promise.all(tuples.map((tuple) => checkPermission(tuple)));
 }
@@ -230,7 +271,7 @@ export async function checkPermissions(
 export async function hasAnyRole(
   userId: string,
   roles: string[],
-  namespace = "GlobalRole"
+  namespace = "GlobalRole",
 ): Promise<boolean> {
   const checks = await Promise.all(
     roles.map((role) =>
@@ -239,8 +280,8 @@ export async function hasAnyRole(
         object: role,
         relation: "is_" + role.toLowerCase(),
         subject: userId,
-      })
-    )
+      }),
+    ),
   );
 
   return checks.some((allowed) => allowed);
@@ -252,7 +293,7 @@ export async function hasAnyRole(
 export async function hasAllRoles(
   userId: string,
   roles: string[],
-  namespace = "GlobalRole"
+  namespace = "GlobalRole",
 ): Promise<boolean> {
   const checks = await Promise.all(
     roles.map((role) =>
@@ -261,8 +302,8 @@ export async function hasAllRoles(
         object: role,
         relation: "is_" + role.toLowerCase(),
         subject: userId,
-      })
-    )
+      }),
+    ),
   );
 
   return checks.every((allowed) => allowed);
