@@ -6,11 +6,11 @@ import { checkPermission } from "./keto";
 export async function checkAuth(request: NextRequest) {
   try {
     const session = await getServerSession();
-    
+
     if (!session || !session.identity) {
       return NextResponse.json(
         { error: "Unauthorized - Please login" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -19,14 +19,14 @@ export async function checkAuth(request: NextRequest) {
     const hasPermission = await checkPermission({
       namespace: "GlobalRole",
       object: "admin",
-      relation: "is_admin",
+      relation: "members",
       subject: userId,
     });
 
     if (!hasPermission) {
       return NextResponse.json(
         { error: "Forbidden - Admin access required" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -35,7 +35,7 @@ export async function checkAuth(request: NextRequest) {
     console.error("Auth check error:", error);
     return NextResponse.json(
       { error: "Authentication failed" },
-      { status: 401 }
+      { status: 401 },
     );
   }
 }

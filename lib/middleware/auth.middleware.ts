@@ -38,7 +38,7 @@ export async function requirePermission(
     namespace: string;
     object: string;
     relation: string;
-  }
+  },
 ): Promise<void> {
   const hasPermission = await checkPermission({
     namespace: permission.namespace,
@@ -49,7 +49,7 @@ export async function requirePermission(
 
   if (!hasPermission) {
     throw new ForbiddenError(
-      `Permission required: ${permission.namespace}:${permission.object}#${permission.relation}`
+      `Permission required: ${permission.namespace}:${permission.object}#${permission.relation}`,
     );
   }
 }
@@ -66,7 +66,7 @@ export async function requireAdmin(request: NextRequest): Promise<UserContext> {
   await requirePermission(userContext, {
     namespace: "GlobalRole",
     object: "admin",
-    relation: "is_admin",
+    relation: "members",
   });
 
   return userContext;
@@ -78,7 +78,7 @@ export async function requireAdmin(request: NextRequest): Promise<UserContext> {
 export async function hasRole(
   userId: string,
   role: string,
-  namespace = "GlobalRole"
+  namespace = "GlobalRole",
 ): Promise<boolean> {
   return checkPermission({
     namespace,
@@ -98,7 +98,7 @@ export async function requireAnyPermission(
     namespace: string;
     object: string;
     relation: string;
-  }>
+  }>,
 ): Promise<void> {
   const checks = await Promise.all(
     permissions.map((perm) =>
@@ -107,8 +107,8 @@ export async function requireAnyPermission(
         object: perm.object,
         relation: perm.relation,
         subject: userContext.userId,
-      })
-    )
+      }),
+    ),
   );
 
   if (!checks.some((allowed: boolean) => allowed)) {
@@ -126,7 +126,7 @@ export async function requireAllPermissions(
     namespace: string;
     object: string;
     relation: string;
-  }>
+  }>,
 ): Promise<void> {
   const checks = await Promise.all(
     permissions.map((perm) =>
@@ -135,8 +135,8 @@ export async function requireAllPermissions(
         object: perm.object,
         relation: perm.relation,
         subject: userContext.userId,
-      })
-    )
+      }),
+    ),
   );
 
   if (!checks.every((allowed: boolean) => allowed)) {
