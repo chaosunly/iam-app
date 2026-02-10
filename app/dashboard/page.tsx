@@ -15,8 +15,11 @@ export default async function DashboardPage() {
   const email = user.traits.email || "No email";
   const name = user.traits.name?.first || user.traits.username || "User";
 
-  // Check if user is a global admin (they shouldn't be here if they are)
+  // Check if user is a global admin - redirect them to admin dashboard
   const hasAdminAccess = await isGlobalAdmin(userId);
+  if (hasAdminAccess) {
+    redirect("/admin");
+  }
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-black">

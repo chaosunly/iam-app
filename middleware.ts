@@ -94,10 +94,18 @@ export async function middleware(request: NextRequest) {
       console.log(`[Middleware] Admin access granted for user ${userId}`);
     }
 
-    // Check if accessing login page while authenticated
+    // Check if accessing login page or home while authenticated - redirect to appropriate dashboard
     if (pathname === "/auth/login" || pathname === "/") {
       const dashboardRoute = await getUserDashboardRoute(userId);
       return NextResponse.redirect(new URL(dashboardRoute, request.url));
+    }
+
+    // Check if admin trying to access regular dashboard - redirect to admin panel
+    if (pathname === "/dashboard") {
+      const hasAdminAccess = await canAccessAdmin(userId);
+      if (hasAdminAccess) {
+        return NextResponse.redirect(new URL("/admin", request.url));
+      }
     }
 
     // Allow authenticated users to proceed
