@@ -11,7 +11,7 @@ export {
   updateIdentity,
   deleteIdentity,
   searchIdentities,
-} from './kratos.service';
+} from "./kratos.service";
 
 // Keto Service (Authorization)
 export {
@@ -23,4 +23,43 @@ export {
   checkPermissions,
   hasAnyRole,
   hasAllRoles,
-} from './keto.service';
+} from "./keto.service";
+
+// Permission Service (Permission checks with caching)
+export {
+  checkPermissionCached,
+  invalidateUserCache,
+  clearPermissionCache,
+  isGlobalAdmin,
+  hasOrgPermission,
+  getUserDashboardRoute,
+  canAccessAdmin,
+  isMemberOfAnyOrg,
+} from "./permission.service";
+
+// Audit Service (Security logging)
+export {
+  logAudit,
+  logPermissionCheck,
+  logAdminAction,
+  logAuthEvent,
+  logAccessDenied,
+} from "./audit.service";
+
+// User Setup Service (New user onboarding)
+export {
+  assignDefaultPermissions,
+  createUserOrganization,
+  promoteToGlobalAdmin,
+} from "./user-setup.service";
+
+// Keto Helper Functions (Direct Keto operations)
+export {
+  checkKetoHealth,
+  makeGlobalAdmin,
+  revokeGlobalAdmin,
+  addUserToOrg,
+  removeUserFromOrg,
+  createDefaultOrg,
+  hasAnyOrgMembership,
+} from "../keto";

@@ -1,6 +1,7 @@
 import { getServerSession } from "@ory/nextjs/app";
 import { redirect } from "next/navigation";
 import { LogoutButton } from "./logout-button";
+import { isGlobalAdmin } from "@/lib/services/permission.service";
 
 export default async function DashboardPage() {
   const session = await getServerSession();
@@ -10,8 +11,12 @@ export default async function DashboardPage() {
   }
 
   const user = session.identity;
+  const userId = user.id;
   const email = user.traits.email || "No email";
   const name = user.traits.name?.first || user.traits.username || "User";
+
+  // Check if user is a global admin (they shouldn't be here if they are)
+  const hasAdminAccess = await isGlobalAdmin(userId);
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-black">
@@ -24,6 +29,14 @@ export default async function DashboardPage() {
             </h1>
           </div>
           <nav className="flex items-center gap-4">
+            {hasAdminAccess && (
+              <a
+                href="/admin"
+                className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              >
+                Admin Panel
+              </a>
+            )}
             <a
               href="/auth/settings"
               className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-50"
@@ -47,7 +60,25 @@ export default async function DashboardPage() {
           </p>
         </div>
 
-        {/* Stats Grid */}
+        {/* User Role Info */}
+        <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+          <div className="flex items-center gap-2">
+            <svg
+              className="w-5 h-5 text-green-600 dark:text-green-400"
+              fill="currentColor"
+              viewBox="0 0 20 20"
+            >
+              <path
+                fillRule="evenodd"
+                d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
+                clipRule="evenodd"
+              />
+            </svg>
+            <span className="text-sm font-medium text-green-900 dark:text-green-100">
+              User Dashboard - Organization Member
+            </span>
+          </div>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="bg-white dark:bg-zinc-900 p-6 rounded-lg border border-zinc-200 dark:border-zinc-800">
             <div className="flex items-center justify-between">

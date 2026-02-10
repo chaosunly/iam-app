@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "@ory/nextjs/app";
 import { createOryMiddleware } from "@ory/nextjs/middleware";
 import oryConfig from "@/ory.config";
+import {
+  canAccessAdmin,
+  getUserDashboardRoute,
+} from "@/lib/services/permission.service";
+import { logAccessDenied } from "@/lib/services/audit.service";
 
 // Create Ory proxy middleware for authentication flows
 const oryProxy = createOryMiddleware(oryConfig);
@@ -10,11 +15,7 @@ const oryProxy = createOryMiddleware(oryConfig);
 const PROTECTED_ROUTES = {
   admin: {
     pattern: /^\/admin/,
-    requiredPermission: {
-      namespace: "GlobalRole",
-      object: "admin",
-      relation: "is_admin",
-    },
+    checkPermission: canAccessAdmin,
   },
   dashboard: {
     pattern: /^\/dashboard/,
@@ -41,11 +42,13 @@ export async function middleware(request: NextRequest) {
   // 1. First, let Ory handle its authentication flows and self-service routes
   // This is required for login, registration, recovery, etc.
   if (
-    pathname.startsWith("/.ory") || 
+    pathname.startsWith("/.ory") ||
     pathname.startsWith("/api/.ory") ||
     pathname.startsWith("/self-service")
   ) {
-    console.log(`[Middleware] Proxying Ory request: ${request.method} ${pathname}`);
+    console.log(
+      `[Middleware] Proxying Ory request: ${request.method} ${pathname}`,
+    );
     return oryProxy(request);
   }
 
@@ -59,13 +62,45 @@ export async function middleware(request: NextRequest) {
     const session = await getServerSession();
 
     // If no session, redirect to login
-    if (!session) {
+    if (!session || !session.identity) {
       const loginUrl = new URL("/auth/login", request.url);
       loginUrl.searchParams.set("return_to", pathname);
       return NextResponse.redirect(loginUrl);
     }
 
-    // Allow authenticated users
+    const userId = session.identity.id;
+
+    // Check if trying to access admin panel
+    if (PROTECTED_ROUTES.admin.pattern.test(pathname)) {
+      const hasAdminAccess = await canAccessAdmin(userId);
+
+      if (!hasAdminAccess) {
+        console.log(
+          `[Middleware] Access denied to admin panel for user ${userId}`,
+        );
+
+        // Log access denial
+        await logAccessDenied(
+          userId,
+          pathname,
+          "Not a global admin",
+          request.headers.get("x-forwarded-for") || undefined,
+        );
+
+        // Redirect to user dashboard
+        return NextResponse.redirect(new URL("/dashboard", request.url));
+      }
+
+      console.log(`[Middleware] Admin access granted for user ${userId}`);
+    }
+
+    // Check if accessing login page while authenticated
+    if (pathname === "/auth/login" || pathname === "/") {
+      const dashboardRoute = await getUserDashboardRoute(userId);
+      return NextResponse.redirect(new URL(dashboardRoute, request.url));
+    }
+
+    // Allow authenticated users to proceed
     return NextResponse.next();
   } catch (error) {
     console.error("Middleware auth error:", error);
