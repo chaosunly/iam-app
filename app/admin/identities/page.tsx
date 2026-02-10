@@ -35,8 +35,9 @@ export default function IdentitiesPage() {
       if (!response.ok) {
         throw new Error("Failed to fetch identities");
       }
-      const data = await response.json();
-      setIdentities(data);
+      const result = await response.json();
+      // API wraps response in { data, status }
+      setIdentities(Array.isArray(result.data) ? result.data : []);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");

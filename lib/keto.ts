@@ -48,12 +48,19 @@ export async function checkPermission(tuple: RelationTuple): Promise<boolean> {
     const url = `${KETO_READ_URL}/relation-tuples/check?${params}`;
     console.log("[Keto] Checking permission:", url);
 
+    // Add timeout to prevent hanging
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+
     const response = await fetch(url, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
       },
+      signal: controller.signal,
     });
+
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -70,7 +77,12 @@ export async function checkPermission(tuple: RelationTuple): Promise<boolean> {
     console.log("[Keto] Check result:", data);
     return data.allowed === true;
   } catch (error) {
-    console.error("Error checking permission:", error);
+    if (error instanceof Error && error.name === "AbortError") {
+      console.error("[Keto] Permission check timeout:", tuple);
+    } else {
+      console.error("[Keto] Error checking permission:", error);
+    }
+    // Fail closed: deny access on error
     return false;
   }
 }

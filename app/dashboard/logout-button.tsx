@@ -20,13 +20,13 @@ export function LogoutButton() {
         // Force a full page reload to clear all client-side state
         window.location.href = response.url;
       } else {
-        // Fallback: navigate to login page
-        window.location.href = "/auth/login";
+        // Fallback: navigate to home page
+        window.location.href = "/";
       }
     } catch (error) {
       console.error("Logout error:", error);
-      // Force reload to login page on error
-      window.location.href = "/auth/login";
+      // Force reload to home page on error
+      window.location.href = "/";
     }
   };
 

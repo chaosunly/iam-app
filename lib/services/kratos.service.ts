@@ -4,11 +4,12 @@
  * Implements Zero-Trust: always validate responses
  */
 
+import { Identity, CreateIdentityRequest } from "@/lib/types";
 import {
-  Identity,
-  CreateIdentityRequest,
-} from "@/lib/types";
-import { InternalServerError, NotFoundError, BadRequestError } from "@/lib/errors";
+  InternalServerError,
+  NotFoundError,
+  BadRequestError,
+} from "@/lib/errors";
 
 const KRATOS_ADMIN_URL = process.env.ORY_KRATOS_ADMIN_URL;
 
@@ -21,13 +22,13 @@ if (!KRATOS_ADMIN_URL) {
  */
 export async function listIdentities(
   page = 0,
-  perPage = 250
+  perPage = 250,
 ): Promise<Identity[]> {
   try {
     const url = `${KRATOS_ADMIN_URL}/admin/identities?page=${page}&per_page=${perPage}`;
-    
+
     console.log("Fetching identities from:", url); // Debug log
-    
+
     const response = await fetch(url, {
       method: "GET",
       headers: {
@@ -44,7 +45,7 @@ export async function listIdentities(
         url,
       });
       throw new InternalServerError(
-        `Kratos API error: ${response.status} ${response.statusText} - ${errorText}`
+        `Kratos API error: ${response.status} ${response.statusText} - ${errorText}`,
       );
     }
 
@@ -53,7 +54,9 @@ export async function listIdentities(
   } catch (error) {
     console.error("Failed to list identities:", error); // Debug log
     if (error instanceof InternalServerError) throw error;
-    throw new InternalServerError("Failed to list identities: " + (error as Error).message);
+    throw new InternalServerError(
+      "Failed to list identities: " + (error as Error).message,
+    );
   }
 }
 
@@ -62,12 +65,21 @@ export async function listIdentities(
  */
 export async function getIdentity(id: string): Promise<Identity> {
   try {
-    const response = await fetch(`${KRATOS_ADMIN_URL}/identities/${id}`, {
+    const url = `${KRATOS_ADMIN_URL}/admin/identities/${id}`;
+    console.log("Fetching identity from:", url);
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+    const response = await fetch(url, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
       },
+      signal: controller.signal,
     });
+
+    clearTimeout(timeoutId);
 
     if (response.status === 404) {
       throw new NotFoundError(`Identity ${id} not found`);
@@ -80,10 +92,20 @@ export async function getIdentity(id: string): Promise<Identity> {
 
     return await response.json();
   } catch (error) {
-    if (error instanceof NotFoundError || error instanceof InternalServerError) {
+    if (
+      error instanceof NotFoundError ||
+      error instanceof InternalServerError
+    ) {
       throw error;
     }
-    throw new InternalServerError("Failed to get identity");
+    if (error instanceof Error && error.name === "AbortError") {
+      console.error("Timeout fetching identity:", id);
+      throw new InternalServerError("Request timeout while fetching identity");
+    }
+    console.error("Failed to get identity:", error);
+    throw new InternalServerError(
+      "Failed to get identity: " + (error as Error).message,
+    );
   }
 }
 
@@ -91,7 +113,7 @@ export async function getIdentity(id: string): Promise<Identity> {
  * Create a new identity
  */
 export async function createIdentity(
-  data: CreateIdentityRequest
+  data: CreateIdentityRequest,
 ): Promise<Identity> {
   try {
     // Validate request
@@ -99,7 +121,7 @@ export async function createIdentity(
       throw new BadRequestError("schema_id and traits are required");
     }
 
-    const response = await fetch(`${KRATOS_ADMIN_URL}/identities`, {
+    const response = await fetch(`${KRATOS_ADMIN_URL}/admin/identities`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -114,7 +136,10 @@ export async function createIdentity(
 
     return await response.json();
   } catch (error) {
-    if (error instanceof BadRequestError || error instanceof InternalServerError) {
+    if (
+      error instanceof BadRequestError ||
+      error instanceof InternalServerError
+    ) {
       throw error;
     }
     throw new InternalServerError("Failed to create identity");
@@ -126,10 +151,10 @@ export async function createIdentity(
  */
 export async function updateIdentity(
   id: string,
-  data: Partial<CreateIdentityRequest>
+  data: Partial<CreateIdentityRequest>,
 ): Promise<Identity> {
   try {
-    const response = await fetch(`${KRATOS_ADMIN_URL}/identities/${id}`, {
+    const response = await fetch(`${KRATOS_ADMIN_URL}/admin/identities/${id}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -153,7 +178,10 @@ export async function updateIdentity(
 
     return await response.json();
   } catch (error) {
-    if (error instanceof NotFoundError || error instanceof InternalServerError) {
+    if (
+      error instanceof NotFoundError ||
+      error instanceof InternalServerError
+    ) {
       throw error;
     }
     throw new InternalServerError("Failed to update identity");
@@ -165,7 +193,7 @@ export async function updateIdentity(
  */
 export async function deleteIdentity(id: string): Promise<void> {
   try {
-    const response = await fetch(`${KRATOS_ADMIN_URL}/identities/${id}`, {
+    const response = await fetch(`${KRATOS_ADMIN_URL}/admin/identities/${id}`, {
       method: "DELETE",
     });
 
@@ -178,7 +206,10 @@ export async function deleteIdentity(id: string): Promise<void> {
       throw new InternalServerError(`Failed to delete identity: ${error}`);
     }
   } catch (error) {
-    if (error instanceof NotFoundError || error instanceof InternalServerError) {
+    if (
+      error instanceof NotFoundError ||
+      error instanceof InternalServerError
+    ) {
       throw error;
     }
     throw new InternalServerError("Failed to delete identity");
@@ -189,12 +220,12 @@ export async function deleteIdentity(id: string): Promise<void> {
  * Search identities by traits
  */
 export async function searchIdentities(
-  searchTerm: string
+  searchTerm: string,
 ): Promise<Identity[]> {
   // Note: Kratos doesn't have native search, so we fetch all and filter
   // For production, consider implementing a search index
   const identities = await listIdentities(0, 1000);
-  
+
   return identities.filter((identity) => {
     const traitsString = JSON.stringify(identity.traits).toLowerCase();
     return traitsString.includes(searchTerm.toLowerCase());

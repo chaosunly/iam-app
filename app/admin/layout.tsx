@@ -90,26 +90,6 @@ export default async function AdminLayout({
               </svg>
               <span>Permissions</span>
             </Link>
-
-            <Link
-              href="/dashboard"
-              className="flex items-center gap-3 px-4 py-2 rounded-lg text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-            >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M10 19l-7-7m0 0l7-7m-7 7h18"
-                />
-              </svg>
-              <span>Back to Dashboard</span>
-            </Link>
           </nav>
 
           {/* User Info */}

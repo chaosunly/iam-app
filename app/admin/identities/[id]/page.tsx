@@ -22,7 +22,13 @@ interface Identity {
 export default function IdentityDetailPage() {
   const router = useRouter();
   const params = useParams();
-  const id = params.id as string;
+  // Handle params.id being string or string[] or undefined
+  const id =
+    typeof params?.id === "string"
+      ? params.id
+      : Array.isArray(params?.id)
+        ? params.id[0]
+        : undefined;
 
   const [identity, setIdentity] = useState<Identity | null>(null);
   const [loading, setLoading] = useState(true);
@@ -35,22 +41,32 @@ export default function IdentityDetailPage() {
   });
 
   useEffect(() => {
-    fetchIdentity();
+    if (id) {
+      fetchIdentity();
+    }
   }, [id]);
 
   const fetchIdentity = async () => {
+    if (!id) {
+      setError("Invalid identity ID");
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       const response = await fetch(`/api/admin/identities/${id}`);
       if (!response.ok) {
         throw new Error("Failed to fetch identity");
       }
-      const data = await response.json();
+      const result = await response.json();
+      // API wraps response in { data, status }
+      const data = result.data || result;
       setIdentity(data);
       setFormData({
-        email: data.traits.email || "",
-        firstName: data.traits.name?.first || "",
-        lastName: data.traits.name?.last || "",
+        email: data.traits?.email || "",
+        firstName: data.traits?.name?.first || "",
+        lastName: data.traits?.name?.last || "",
       });
       setError(null);
     } catch (err) {
@@ -62,6 +78,12 @@ export default function IdentityDetailPage() {
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!id) {
+      setError("Invalid identity ID");
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
@@ -89,7 +111,9 @@ export default function IdentityDetailPage() {
         throw new Error(errorData.error || "Failed to update identity");
       }
 
-      const updated = await response.json();
+      const result = await response.json();
+      // API wraps response in { data, status }
+      const updated = result.data || result;
       setIdentity(updated);
       setEditing(false);
     } catch (err) {
@@ -100,6 +124,11 @@ export default function IdentityDetailPage() {
   };
 
   const handleDelete = async () => {
+    if (!id) {
+      alert("Invalid identity ID");
+      return;
+    }
+
     if (!confirm("Are you sure you want to delete this identity?")) {
       return;
     }
@@ -118,6 +147,21 @@ export default function IdentityDetailPage() {
       alert(err instanceof Error ? err.message : "Failed to delete identity");
     }
   };
+
+  // Handle invalid ID
+  if (!id) {
+    return (
+      <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+        <p className="text-red-800 dark:text-red-200">Invalid identity ID</p>
+        <Link
+          href="/admin/identities"
+          className="mt-2 inline-block text-sm text-red-600 dark:text-red-400 hover:underline"
+        >
+          Back to identities
+        </Link>
+      </div>
+    );
+  }
 
   if (loading && !identity) {
     return (

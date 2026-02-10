@@ -11,6 +11,7 @@ export default function NewIdentityPage() {
     email: "",
     firstName: "",
     lastName: "",
+    password: "",
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -33,6 +34,13 @@ export default function NewIdentityPage() {
               last: formData.lastName,
             },
           },
+          credentials: {
+            password: {
+              config: {
+                password: formData.password,
+              },
+            },
+          },
         }),
       });
 
@@ -41,7 +49,9 @@ export default function NewIdentityPage() {
         throw new Error(errorData.error || "Failed to create identity");
       }
 
-      const identity = await response.json();
+      const result = await response.json();
+      // API wraps response in { data, status }
+      const identity = result.data || result;
       router.push(`/admin/identities/${identity.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
@@ -127,6 +137,31 @@ export default function NewIdentityPage() {
                   placeholder="Doe"
                 />
               </div>
+            </div>
+
+            <div>
+              <label
+                htmlFor="password"
+                className="block text-sm font-medium text-zinc-900 dark:text-zinc-50 mb-2"
+              >
+                Password <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="password"
+                id="password"
+                required
+                minLength={8}
+                value={formData.password}
+                onChange={(e) =>
+                  setFormData({ ...formData, password: e.target.value })
+                }
+                className="w-full px-3 py-2 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-lg text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
+                placeholder="Minimum 8 characters"
+              />
+              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                The user will be able to login with this password and change it
+                later
+              </p>
             </div>
           </div>
         </div>
