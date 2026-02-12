@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { createOrLinkOryIdentity } from "@/lib/simplelogin-auth";
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -24,6 +23,13 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    // Use gateway URL for consistency with OAuth authorization
+    const gatewayUrl =
+      process.env.NEXT_PUBLIC_ORY_SDK_URL || request.nextUrl.origin;
+    const redirectUri = `${gatewayUrl}/auth/callback/simplelogin`;
+
+    console.log("Token exchange redirect_uri:", redirectUri); // Debug log
+
     // Exchange authorization code for access token
     const tokenResponse = await fetch(
       "https://app.simplelogin.io/oauth2/token",
@@ -37,7 +43,7 @@ export async function GET(request: NextRequest) {
           code: code,
           client_id: process.env.NEXT_PUBLIC_SIMPLELOGIN_CLIENT_ID!,
           client_secret: process.env.SIMPLELOGIN_CLIENT_SECRET!,
-          redirect_uri: `${request.nextUrl.origin}/auth/callback/simplelogin`,
+          redirect_uri: redirectUri,
         }),
       },
     );
@@ -66,18 +72,10 @@ export async function GET(request: NextRequest) {
 
     const userData = await userResponse.json();
 
-    console.log("SimpleLogin user authenticated:", {
-      sub: userData.sub,
-      email: userData.email,
-      name: userData.name,
-    });
+    console.log("SimpleLogin user authenticated:", userData);
 
-    // Store user data temporarily in a secure cookie for profile completion
+    // Store user data temporarily in a secure cookie
     const cookieStore = await cookies();
-    const response = NextResponse.redirect(
-      new URL("/auth/complete-profile", request.url),
-    );
-
     cookieStore.set(
       "pending_simplelogin_user",
       JSON.stringify({
@@ -95,15 +93,9 @@ export async function GET(request: NextRequest) {
       },
     );
 
-    // Create or link Ory identity
-    try {
-      await createOrLinkOryIdentity(userData);
-    } catch (oryError) {
-      console.error("Ory identity creation warning:", oryError);
-      // Continue anyway - profile completion will handle it
-    }
-
-    return response;
+    return NextResponse.redirect(
+      new URL("/auth/complete-profile", request.url),
+    );
   } catch (error) {
     console.error("SimpleLogin authentication error:", error);
     return NextResponse.redirect(

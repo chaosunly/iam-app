@@ -43,11 +43,16 @@ export function LoginClient({ flow, config }: LoginClientProps) {
       return;
     }
 
-    const redirectUri = `${window.location.origin}/auth/callback/simplelogin`;
-    const state = crypto.randomUUID(); // Generate secure random state
+    // Use gateway URL for OAuth callback (routes through nginx to app)
+    const gatewayUrl =
+      process.env.NEXT_PUBLIC_ORY_SDK_URL || window.location.origin;
+    const redirectUri = `${gatewayUrl}/auth/callback/simplelogin`;
+    const state = crypto.randomUUID();
 
     // Store state in sessionStorage for CSRF verification
     sessionStorage.setItem("simplelogin_state", state);
+
+    console.log("SimpleLogin redirect URI:", redirectUri); // Debug log
 
     // Construct OAuth authorization URL
     const params = new URLSearchParams({
@@ -55,7 +60,7 @@ export function LoginClient({ flow, config }: LoginClientProps) {
       redirect_uri: redirectUri,
       state: state,
       response_type: "code",
-      scope: "openid profile email", // Request user info
+      scope: "openid profile email",
     });
 
     const authUrl = `https://app.simplelogin.io/oauth2/authorize?${params.toString()}`;
