@@ -59,16 +59,43 @@ export async function middleware(request: NextRequest) {
 
   // 3. For protected routes, check authentication
   try {
-    const session = await getServerSession();
+    // Check for SimpleLogin session first
+    const simpleLoginSession = request.cookies.get("simplelogin_session");
+    let userId: string | null = null;
 
-    // If no session, redirect to login
-    if (!session || !session.identity) {
-      const loginUrl = new URL("/auth/login", request.url);
-      loginUrl.searchParams.set("return_to", pathname);
-      return NextResponse.redirect(loginUrl);
+    if (simpleLoginSession) {
+      try {
+        const sessionData = JSON.parse(simpleLoginSession.value);
+        if (
+          sessionData.authenticated &&
+          sessionData.provider === "simplelogin"
+        ) {
+          userId = sessionData.userId;
+          console.log(
+            `[Middleware] SimpleLogin session found for user ${userId}`,
+          );
+        }
+      } catch (error) {
+        console.error(
+          "[Middleware] Failed to parse SimpleLogin session:",
+          error,
+        );
+      }
     }
 
-    const userId = session.identity.id;
+    // Fall back to Ory session if no SimpleLogin session
+    if (!userId) {
+      const session = await getServerSession();
+
+      // If no session, redirect to login
+      if (!session || !session.identity) {
+        const loginUrl = new URL("/auth/login", request.url);
+        loginUrl.searchParams.set("return_to", pathname);
+        return NextResponse.redirect(loginUrl);
+      }
+
+      userId = session.identity.id;
+    }
 
     // Check if trying to access admin panel
     if (PROTECTED_ROUTES.admin.pattern.test(pathname)) {

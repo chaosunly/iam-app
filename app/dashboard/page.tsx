@@ -1,19 +1,51 @@
 import { getServerSession } from "@ory/nextjs/app";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { LogoutButton } from "./logout-button";
 import { isGlobalAdmin } from "@/lib/services/permission.service";
 
 export default async function DashboardPage() {
-  const session = await getServerSession();
+  // Check for SimpleLogin session first
+  const cookieStore = await cookies();
+  const simpleLoginSession = cookieStore.get("simplelogin_session");
 
-  if (!session || !session.identity) {
-    redirect("/auth/login");
+  let user = null;
+  let userId = "";
+  let email = "";
+  let name = "";
+  let isSimpleLoginUser = false;
+
+  if (simpleLoginSession) {
+    try {
+      const sessionData = JSON.parse(simpleLoginSession.value);
+      userId = sessionData.userId;
+      email = sessionData.email;
+      name = sessionData.name;
+      isSimpleLoginUser = true;
+      console.log("Dashboard - SimpleLogin user:", email);
+    } catch (error) {
+      console.error("Failed to parse SimpleLogin session:", error);
+    }
   }
 
-  const user = session.identity;
-  const userId = user.id;
-  const email = user.traits.email || "No email";
-  const name = user.traits.name?.first || user.traits.username || "User";
+  // Fall back to Ory session if no SimpleLogin session
+  if (!isSimpleLoginUser) {
+    const session = await getServerSession();
+
+    if (!session || !session.identity) {
+      redirect("/auth/login");
+    }
+
+    user = session.identity;
+    userId = user.id;
+    email = user.traits.email || "No email";
+    name = user.traits.name?.first || user.traits.username || "User";
+  }
+
+  // If no valid session found, redirect to login
+  if (!userId) {
+    redirect("/auth/login");
+  }
 
   // Check if user is a global admin - redirect them to admin dashboard
   const hasAdminAccess = await isGlobalAdmin(userId);
@@ -59,7 +91,9 @@ export default async function DashboardPage() {
             Welcome back, {name}!
           </h2>
           <p className="text-zinc-600 dark:text-zinc-400">
-            Here's what's happening with your account today.
+            {isSimpleLoginUser
+              ? "Authenticated via SimpleLogin"
+              : "Here&apos;s what&apos;s happening with your account today."}
           </p>
         </div>
 
@@ -146,7 +180,7 @@ export default async function DashboardPage() {
                   User ID
                 </p>
                 <p className="text-xs font-mono text-zinc-900 dark:text-zinc-50 truncate">
-                  {user.id.substring(0, 16)}...
+                  {userId.substring(0, 16)}...
                 </p>
               </div>
               <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/20 rounded-full flex items-center justify-center">

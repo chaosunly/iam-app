@@ -1,17 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { getOryClient } from "@/lib/ory-client";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { sub, email, name } = body;
 
+    console.log("Complete profile request:", { sub, email, name });
+
     // Verify the pending user cookie matches
     const cookieStore = await cookies();
     const pendingUserCookie = cookieStore.get("pending_simplelogin_user");
 
     if (!pendingUserCookie) {
+      console.error("No pending user cookie found");
       return NextResponse.json(
         { error: "No pending profile found" },
         { status: 400 },
@@ -21,100 +23,50 @@ export async function POST(request: NextRequest) {
     const pendingUser = JSON.parse(pendingUserCookie.value);
 
     if (pendingUser.sub !== sub) {
+      console.error("User mismatch:", {
+        pending: pendingUser.sub,
+        provided: sub,
+      });
       return NextResponse.json({ error: "Profile mismatch" }, { status: 400 });
     }
 
-    const oryClient = getOryClient();
+    console.log("Creating SimpleLogin session for user:", email);
 
-    try {
-      // Create registration flow
-      const registrationFlow = await oryClient.createNativeRegistrationFlow();
+    // Create a session cookie for SimpleLogin authentication
+    // This bypasses Kratos for now - you can integrate later
+    cookieStore.set(
+      "simplelogin_session",
+      JSON.stringify({
+        userId: sub,
+        email: email,
+        name: name,
+        avatar_url: pendingUser.avatar_url,
+        provider: "simplelogin",
+        authenticated: true,
+        createdAt: new Date().toISOString(),
+      }),
+      {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/",
+        maxAge: 60 * 60 * 24 * 7, // 7 days
+      },
+    );
 
-      // Parse name into first and last
-      const nameParts = name.split(" ");
-      const firstName = nameParts[0] || name;
-      const lastName = nameParts.slice(1).join(" ") || "";
+    // Clear pending user cookie
+    cookieStore.delete("pending_simplelogin_user");
 
-      // Complete registration with user data
-      const result = await oryClient.updateRegistrationFlow({
-        flow: registrationFlow.id,
-        updateRegistrationFlowBody: {
-          method: "password",
-          traits: {
-            email: email,
-            name: {
-              first: firstName,
-              last: lastName,
-            },
-          },
-          // Generate a random password since user authenticated via OAuth
-          password: crypto.randomUUID() + "!A1a",
-        },
-      });
+    console.log("✅ SimpleLogin session created successfully for:", email);
 
-      // Clear pending user cookie
-      cookieStore.delete("pending_simplelogin_user");
-
-      // Set session cookie if available
-      if (result.session_token) {
-        cookieStore.set("ory_session_token", result.session_token, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
-          sameSite: "lax",
-          path: "/",
-          maxAge: 60 * 60 * 24 * 7, // 7 days
-        });
-      }
-
-      console.log("✅ Profile completed successfully for:", email);
-
-      return NextResponse.json({ success: true });
-    } catch (oryError: unknown) {
-      console.error("Ory registration error:", oryError);
-
-      // If user already exists, try to create a login flow instead
-      const errorMessage =
-        oryError instanceof Error ? oryError.message : String(oryError);
-      if (
-        errorMessage.includes("exists") ||
-        errorMessage.includes("duplicate")
-      ) {
-        try {
-          // User already exists, create login flow
-          await oryClient.createNativeLoginFlow();
-
-          // Try to authenticate with the existing identity
-          await oryClient.updateLoginFlow({
-            flow: (await oryClient.createNativeLoginFlow()).id,
-            updateLoginFlowBody: {
-              method: "password",
-              identifier: email,
-              password: crypto.randomUUID() + "!A1a", // Won't work, but triggers flow
-            },
-          });
-
-          // Clear pending user cookie
-          cookieStore.delete("pending_simplelogin_user");
-
-          return NextResponse.json({
-            success: true,
-            message: "Logged in with existing account",
-          });
-        } catch (loginError) {
-          console.error("Login attempt failed:", loginError);
-          // Clear pending cookie anyway
-          cookieStore.delete("pending_simplelogin_user");
-
-          // Redirect to dashboard anyway - they're authenticated via SimpleLogin
-          return NextResponse.json({
-            success: true,
-            message: "Authenticated via SimpleLogin",
-          });
-        }
-      }
-
-      throw oryError;
-    }
+    return NextResponse.json({
+      success: true,
+      user: {
+        id: sub,
+        email: email,
+        name: name,
+      },
+    });
   } catch (error) {
     console.error("Profile completion error:", error);
     return NextResponse.json(

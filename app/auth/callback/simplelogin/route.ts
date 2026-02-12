@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { backgroundSyncToKratos } from "@/lib/services/simplelogin-sync.service";
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -74,28 +75,43 @@ export async function GET(request: NextRequest) {
 
     console.log("SimpleLogin user authenticated:", userData);
 
-    // Store user data temporarily in a secure cookie
+    // Directly create SimpleLogin session without profile completion page
     const cookieStore = await cookies();
+
+    // Create session cookie
     cookieStore.set(
-      "pending_simplelogin_user",
+      "simplelogin_session",
       JSON.stringify({
-        sub: userData.sub,
+        userId: userData.sub,
         email: userData.email,
-        name: userData.name,
+        name: userData.name || userData.email.split("@")[0],
         avatar_url: userData.avatar_url,
+        provider: "simplelogin",
+        authenticated: true,
+        createdAt: new Date().toISOString(),
       }),
       {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
         path: "/",
-        maxAge: 60 * 15, // 15 minutes
+        maxAge: 60 * 60 * 24 * 7, // 7 days
       },
     );
 
-    return NextResponse.redirect(
-      new URL("/auth/complete-profile", request.url),
-    );
+    console.log("✅ SimpleLogin session created for:", userData.email);
+
+    // Optional: Sync to Kratos in the background (non-blocking)
+    // This creates a Kratos identity without delaying the user
+    backgroundSyncToKratos({
+      userId: userData.sub,
+      email: userData.email,
+      name: userData.name || userData.email.split("@")[0],
+      avatar_url: userData.avatar_url,
+    });
+
+    // Redirect directly to dashboard
+    return NextResponse.redirect(new URL("/dashboard", request.url));
   } catch (error) {
     console.error("SimpleLogin authentication error:", error);
     return NextResponse.redirect(
