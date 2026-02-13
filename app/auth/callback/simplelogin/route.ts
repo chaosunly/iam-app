@@ -121,9 +121,10 @@ export async function GET(request: NextRequest) {
           `Creating Kratos session for identity ${syncResult.identityId}`,
         );
 
-        // Create a session for this identity using the correct endpoint
+        // Use the gateway's /kratos-admin/ path which routes to Kratos admin API
+        // Gateway rewrites /kratos-admin/sessions to /admin/sessions on Kratos
         const sessionResponse = await fetch(
-          `${kratosAdminUrl}/admin/sessions`,
+          `${kratosAdminUrl}/kratos-admin/sessions`,
           {
             method: "POST",
             headers: {

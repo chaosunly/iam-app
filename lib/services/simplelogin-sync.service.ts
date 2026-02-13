@@ -37,8 +37,9 @@ export async function syncSimpleLoginUserToKratos(
     const firstName = nameParts[0] || user.name;
     const lastName = nameParts.slice(1).join(" ") || "";
 
-    // Create identity via Kratos Admin API
-    const response = await fetch(`${kratosAdminUrl}/admin/identities`, {
+    // Create identity via Kratos Admin API through gateway
+    // Gateway path /kratos-admin/identities routes to /admin/identities on Kratos
+    const response = await fetch(`${kratosAdminUrl}/kratos-admin/identities`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -80,9 +81,9 @@ export async function syncSimpleLoginUserToKratos(
       );
 
       try {
-        // List identities and find by email
+        // List identities and find by email using gateway path
         const listResponse = await fetch(
-          `${kratosAdminUrl}/admin/identities?credentials_identifier=${encodeURIComponent(user.email)}`,
+          `${kratosAdminUrl}/kratos-admin/identities?credentials_identifier=${encodeURIComponent(user.email)}`,
           {
             method: "GET",
             headers: {
