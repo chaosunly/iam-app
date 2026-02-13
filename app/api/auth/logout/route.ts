@@ -66,11 +66,13 @@ export async function POST(request: NextRequest) {
     // Create response and redirect to home page
     const response = NextResponse.redirect(new URL("/", request.url));
 
-    // Clear all ory-related cookies
+    // Clear all authentication cookies (Ory + SimpleLogin)
     allCookies.forEach((cookie) => {
       if (
         cookie.name.startsWith("ory_") ||
-        cookie.name.startsWith("csrf_token_")
+        cookie.name.startsWith("csrf_token_") ||
+        cookie.name === "simplelogin_session" ||
+        cookie.name === "pending_simplelogin_user"
       ) {
         response.cookies.set(cookie.name, "", {
           maxAge: 0,
@@ -80,7 +82,9 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    console.log("[Logout] Cookies cleared, redirecting to home");
+    console.log(
+      "[Logout] All authentication cookies cleared, redirecting to home",
+    );
     return response;
   } catch (error) {
     console.error("Logout error:", error);
@@ -91,7 +95,9 @@ export async function POST(request: NextRequest) {
     allCookies.forEach((cookie) => {
       if (
         cookie.name.startsWith("ory_") ||
-        cookie.name.startsWith("csrf_token_")
+        cookie.name.startsWith("csrf_token_") ||
+        cookie.name === "simplelogin_session" ||
+        cookie.name === "pending_simplelogin_user"
       ) {
         response.cookies.set(cookie.name, "", {
           maxAge: 0,
