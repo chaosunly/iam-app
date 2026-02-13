@@ -121,16 +121,17 @@ export async function GET(request: NextRequest) {
           `Creating Kratos session for identity ${syncResult.identityId}`,
         );
 
-        // Create a session for this identity
+        // Create a session for this identity using the correct endpoint
         const sessionResponse = await fetch(
-          `${kratosAdminUrl}/admin/identities/${syncResult.identityId}/sessions`,
+          `${kratosAdminUrl}/admin/sessions`,
           {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              expires_in: "7d",
+              identity_id: syncResult.identityId,
+              expires_in: "604800s", // 7 days in seconds
             }),
           },
         );
@@ -138,22 +139,28 @@ export async function GET(request: NextRequest) {
         if (sessionResponse.ok) {
           const sessionData = await sessionResponse.json();
 
-          console.log("Session data received:", sessionData);
+          console.log(
+            "Session data received:",
+            JSON.stringify(sessionData, null, 2),
+          );
 
-          // Set the Kratos session cookie
-          cookieStore.set(
-            "ory_kratos_session",
-            sessionData.session_token || sessionData.token,
-            {
+          // Extract session token from response
+          const sessionToken = sessionData.token || sessionData.session?.token;
+
+          if (sessionToken) {
+            // Set the Kratos session cookie
+            cookieStore.set("ory_kratos_session", sessionToken, {
               httpOnly: true,
               secure: process.env.NODE_ENV === "production",
               sameSite: "lax",
               path: "/",
               maxAge: 60 * 60 * 24 * 7, // 7 days
-            },
-          );
+            });
 
-          console.log("✅ Kratos session created for:", userData.email);
+            console.log("✅ Kratos session created for:", userData.email);
+          } else {
+            console.error("⚠️ No session token in response:", sessionData);
+          }
         } else {
           console.error(
             "Failed to create Kratos session:",
