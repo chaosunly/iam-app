@@ -122,3 +122,13 @@ export async function backgroundSyncToKratos(
       console.error("Background sync error:", error);
     });
 }
+
+/**
+ * Synchronous sync function that waits for completion
+ * Used when we need the identity ID to create a session
+ */
+export async function syncSimpleLoginUserToKratosSync(
+  user: SimpleLoginUser,
+): Promise<{ success: boolean; identityId?: string; error?: string }> {
+  return syncSimpleLoginUserToKratos(user);
+}
