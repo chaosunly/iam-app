@@ -110,10 +110,16 @@ export async function GET(request: NextRequest) {
       avatar_url: userData.avatar_url,
     });
 
+    console.log("Sync result:", syncResult);
+
     // Create Kratos session if sync was successful
     if (syncResult.success && syncResult.identityId) {
       try {
         const kratosAdminUrl = process.env.ORY_KRATOS_ADMIN_URL;
+
+        console.log(
+          `Creating Kratos session for identity ${syncResult.identityId}`,
+        );
 
         // Create a session for this identity
         const sessionResponse = await fetch(
@@ -132,6 +138,8 @@ export async function GET(request: NextRequest) {
         if (sessionResponse.ok) {
           const sessionData = await sessionResponse.json();
 
+          console.log("Session data received:", sessionData);
+
           // Set the Kratos session cookie
           cookieStore.set(
             "ory_kratos_session",
@@ -149,6 +157,7 @@ export async function GET(request: NextRequest) {
         } else {
           console.error(
             "Failed to create Kratos session:",
+            sessionResponse.status,
             await sessionResponse.text(),
           );
         }
@@ -156,6 +165,11 @@ export async function GET(request: NextRequest) {
         console.error("Error creating Kratos session:", error);
         // Continue anyway - SimpleLogin session still works
       }
+    } else {
+      console.log(
+        "⚠️ Skipping Kratos session creation:",
+        syncResult.error || "No identity ID",
+      );
     }
 
     // Redirect directly to dashboard

@@ -72,11 +72,42 @@ export async function syncSimpleLoginUserToKratos(
         identityId: identity.id,
       };
     } else if (response.status === 409 || response.status === 400) {
-      // Identity might already exist
-      console.log("Identity may already exist for:", user.email);
+      // Identity already exists, look it up by email
+      console.log(
+        "Identity already exists for:",
+        user.email,
+        "- looking it up",
+      );
+
+      try {
+        // List identities and find by email
+        const listResponse = await fetch(
+          `${kratosAdminUrl}/admin/identities?credentials_identifier=${encodeURIComponent(user.email)}`,
+          {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          },
+        );
+
+        if (listResponse.ok) {
+          const identities = await listResponse.json();
+          if (identities && identities.length > 0) {
+            console.log("✅ Found existing Kratos identity:", identities[0].id);
+            return {
+              success: true,
+              identityId: identities[0].id,
+            };
+          }
+        }
+      } catch (lookupError) {
+        console.error("Failed to lookup existing identity:", lookupError);
+      }
+
       return {
         success: true,
-        error: "Identity already exists (not an error)",
+        error: "Identity already exists but couldn't retrieve ID",
       };
     } else {
       const errorText = await response.text();
