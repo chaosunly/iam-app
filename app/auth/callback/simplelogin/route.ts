@@ -123,7 +123,8 @@ export async function GET(request: NextRequest) {
         console.log(`Using Kratos Admin URL: ${kratosAdminUrl}`);
 
         // Call Kratos Admin API directly to create session
-        const sessionUrl = `${kratosAdminUrl}/admin/sessions`;
+        // In Kratos v25+, sessions are created via the identity-specific endpoint
+        const sessionUrl = `${kratosAdminUrl}/admin/identities/${syncResult.identityId}/sessions`;
         console.log(`Session creation URL: ${sessionUrl}`);
 
         const sessionResponse = await fetch(sessionUrl, {
@@ -132,7 +133,6 @@ export async function GET(request: NextRequest) {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            identity_id: syncResult.identityId,
             expires_in: "604800s", // 7 days in seconds
           }),
         });
