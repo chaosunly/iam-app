@@ -112,79 +112,19 @@ export async function GET(request: NextRequest) {
 
     console.log("Sync result:", syncResult);
 
-    // Create Kratos session if sync was successful
+    // Note: In Kratos v25+, sessions cannot be created programmatically via Admin API.
+    // Sessions are created through self-service flows (login, registration, etc.).
+    // For SimpleLogin users, the middleware handles authentication via the
+    // simplelogin_session cookie, and the identity sync ensures they exist in Kratos
+    // for admin panel user management and permissions.
+
     if (syncResult.success && syncResult.identityId) {
-      try {
-        const kratosAdminUrl = process.env.ORY_KRATOS_ADMIN_URL;
-
-        console.log(
-          `Creating Kratos session for identity ${syncResult.identityId}`,
-        );
-        console.log(`Using Kratos Admin URL: ${kratosAdminUrl}`);
-
-        // Call Kratos Admin API directly to create session
-        // In Kratos v25+, sessions are created via the identity-specific endpoint
-        const sessionUrl = `${kratosAdminUrl}/admin/identities/${syncResult.identityId}/sessions`;
-        console.log(`Session creation URL: ${sessionUrl}`);
-
-        const sessionResponse = await fetch(sessionUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            expires_in: "604800s", // 7 days in seconds
-          }),
-        });
-
-        console.log(
-          `Session creation response status: ${sessionResponse.status}`,
-        );
-        const responseText = await sessionResponse.text();
-        console.log(`Session creation response body: ${responseText}`);
-
-        if (sessionResponse.ok) {
-          const sessionData = JSON.parse(responseText);
-
-          console.log(
-            "Session data received:",
-            JSON.stringify(sessionData, null, 2),
-          );
-
-          // Extract session token from response
-          const sessionToken = sessionData.token || sessionData.session?.token;
-
-          if (sessionToken) {
-            // Set the Kratos session cookie
-            cookieStore.set("ory_kratos_session", sessionToken, {
-              httpOnly: true,
-              secure: process.env.NODE_ENV === "production",
-              sameSite: "lax",
-              path: "/",
-              maxAge: 60 * 60 * 24 * 7, // 7 days
-            });
-
-            console.log(
-              "✅ Kratos session created and cookie set for:",
-              userData.email,
-            );
-          } else {
-            console.error("⚠️ No session token in response:", sessionData);
-          }
-        } else {
-          console.error(
-            "Failed to create Kratos session:",
-            sessionResponse.status,
-            responseText,
-          );
-        }
-      } catch (error) {
-        console.error("Error creating Kratos session:", error);
-        // Continue anyway - SimpleLogin session still works
-      }
+      console.log(
+        `✅ SimpleLogin user synced to Kratos identity: ${syncResult.identityId}`,
+      );
     } else {
       console.log(
-        "⚠️ Skipping Kratos session creation:",
+        "⚠️ Kratos sync skipped:",
         syncResult.error || "No identity ID",
       );
     }
