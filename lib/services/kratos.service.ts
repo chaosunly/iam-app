@@ -25,7 +25,7 @@ export async function listIdentities(
   perPage = 250,
 ): Promise<Identity[]> {
   try {
-    const url = `${KRATOS_ADMIN_URL}/kratos-admin/identities?page=${page}&per_page=${perPage}`;
+    const url = `${KRATOS_ADMIN_URL}/.ory/kratos/admin/identities?page=${page}&per_page=${perPage}`;
 
     console.log("Fetching identities from:", url); // Debug log
 
@@ -65,7 +65,7 @@ export async function listIdentities(
  */
 export async function getIdentity(id: string): Promise<Identity> {
   try {
-    const url = `${KRATOS_ADMIN_URL}/kratos-admin/identities/${id}`;
+    const url = `${KRATOS_ADMIN_URL}/.ory/kratos/admin/identities/${id}`;
     console.log("Fetching identity from:", url);
 
     const controller = new AbortController();
@@ -122,7 +122,7 @@ export async function createIdentity(
     }
 
     const response = await fetch(
-      `${KRATOS_ADMIN_URL}/kratos-admin/identities`,
+      `${KRATOS_ADMIN_URL}/.ory/kratos/admin/identities`,
       {
         method: "POST",
         headers: {
@@ -158,7 +158,7 @@ export async function updateIdentity(
 ): Promise<Identity> {
   try {
     const response = await fetch(
-      `${KRATOS_ADMIN_URL}/kratos-admin/identities/${id}`,
+      `${KRATOS_ADMIN_URL}/.ory/kratos/admin/identities/${id}`,
       {
         method: "PUT",
         headers: {
@@ -200,7 +200,7 @@ export async function updateIdentity(
 export async function deleteIdentity(id: string): Promise<void> {
   try {
     const response = await fetch(
-      `${KRATOS_ADMIN_URL}/kratos-admin/identities/${id}`,
+      `${KRATOS_ADMIN_URL}/.ory/kratos/admin/identities/${id}`,
       {
         method: "DELETE",
       },

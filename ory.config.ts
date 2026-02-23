@@ -1,11 +1,12 @@
-import type { OryClientConfiguration } from "@ory/elements-react"
+import type { OryClientConfiguration } from "@ory/elements-react";
 
 const config: OryClientConfiguration = {
   sdk: {
     // Client uses Next.js app (for proxying), server uses actual Ory URL
-    url: typeof window !== 'undefined' 
-      ? (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000')
-      : (process.env.ORY_SDK_URL || 'http://kratos.railway.internal:4433'),
+    url:
+      typeof window !== "undefined"
+        ? process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+        : process.env.ORY_SDK_URL || "http://kratos.railway.internal:4433",
   },
   project: {
     default_redirect_url: "/dashboard",
@@ -18,12 +19,10 @@ const config: OryClientConfiguration = {
     verification_ui_url: "/auth/verification",
     recovery_ui_url: "/auth/recovery",
     login_ui_url: "/auth/login",
-    settings_ui_url: "/settings",
+    settings_ui_url: "/auth/settings",
     default_locale: "en",
     locale_behavior: "respect_accept_language",
   },
-}
+};
 
-export default config
-
-
+export default config;

@@ -120,25 +120,32 @@ export async function GET(request: NextRequest) {
         console.log(
           `Creating Kratos session for identity ${syncResult.identityId}`,
         );
+        console.log(`Using Kratos Admin URL: ${kratosAdminUrl}`);
 
-        // Use the gateway's /kratos-admin/ path which routes to Kratos admin API
-        // Gateway rewrites /kratos-admin/sessions to /admin/sessions on Kratos
-        const sessionResponse = await fetch(
-          `${kratosAdminUrl}/kratos-admin/sessions`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              identity_id: syncResult.identityId,
-              expires_in: "604800s", // 7 days in seconds
-            }),
+        // Use the Ory proxy path /.ory/kratos/admin/sessions
+        // which routes to the Kratos Admin API /admin/sessions endpoint
+        const sessionUrl = `${kratosAdminUrl}/.ory/kratos/admin/sessions`;
+        console.log(`Session creation URL: ${sessionUrl}`);
+
+        const sessionResponse = await fetch(sessionUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
           },
+          body: JSON.stringify({
+            identity_id: syncResult.identityId,
+            expires_in: "604800s", // 7 days in seconds
+          }),
+        });
+
+        console.log(
+          `Session creation response status: ${sessionResponse.status}`,
         );
+        const responseText = await sessionResponse.text();
+        console.log(`Session creation response body: ${responseText}`);
 
         if (sessionResponse.ok) {
-          const sessionData = await sessionResponse.json();
+          const sessionData = JSON.parse(responseText);
 
           console.log(
             "Session data received:",
@@ -158,7 +165,10 @@ export async function GET(request: NextRequest) {
               maxAge: 60 * 60 * 24 * 7, // 7 days
             });
 
-            console.log("✅ Kratos session created for:", userData.email);
+            console.log(
+              "✅ Kratos session created and cookie set for:",
+              userData.email,
+            );
           } else {
             console.error("⚠️ No session token in response:", sessionData);
           }
@@ -166,7 +176,7 @@ export async function GET(request: NextRequest) {
           console.error(
             "Failed to create Kratos session:",
             sessionResponse.status,
-            await sessionResponse.text(),
+            responseText,
           );
         }
       } catch (error) {

@@ -29,7 +29,11 @@ const PROTECTED_ROUTES = {
 
 // Public routes that don't require authentication
 const PUBLIC_ROUTES = [
-  /^\/auth\//,
+  /^\/auth\/login/,
+  /^\/auth\/registration/,
+  /^\/auth\/recovery/,
+  /^\/auth\/verification/,
+  /^\/auth\/callback/,
   /^\/$/,
   /^\/_next/,
   /^\/favicon/,
