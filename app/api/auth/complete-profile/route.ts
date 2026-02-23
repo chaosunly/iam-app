@@ -1,3 +1,13 @@
+/*
+ * ⚠️ DEPRECATED: This complete-profile endpoint is no longer used.
+ *
+ * This was part of the manual SimpleLogin OAuth flow. Now that SimpleLogin
+ * is configured as a native OIDC provider in Kratos, profile completion
+ * is handled automatically by Kratos during the OIDC flow.
+ *
+ * This file can be safely removed after verifying the OIDC flow works correctly.
+ */
+
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 

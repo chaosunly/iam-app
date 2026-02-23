@@ -35,39 +35,6 @@ export function LoginClient({ flow, config }: LoginClientProps) {
     }
   }, [flow, clientConfig.sdk?.url, mounted]);
 
-  const handleSimpleLogin = () => {
-    const clientId = process.env.NEXT_PUBLIC_SIMPLELOGIN_CLIENT_ID;
-
-    if (!clientId) {
-      console.error("SimpleLogin Client ID not configured");
-      return;
-    }
-
-    // Use gateway URL for OAuth callback (routes through nginx to app)
-    const gatewayUrl =
-      process.env.NEXT_PUBLIC_ORY_SDK_URL || window.location.origin;
-    const redirectUri = `${gatewayUrl}/auth/callback/simplelogin`;
-    const state = crypto.randomUUID();
-
-    // Store state in sessionStorage for CSRF verification
-    sessionStorage.setItem("simplelogin_state", state);
-
-    console.log("SimpleLogin redirect URI:", redirectUri); // Debug log
-
-    // Construct OAuth authorization URL
-    const params = new URLSearchParams({
-      client_id: clientId,
-      redirect_uri: redirectUri,
-      state: state,
-      response_type: "code",
-      scope: "openid profile email",
-    });
-
-    const authUrl = `https://app.simplelogin.io/oauth2/authorize?${params.toString()}`;
-
-    window.location.href = authUrl;
-  };
-
   // Prevent hydration mismatch by not rendering until mounted
   if (!mounted) {
     return (
@@ -83,7 +50,9 @@ export function LoginClient({ flow, config }: LoginClientProps) {
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-zinc-50 dark:bg-black">
-      <div className="w-full max-w-md space-y-4">
+      <div className="w-full max-w-md">
+        {/* Kratos Login UI with native OIDC support */}
+        {/* SimpleLogin will appear as an OIDC provider button automatically */}
         <Login
           flow={flow}
           config={clientConfig}
@@ -91,39 +60,6 @@ export function LoginClient({ flow, config }: LoginClientProps) {
             Card: {},
           }}
         />
-
-        {/* Divider */}
-        <div className="relative">
-          <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t border-gray-300 dark:border-gray-700" />
-          </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-zinc-50 dark:bg-black px-2 text-gray-500">
-              Or continue with
-            </span>
-          </div>
-        </div>
-
-        {/* SimpleLogin Button */}
-        <button
-          onClick={handleSimpleLogin}
-          type="button"
-          className="w-full flex items-center justify-center gap-3 px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
-        >
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="#4285F4" />
-            <path d="M2 17L12 22L22 17V12L12 17L2 12V17Z" fill="#34A853" />
-          </svg>
-          <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
-            Sign in with SimpleLogin
-          </span>
-        </button>
       </div>
     </div>
   );

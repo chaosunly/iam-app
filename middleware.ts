@@ -63,43 +63,17 @@ export async function middleware(request: NextRequest) {
 
   // 3. For protected routes, check authentication
   try {
-    // Check for SimpleLogin session first
-    const simpleLoginSession = request.cookies.get("simplelogin_session");
-    let userId: string | null = null;
+    // Check for Kratos session (includes OIDC provider logins like SimpleLogin)
+    const session = await getServerSession();
 
-    if (simpleLoginSession) {
-      try {
-        const sessionData = JSON.parse(simpleLoginSession.value);
-        if (
-          sessionData.authenticated &&
-          sessionData.provider === "simplelogin"
-        ) {
-          userId = sessionData.userId;
-          console.log(
-            `[Middleware] SimpleLogin session found for user ${userId}`,
-          );
-        }
-      } catch (error) {
-        console.error(
-          "[Middleware] Failed to parse SimpleLogin session:",
-          error,
-        );
-      }
+    // If no session, redirect to login
+    if (!session || !session.identity) {
+      const loginUrl = new URL("/auth/login", request.url);
+      loginUrl.searchParams.set("return_to", pathname);
+      return NextResponse.redirect(loginUrl);
     }
 
-    // Fall back to Ory session if no SimpleLogin session
-    if (!userId) {
-      const session = await getServerSession();
-
-      // If no session, redirect to login
-      if (!session || !session.identity) {
-        const loginUrl = new URL("/auth/login", request.url);
-        loginUrl.searchParams.set("return_to", pathname);
-        return NextResponse.redirect(loginUrl);
-      }
-
-      userId = session.identity.id;
-    }
+    const userId = session.identity.id;
 
     // Check if trying to access admin panel
     if (PROTECTED_ROUTES.admin.pattern.test(pathname)) {

@@ -1,51 +1,20 @@
 import { getServerSession } from "@ory/nextjs/app";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { LogoutButton } from "./logout-button";
 import { isGlobalAdmin } from "@/lib/services/permission.service";
 
 export default async function DashboardPage() {
-  // Check for SimpleLogin session first
-  const cookieStore = await cookies();
-  const simpleLoginSession = cookieStore.get("simplelogin_session");
+  // Get Kratos session (includes OIDC provider logins like SimpleLogin)
+  const session = await getServerSession();
 
-  let user = null;
-  let userId = "";
-  let email = "";
-  let name = "";
-  let isSimpleLoginUser = false;
-
-  if (simpleLoginSession) {
-    try {
-      const sessionData = JSON.parse(simpleLoginSession.value);
-      userId = sessionData.userId;
-      email = sessionData.email;
-      name = sessionData.name;
-      isSimpleLoginUser = true;
-      console.log("Dashboard - SimpleLogin user:", email);
-    } catch (error) {
-      console.error("Failed to parse SimpleLogin session:", error);
-    }
-  }
-
-  // Fall back to Ory session if no SimpleLogin session
-  if (!isSimpleLoginUser) {
-    const session = await getServerSession();
-
-    if (!session || !session.identity) {
-      redirect("/auth/login");
-    }
-
-    user = session.identity;
-    userId = user.id;
-    email = user.traits.email || "No email";
-    name = user.traits.name?.first || user.traits.username || "User";
-  }
-
-  // If no valid session found, redirect to login
-  if (!userId) {
+  if (!session || !session.identity) {
     redirect("/auth/login");
   }
+
+  const user = session.identity;
+  const userId = user.id;
+  const email = user.traits.email || "No email";
+  const name = user.traits.name?.first || user.traits.username || "User";
 
   // Check if user is a global admin - redirect them to admin dashboard
   const hasAdminAccess = await isGlobalAdmin(userId);
@@ -91,9 +60,7 @@ export default async function DashboardPage() {
             Welcome back, {name}!
           </h2>
           <p className="text-zinc-600 dark:text-zinc-400">
-            {isSimpleLoginUser
-              ? "Authenticated via SimpleLogin"
-              : "Here&apos;s what&apos;s happening with your account today."}
+            Here&apos;s what&apos;s happening with your account today.
           </p>
         </div>
 

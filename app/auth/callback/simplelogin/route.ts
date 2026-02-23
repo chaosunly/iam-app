@@ -1,3 +1,14 @@
+/*
+ * ⚠️ DEPRECATED: This manual OAuth callback is no longer used.
+ *
+ * SimpleLogin is now configured as a native OIDC provider in Kratos.
+ * The authentication flow is handled entirely by Kratos at /.ory/self-service/login/flows
+ *
+ * This file can be safely removed after verifying the OIDC flow works correctly.
+ *
+ * Migration completed: Users now authenticate via Kratos OIDC flow.
+ */
+
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { syncSimpleLoginUserToKratosSync } from "@/lib/services/simplelogin-sync.service";
@@ -113,10 +124,15 @@ export async function GET(request: NextRequest) {
     console.log("Sync result:", syncResult);
 
     // Note: In Kratos v25+, sessions cannot be created programmatically via Admin API.
-    // Sessions are created through self-service flows (login, registration, etc.).
-    // For SimpleLogin users, the middleware handles authentication via the
-    // simplelogin_session cookie, and the identity sync ensures they exist in Kratos
-    // for admin panel user management and permissions.
+    // Sessions are created through self-service flows only.
+    //
+    // ARCHITECTURAL NOTE:
+    // For full Kratos settings access, SimpleLogin should be configured as an OIDC
+    // provider in Kratos's identity schema. This allows Kratos to manage the OAuth
+    // flow natively and create proper sessions automatically.
+    //
+    // Current implementation: SimpleLogin session works for authentication,
+    // but users get a custom settings page instead of Kratos's native UI.
 
     if (syncResult.success && syncResult.identityId) {
       console.log(

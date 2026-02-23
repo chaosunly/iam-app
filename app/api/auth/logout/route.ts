@@ -66,13 +66,14 @@ export async function POST(request: NextRequest) {
     // Create response and redirect to home page
     const response = NextResponse.redirect(new URL("/", request.url));
 
-    // Clear all authentication cookies (Ory + SimpleLogin)
+    // Clear all authentication cookies (Ory + legacy SimpleLogin cookies)
+    // Note: simplelogin_session and pending_simplelogin_user are legacy from manual OAuth
     allCookies.forEach((cookie) => {
       if (
         cookie.name.startsWith("ory_") ||
         cookie.name.startsWith("csrf_token_") ||
-        cookie.name === "simplelogin_session" ||
-        cookie.name === "pending_simplelogin_user"
+        cookie.name === "simplelogin_session" || // Legacy - no longer used with OIDC
+        cookie.name === "pending_simplelogin_user" // Legacy - no longer used with OIDC
       ) {
         response.cookies.set(cookie.name, "", {
           maxAge: 0,
@@ -92,12 +93,13 @@ export async function POST(request: NextRequest) {
     const response = NextResponse.redirect(new URL("/", request.url));
     const cookieStore = await cookies();
     const allCookies = cookieStore.getAll();
+    // Clear all auth cookies including legacy SimpleLogin cookies
     allCookies.forEach((cookie) => {
       if (
         cookie.name.startsWith("ory_") ||
         cookie.name.startsWith("csrf_token_") ||
-        cookie.name === "simplelogin_session" ||
-        cookie.name === "pending_simplelogin_user"
+        cookie.name === "simplelogin_session" || // Legacy
+        cookie.name === "pending_simplelogin_user" // Legacy
       ) {
         response.cookies.set(cookie.name, "", {
           maxAge: 0,
