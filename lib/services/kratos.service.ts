@@ -25,7 +25,7 @@ export async function listIdentities(
   perPage = 250,
 ): Promise<Identity[]> {
   try {
-    const url = `${KRATOS_ADMIN_URL}/.ory/kratos/admin/identities?page=${page}&per_page=${perPage}`;
+    const url = `${KRATOS_ADMIN_URL}/admin/identities?page=${page}&per_page=${perPage}`;
 
     console.log("Fetching identities from:", url); // Debug log
 
@@ -65,7 +65,7 @@ export async function listIdentities(
  */
 export async function getIdentity(id: string): Promise<Identity> {
   try {
-    const url = `${KRATOS_ADMIN_URL}/.ory/kratos/admin/identities/${id}`;
+    const url = `${KRATOS_ADMIN_URL}/admin/identities/${id}`;
     console.log("Fetching identity from:", url);
 
     const controller = new AbortController();
@@ -121,16 +121,13 @@ export async function createIdentity(
       throw new BadRequestError("schema_id and traits are required");
     }
 
-    const response = await fetch(
-      `${KRATOS_ADMIN_URL}/.ory/kratos/admin/identities`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data),
+    const response = await fetch(`${KRATOS_ADMIN_URL}/admin/identities`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
       },
-    );
+      body: JSON.stringify(data),
+    });
 
     if (!response.ok) {
       const error = await response.text();
@@ -157,21 +154,18 @@ export async function updateIdentity(
   data: Partial<CreateIdentityRequest>,
 ): Promise<Identity> {
   try {
-    const response = await fetch(
-      `${KRATOS_ADMIN_URL}/.ory/kratos/admin/identities/${id}`,
-      {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          schema_id: data.schema_id || "default",
-          traits: data.traits || {},
-          state: data.state,
-          metadata_public: data.metadata_public,
-        }),
+    const response = await fetch(`${KRATOS_ADMIN_URL}/admin/identities/${id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
       },
-    );
+      body: JSON.stringify({
+        schema_id: data.schema_id || "default",
+        traits: data.traits || {},
+        state: data.state,
+        metadata_public: data.metadata_public,
+      }),
+    });
 
     if (response.status === 404) {
       throw new NotFoundError(`Identity ${id} not found`);
@@ -199,12 +193,9 @@ export async function updateIdentity(
  */
 export async function deleteIdentity(id: string): Promise<void> {
   try {
-    const response = await fetch(
-      `${KRATOS_ADMIN_URL}/.ory/kratos/admin/identities/${id}`,
-      {
-        method: "DELETE",
-      },
-    );
+    const response = await fetch(`${KRATOS_ADMIN_URL}/admin/identities/${id}`, {
+      method: "DELETE",
+    });
 
     if (response.status === 404) {
       throw new NotFoundError(`Identity ${id} not found`);

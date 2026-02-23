@@ -122,9 +122,8 @@ export async function GET(request: NextRequest) {
         );
         console.log(`Using Kratos Admin URL: ${kratosAdminUrl}`);
 
-        // Use the Ory proxy path /.ory/kratos/admin/sessions
-        // which routes to the Kratos Admin API /admin/sessions endpoint
-        const sessionUrl = `${kratosAdminUrl}/.ory/kratos/admin/sessions`;
+        // Call Kratos Admin API directly to create session
+        const sessionUrl = `${kratosAdminUrl}/admin/sessions`;
         console.log(`Session creation URL: ${sessionUrl}`);
 
         const sessionResponse = await fetch(sessionUrl, {

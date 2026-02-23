@@ -37,33 +37,29 @@ export async function syncSimpleLoginUserToKratos(
     const firstName = nameParts[0] || user.name;
     const lastName = nameParts.slice(1).join(" ") || "";
 
-    // Create identity via Kratos Admin API through gateway
-    // Gateway path /.ory/kratos/admin/identities routes to /admin/identities on Kratos
-    const response = await fetch(
-      `${kratosAdminUrl}/.ory/kratos/admin/identities`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          schema_id: "default",
-          traits: {
-            email: user.email,
-            name: {
-              first: firstName,
-              last: lastName,
-            },
-          },
-          metadata_public: {
-            provider: "simplelogin",
-            simplelogin_id: user.userId,
-            avatar_url: user.avatar_url,
-            synced_at: new Date().toISOString(),
-          },
-        }),
+    // Create identity via Kratos Admin API
+    const response = await fetch(`${kratosAdminUrl}/admin/identities`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
       },
-    );
+      body: JSON.stringify({
+        schema_id: "default",
+        traits: {
+          email: user.email,
+          name: {
+            first: firstName,
+            last: lastName,
+          },
+        },
+        metadata_public: {
+          provider: "simplelogin",
+          simplelogin_id: user.userId,
+          avatar_url: user.avatar_url,
+          synced_at: new Date().toISOString(),
+        },
+      }),
+    });
 
     if (response.ok) {
       const identity = await response.json();
@@ -84,9 +80,9 @@ export async function syncSimpleLoginUserToKratos(
       );
 
       try {
-        // List identities and find by email using gateway path
+        // List identities and find by email
         const listResponse = await fetch(
-          `${kratosAdminUrl}/.ory/kratos/admin/identities?credentials_identifier=${encodeURIComponent(user.email)}`,
+          `${kratosAdminUrl}/admin/identities?credentials_identifier=${encodeURIComponent(user.email)}`,
           {
             method: "GET",
             headers: {
