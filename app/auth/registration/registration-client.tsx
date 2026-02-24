@@ -32,13 +32,7 @@ export function RegistrationClient({ flow, config }: RegistrationClientProps) {
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-zinc-50 dark:bg-black">
-      <Registration
-        flow={flow}
-        config={clientConfig}
-        components={{
-          Card: {},
-        }}
-      />
+      <Registration flow={flow} config={clientConfig} />
     </div>
   );
 }

@@ -13,16 +13,36 @@ export async function POST(request: NextRequest) {
     // Parse the webhook payload from Kratos
     const payload = await request.json();
 
-    console.log("[Registration Hook] Received:", payload);
+    console.log(
+      "[Registration Hook] Received payload:",
+      JSON.stringify(payload, null, 2),
+    );
 
     // Extract identity ID from the payload
-    // Kratos sends the identity in the webhook
-    const identityId = payload?.identity?.id;
+    // Kratos can send different payload structures depending on webhook config:
+    // - Direct: { identity: { id: "..." } }
+    // - Flow-based: { flow: { ... }, identity: { id: "..." } }
+    // - After hook: entire flow object
+    let identityId =
+      payload?.identity?.id || // Standard webhook
+      payload?.flow?.identity?.id || // Flow-based webhook
+      payload?.Identity?.id; // Alternative capitalization
+
+    console.log("[Registration Hook] Extracted identity ID:", identityId);
+    console.log("[Registration Hook] Payload keys:", Object.keys(payload));
+    console.log(
+      "[Registration Hook] Identity object:",
+      JSON.stringify(payload?.identity || payload?.Identity, null, 2),
+    );
 
     if (!identityId) {
-      console.error("[Registration Hook] No identity ID in payload");
+      console.error("[Registration Hook] No identity ID found in payload");
+      console.error(
+        "[Registration Hook] Full payload structure:",
+        JSON.stringify(payload, null, 2),
+      );
       return NextResponse.json(
-        { error: "Invalid webhook payload" },
+        { error: "Invalid webhook payload - no identity ID found" },
         { status: 400 },
       );
     }

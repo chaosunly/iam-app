@@ -32,13 +32,7 @@ export function RecoveryClient({ flow, config }: RecoveryClientProps) {
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-zinc-50 dark:bg-black">
-      <Recovery
-        flow={flow}
-        config={clientConfig}
-        components={{
-          Card: {},
-        }}
-      />
+      <Recovery flow={flow} config={clientConfig} />
     </div>
   );
 }

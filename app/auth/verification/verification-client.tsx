@@ -32,13 +32,7 @@ export function VerificationClient({ flow, config }: VerificationClientProps) {
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-zinc-50 dark:bg-black">
-      <Verification
-        flow={flow}
-        config={clientConfig}
-        components={{
-          Card: {},
-        }}
-      />
+      <Verification flow={flow} config={clientConfig} />
     </div>
   );
 }
