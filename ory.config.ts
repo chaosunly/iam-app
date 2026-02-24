@@ -2,11 +2,9 @@ import type { OryClientConfiguration } from "@ory/elements-react";
 
 const config: OryClientConfiguration = {
   sdk: {
-    // Client uses Next.js app (for proxying), server uses actual Ory URL
-    url:
-      typeof window !== "undefined"
-        ? process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
-        : process.env.ORY_SDK_URL || "http://kratos.railway.internal:4433",
+    // Always use the public app URL - middleware will proxy to Kratos
+    // This ensures all generated URLs (including footer links) point to the app domain
+    url: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
   },
   project: {
     default_redirect_url: "/dashboard",
