@@ -34,6 +34,7 @@ const PUBLIC_ROUTES = [
   /^\/_next/,
   /^\/favicon/,
   /^\/api\/auth/,
+  /^\/api\/oauth2\//, // OAuth2 login/consent handlers for Hydra
 ];
 
 export async function middleware(request: NextRequest) {
