@@ -53,6 +53,16 @@ export {
   promoteToGlobalAdmin,
 } from "./user-setup.service";
 
+// Hydra Service (OAuth2/OIDC)
+export {
+  getOAuth2LoginRequest,
+  acceptOAuth2LoginRequest,
+  rejectOAuth2LoginRequest,
+  getOAuth2ConsentRequest,
+  acceptOAuth2ConsentRequest,
+  rejectOAuth2ConsentRequest,
+} from "./hydra.service";
+
 // Keto Helper Functions (Direct Keto operations)
 export {
   checkKetoHealth,
