@@ -7,6 +7,7 @@ import {
   getUserRole,
   getDefaultOrganizationId,
 } from "@/lib/services/organization.service";
+import { autoProvisionUser } from "@/lib/services/auto-provision.service";
 
 export default async function DashboardPage() {
   // Get Kratos session (includes OIDC provider logins like SimpleLogin)
@@ -20,6 +21,9 @@ export default async function DashboardPage() {
   const userId = user.id;
   const email = user.traits.email || "No email";
   const name = user.traits.name?.first || user.traits.username || "User";
+
+  // Auto-provision user if they don't have permissions yet
+  await autoProvisionUser(userId);
 
   // Check if user is a global admin - redirect them to admin dashboard
   const hasAdminAccess = await isGlobalAdmin(userId);
