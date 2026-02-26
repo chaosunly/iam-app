@@ -8,6 +8,7 @@ import {
   grantPermission,
   revokePermission,
   listObjectPermissions,
+  listSubjectRelations,
 } from "./keto.service";
 
 export interface Group {
@@ -177,20 +178,18 @@ export async function getOrganizationGroups(
   organizationId: string,
 ): Promise<Group[]> {
   try {
-    const relationships = await listObjectPermissions(
-      "Organization",
+    // Query for all Group tuples where the organization is the subject
+    // This finds: namespace=Group, relation=org, subject_id=organizationId
+    const relationships = await listSubjectRelations(
+      "Group",
+      "org",
       organizationId,
     );
 
-    // Filter for groups that belong to this organization
-    const groupRelations = relationships.filter(
-      (rel) => rel.namespace === "Group" && rel.relation === "org",
-    );
-
-    // For now, return basic info - you'll need to fetch metadata from DB
+    // Each relationship represents a group belonging to this organization
     const groups: Group[] = [];
 
-    for (const rel of groupRelations) {
+    for (const rel of relationships) {
       const groupId = rel.object;
       const members = await getGroupMembers(groupId);
 

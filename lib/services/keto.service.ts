@@ -257,6 +257,58 @@ export async function listObjectPermissions(
 }
 
 /**
+ * List all tuples where a subject has a specific relation
+ */
+export async function listSubjectRelations(
+  namespace: string,
+  relation: string,
+  subjectId: string,
+): Promise<RelationTuple[]> {
+  try {
+    if (!namespace || !relation || !subjectId) {
+      throw new BadRequestError(
+        "namespace, relation, and subjectId are required",
+      );
+    }
+
+    const params = new URLSearchParams({
+      namespace,
+      relation,
+      "subject_id.id": subjectId,
+    });
+
+    const url = `${KETO_READ_URL}/relation-tuples?${params}`;
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new InternalServerError(`Failed to list relations: ${error}`);
+    }
+
+    const data = await response.json();
+    return (data.relation_tuples || []).map((rt: Record<string, any>) => ({
+      namespace: rt.namespace,
+      object: rt.object,
+      relation: rt.relation,
+      subject: rt.subject_id?.id || rt.subject_id,
+    }));
+  } catch (error) {
+    if (
+      error instanceof BadRequestError ||
+      error instanceof InternalServerError
+    ) {
+      throw error;
+    }
+    throw new InternalServerError("Failed to list subject relations");
+  }
+}
+
+/**
  * Batch permission check for multiple permissions
  */
 export async function checkPermissions(
