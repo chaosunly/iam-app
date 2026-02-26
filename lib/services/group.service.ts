@@ -69,6 +69,20 @@ export async function createGroup(
 }
 
 /**
+ * Get the organization ID that owns a group
+ */
+async function getGroupOrganization(groupId: string): Promise<string | null> {
+  try {
+    const relationships = await listObjectPermissions("Group", groupId);
+    const orgRelation = relationships.find((rel) => rel.relation === "org");
+    return orgRelation?.subject || null;
+  } catch (error) {
+    console.error("Error fetching group organization:", error);
+    return null;
+  }
+}
+
+/**
  * Add a user to a group
  */
 export async function addUserToGroup(
@@ -76,15 +90,29 @@ export async function addUserToGroup(
   userId: string,
   adminId: string,
 ): Promise<void> {
-  // Check if admin has permission to add members to this group
-  const canManage = await checkPermission({
-    namespace: "Group",
-    object: groupId,
-    relation: "add_member",
+  // Get the organization that owns this group
+  const organizationId = await getGroupOrganization(groupId);
+
+  if (!organizationId) {
+    throw new Error("Could not determine group's organization");
+  }
+
+  // Check if admin is an owner or admin of the organization
+  const isOwner = await checkPermission({
+    namespace: "Organization",
+    object: organizationId,
+    relation: "owners",
     subject: adminId,
   });
 
-  if (!canManage) {
+  const isAdmin = await checkPermission({
+    namespace: "Organization",
+    object: organizationId,
+    relation: "admins",
+    subject: adminId,
+  });
+
+  if (!isOwner && !isAdmin) {
     throw new Error("Insufficient permissions to add members to this group");
   }
 
@@ -105,15 +133,29 @@ export async function removeUserFromGroup(
   userId: string,
   adminId: string,
 ): Promise<void> {
-  // Check if admin has permission to remove members from this group
-  const canManage = await checkPermission({
-    namespace: "Group",
-    object: groupId,
-    relation: "remove_member",
+  // Get the organization that owns this group
+  const organizationId = await getGroupOrganization(groupId);
+
+  if (!organizationId) {
+    throw new Error("Could not determine group's organization");
+  }
+
+  // Check if admin is an owner or admin of the organization
+  const isOwner = await checkPermission({
+    namespace: "Organization",
+    object: organizationId,
+    relation: "owners",
     subject: adminId,
   });
 
-  if (!canManage) {
+  const isAdmin = await checkPermission({
+    namespace: "Organization",
+    object: organizationId,
+    relation: "admins",
+    subject: adminId,
+  });
+
+  if (!isOwner && !isAdmin) {
     throw new Error(
       "Insufficient permissions to remove members from this group",
     );
@@ -249,12 +291,31 @@ export async function canManageGroup(
   userId: string,
   groupId: string,
 ): Promise<boolean> {
-  return await checkPermission({
-    namespace: "Group",
-    object: groupId,
-    relation: "manage",
+  // Get the organization that owns this group
+  const organizationId = await getGroupOrganization(groupId);
+
+  if (!organizationId) {
+    return false;
+  }
+
+  // Check if user is an owner or admin of the organization
+  const isOwner = await checkPermission({
+    namespace: "Organization",
+    object: organizationId,
+    relation: "owners",
     subject: userId,
   });
+
+  if (isOwner) return true;
+
+  const isAdmin = await checkPermission({
+    namespace: "Organization",
+    object: organizationId,
+    relation: "admins",
+    subject: userId,
+  });
+
+  return isAdmin;
 }
 
 /**

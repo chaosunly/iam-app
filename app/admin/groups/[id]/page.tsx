@@ -17,6 +17,17 @@ interface Group {
   memberCount: number;
 }
 
+interface Identity {
+  id: string;
+  traits: {
+    email?: string;
+    name?: {
+      first?: string;
+      last?: string;
+    };
+  };
+}
+
 export default function GroupDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -24,7 +35,9 @@ export default function GroupDetailPage() {
 
   const [group, setGroup] = useState<Group | null>(null);
   const [members, setMembers] = useState<GroupMember[]>([]);
+  const [allUsers, setAllUsers] = useState<Identity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
   const [error, setError] = useState("");
   const [showAddMember, setShowAddMember] = useState(false);
   const [newMemberUserId, setNewMemberUserId] = useState("");
@@ -34,6 +47,13 @@ export default function GroupDetailPage() {
     loadGroupData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [groupId]);
+
+  useEffect(() => {
+    if (showAddMember && allUsers.length === 0) {
+      loadAllUsers();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showAddMember]);
 
   const loadGroupData = async () => {
     try {
@@ -58,6 +78,35 @@ export default function GroupDetailPage() {
     }
   };
 
+  const loadAllUsers = async () => {
+    try {
+      setIsLoadingUsers(true);
+      const response = await fetch("/api/admin/identities");
+
+      if (!response.ok) throw new Error("Failed to load users");
+
+      const users = await response.json();
+      setAllUsers(users);
+    } catch (err) {
+      console.error("Failed to load users:", err);
+      setError(err instanceof Error ? err.message : "Failed to load users");
+    } finally {
+      setIsLoadingUsers(false);
+    }
+  };
+
+  // Get available users (not already members)
+  const availableUsers = allUsers.filter(
+    (user) => !members.some((member) => member.userId === user.id),
+  );
+
+  const getUserDisplayName = (user: Identity) => {
+    const firstName = user.traits.name?.first || "";
+    const lastName = user.traits.name?.last || "";
+    const fullName = `${firstName} ${lastName}`.trim();
+    return fullName || user.traits.email || user.id;
+  };
+
   const handleAddMember = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsAddingMember(true);
@@ -80,6 +129,8 @@ export default function GroupDetailPage() {
       setNewMemberUserId("");
       setShowAddMember(false);
       await loadGroupData();
+      // Reload users to update available list
+      await loadAllUsers();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to add member");
     } finally {
@@ -104,6 +155,10 @@ export default function GroupDetailPage() {
       }
 
       await loadGroupData();
+      // Reload users to update available list
+      if (allUsers.length > 0) {
+        await loadAllUsers();
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to remove member");
     }
@@ -221,17 +276,33 @@ export default function GroupDetailPage() {
                   htmlFor="userId"
                   className="block text-sm font-medium text-zinc-900 dark:text-zinc-50 mb-2"
                 >
-                  User ID
+                  Select User
                 </label>
-                <input
-                  type="text"
-                  id="userId"
-                  value={newMemberUserId}
-                  onChange={(e) => setNewMemberUserId(e.target.value)}
-                  required
-                  className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Enter user ID"
-                />
+                {isLoadingUsers ? (
+                  <div className="text-sm text-zinc-600 dark:text-zinc-400">
+                    Loading users...
+                  </div>
+                ) : availableUsers.length === 0 ? (
+                  <div className="text-sm text-zinc-600 dark:text-zinc-400">
+                    No available users to add. All users are already members.
+                  </div>
+                ) : (
+                  <select
+                    id="userId"
+                    value={newMemberUserId}
+                    onChange={(e) => setNewMemberUserId(e.target.value)}
+                    required
+                    className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">-- Select a user --</option>
+                    {availableUsers.map((user) => (
+                      <option key={user.id} value={user.id}>
+                        {getUserDisplayName(user)}
+                        {user.traits.email && ` (${user.traits.email})`}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
               <div className="flex justify-end gap-3">
                 <button
@@ -243,7 +314,11 @@ export default function GroupDetailPage() {
                 </button>
                 <button
                   type="submit"
-                  disabled={isAddingMember || !newMemberUserId}
+                  disabled={
+                    isAddingMember ||
+                    !newMemberUserId ||
+                    availableUsers.length === 0
+                  }
                   className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   {isAddingMember ? "Adding..." : "Add Member"}
