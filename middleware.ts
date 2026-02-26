@@ -35,6 +35,8 @@ const PUBLIC_ROUTES = [
   /^\/favicon/,
   /^\/api\/auth/,
   /^\/api\/oauth2\//, // OAuth2 login/consent handlers for Hydra
+  /^\/error$/,        // OAuth2 error page
+  /^\/callback$/,     // OAuth2 callback page
 ];
 
 export async function middleware(request: NextRequest) {
