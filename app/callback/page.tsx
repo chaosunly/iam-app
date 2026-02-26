@@ -9,6 +9,21 @@ function CallbackContent() {
   const state = searchParams.get('state');
   const error = searchParams.get('error');
 
+  // Detect environment and set appropriate URLs
+  const getHydraUrl = () => {
+    if (typeof window === 'undefined') return '';
+    const hostname = window.location.hostname;
+    if (hostname.includes('testing')) {
+      return 'https://hydra-testing.up.railway.app';
+    } else if (hostname.includes('production')) {
+      return 'https://hydra-production-a56f.up.railway.app';
+    }
+    return window.location.origin.replace('gateway', 'hydra');
+  };
+
+  const hydraUrl = getHydraUrl();
+  const callbackUrl = typeof window !== 'undefined' ? window.location.origin + '/callback' : '';
+
   return (
     <div style={{ padding: '40px', maxWidth: '800px', margin: '0 auto', fontFamily: 'sans-serif' }}>
       <h1>OAuth2 Callback</h1>
@@ -31,11 +46,11 @@ function CallbackContent() {
           <div style={{ marginTop: '20px', padding: '15px', background: '#fff3cd', border: '1px solid #ffc107', borderRadius: '4px' }}>
             <p><strong>Next Step:</strong> Exchange this code for tokens</p>
             <pre style={{ background: '#f5f5f5', padding: '10px', overflow: 'auto', fontSize: '11px', marginTop: '10px' }}>
-{`curl -X POST https://hydra-production-a56f.up.railway.app/oauth2/token \\
+{`curl -X POST ${hydraUrl}/oauth2/token \\
   -u my-app:my-super-secret-secret \\
   -d grant_type=authorization_code \\
   -d code=${code} \\
-  -d redirect_uri=https://gateway-production-6cac.up.railway.app/callback`}
+  -d redirect_uri=${callbackUrl}`}
             </pre>
           </div>
         </div>
