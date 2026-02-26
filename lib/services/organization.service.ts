@@ -309,5 +309,5 @@ export async function canManageRoles(
  * In a real implementation, this would be user-specific or stored in DB
  */
 export function getDefaultOrganizationId(): string {
-  return process.env.DEFAULT_ORG_ID || "org_default";
+  return process.env.DEFAULT_ORG_ID || "default-org";
 }
