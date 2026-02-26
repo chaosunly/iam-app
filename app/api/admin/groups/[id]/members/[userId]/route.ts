@@ -9,7 +9,7 @@ import { removeUserFromGroup } from "@/lib/services/group.service";
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string; userId: string } },
+  { params }: { params: Promise<{ id: string; userId: string }> },
 ) {
   try {
     const session = await getServerSession();
@@ -24,7 +24,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const { id: groupId, userId } = params;
+    const { id: groupId, userId } = await params;
     await removeUserFromGroup(groupId, userId, adminId);
 
     return NextResponse.json({ success: true });

@@ -9,7 +9,7 @@ import { getGroupMembers, addUserToGroup } from "@/lib/services/group.service";
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const session = await getServerSession();
@@ -24,7 +24,7 @@ export async function GET(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const groupId = params.id;
+    const { id: groupId } = await params;
     const memberIds = await getGroupMembers(groupId);
 
     // In a real implementation, fetch user details from Kratos
@@ -50,7 +50,7 @@ export async function GET(
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const session = await getServerSession();
@@ -75,7 +75,7 @@ export async function POST(
       );
     }
 
-    const groupId = params.id;
+    const { id: groupId } = await params;
     await addUserToGroup(groupId, userId, adminId);
 
     return NextResponse.json({ success: true });
