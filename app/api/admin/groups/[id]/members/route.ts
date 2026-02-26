@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "@ory/nextjs/app";
 import { isGlobalAdmin } from "@/lib/services/permission.service";
 import { getGroupMembers, addUserToGroup } from "@/lib/services/group.service";
+import { getIdentity } from "@/lib/services/kratos.service";
 
 /**
  * GET /api/admin/groups/[id]/members
@@ -27,12 +28,29 @@ export async function GET(
     const { id: groupId } = await params;
     const memberIds = await getGroupMembers(groupId);
 
-    // In a real implementation, fetch user details from Kratos
-    const members = memberIds.map((memberId) => ({
-      userId: memberId,
-      email: "", // Fetch from Kratos
-      name: memberId, // Fetch from Kratos
-    }));
+    // Fetch user details from Kratos for each member
+    const members = await Promise.all(
+      memberIds.map(async (memberId) => {
+        try {
+          const identity = await getIdentity(memberId);
+          return {
+            userId: memberId,
+            email: identity.traits.email || "",
+            name: identity.traits.name
+              ? `${identity.traits.name.first || ""} ${identity.traits.name.last || ""}`.trim()
+              : identity.traits.email || memberId,
+          };
+        } catch (error) {
+          console.error(`Failed to fetch identity for ${memberId}:`, error);
+          // Return basic info if identity fetch fails
+          return {
+            userId: memberId,
+            email: "",
+            name: memberId,
+          };
+        }
+      }),
+    );
 
     return NextResponse.json({ members });
   } catch (error) {
