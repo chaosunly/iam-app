@@ -36,11 +36,27 @@ export default function IdentitiesPage() {
         throw new Error("Failed to fetch identities");
       }
       const result = await response.json();
-      // API wraps response in { data, status }
-      setIdentities(Array.isArray(result.data) ? result.data : []);
+
+      // Validate response structure
+      if (!result || typeof result !== "object") {
+        console.error("Invalid API response:", result);
+        throw new Error("Invalid response from server");
+      }
+
+      // Ensure data is an array
+      const identitiesData = result.data;
+      if (!Array.isArray(identitiesData)) {
+        console.error("API returned non-array data:", identitiesData);
+        setIdentities([]);
+      } else {
+        setIdentities(identitiesData);
+      }
+
       setError(null);
     } catch (err) {
+      console.error("Error fetching identities:", err);
       setError(err instanceof Error ? err.message : "An error occurred");
+      setIdentities([]); // Ensure we always have an array
     } finally {
       setLoading(false);
     }

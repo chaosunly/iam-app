@@ -49,8 +49,17 @@ export async function listIdentities(
       );
     }
 
-    const identities: Identity[] = await response.json();
-    return identities;
+    const data = await response.json();
+
+    // Validate that response is an array
+    if (!Array.isArray(data)) {
+      console.error("Kratos API returned non-array response:", data);
+      throw new InternalServerError(
+        "Invalid response from Kratos: expected array of identities",
+      );
+    }
+
+    return data as Identity[];
   } catch (error) {
     console.error("Failed to list identities:", error); // Debug log
     if (error instanceof InternalServerError) throw error;
