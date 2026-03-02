@@ -3,12 +3,12 @@
  * Handles group creation, member management, and permission checks
  */
 
+import { prisma } from "@/lib/db";
 import {
   checkPermission,
   grantPermission,
   revokePermission,
   listObjectPermissions,
-  listSubjectRelations,
 } from "./keto.service";
 
 export interface Group {
@@ -49,6 +49,16 @@ export async function createGroup(
 
   const groupId = `group_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
+  // Store group metadata in database
+  const group = await prisma.group.create({
+    data: {
+      id: groupId,
+      organizationId,
+      name: groupData.name,
+      description: groupData.description,
+    },
+  });
+
   // Create relationship: Group belongs to Organization
   await grantPermission({
     namespace: "Group",
@@ -57,15 +67,13 @@ export async function createGroup(
     subject: organizationId,
   });
 
-  // Store group metadata (name, description) in a database
-  // For now, return the structure - you'll need to implement DB storage
   return {
-    id: groupId,
-    name: groupData.name,
-    description: groupData.description,
-    organizationId,
+    id: group.id,
+    name: group.name,
+    description: group.description || undefined,
+    organizationId: group.organizationId,
     memberCount: 0,
-    createdAt: new Date(),
+    createdAt: group.createdAt,
   };
 }
 
@@ -178,35 +186,106 @@ export async function getOrganizationGroups(
   organizationId: string,
 ): Promise<Group[]> {
   try {
-    // Query for all Group tuples where the organization is the subject
-    // This finds: namespace=Group, relation=org, subject_id=organizationId
-    const relationships = await listSubjectRelations(
-      "Group",
-      "org",
-      organizationId,
+    // Get groups from database
+    const groups = await prisma.group.findMany({
+      where: { organizationId },
+      orderBy: { createdAt: "desc" },
+    });
+
+    // Get member counts for each group
+    const groupsWithCounts = await Promise.all(
+      groups.map(
+        async (group: {
+          id: string;
+          name: string;
+          description: string | null;
+          organizationId: string;
+          createdAt: Date;
+        }) => {
+          const members = await getGroupMembers(group.id);
+          return {
+            id: group.id,
+            name: group.name,
+            description: group.description || undefined,
+            organizationId: group.organizationId,
+            memberCount: members.length,
+            createdAt: group.createdAt,
+          };
+        },
+      ),
     );
 
-    // Each relationship represents a group belonging to this organization
-    const groups: Group[] = [];
-
-    for (const rel of relationships) {
-      const groupId = rel.object;
-      const members = await getGroupMembers(groupId);
-
-      groups.push({
-        id: groupId,
-        name: groupId, // Replace with DB lookup
-        description: "", // Replace with DB lookup
-        organizationId,
-        memberCount: members.length,
-      });
-    }
-
-    return groups;
+    return groupsWithCounts;
   } catch (error) {
     console.error("Error fetching organization groups:", error);
     return [];
   }
+}
+
+/**
+ * Get group by ID with metadata from database
+ */
+export async function getGroupById(groupId: string): Promise<Group | null> {
+  try {
+    const group = await prisma.group.findUnique({
+      where: { id: groupId },
+    });
+
+    if (!group) {
+      return null;
+    }
+
+    const members = await getGroupMembers(groupId);
+
+    return {
+      id: group.id,
+      name: group.name,
+      description: group.description || undefined,
+      organizationId: group.organizationId,
+      memberCount: members.length,
+      createdAt: group.createdAt,
+    };
+  } catch (error) {
+    console.error("Error fetching group:", error);
+    return null;
+  }
+}
+
+/**
+ * Update group metadata
+ */
+export async function updateGroup(
+  groupId: string,
+  data: { name?: string; description?: string },
+  updaterId: string,
+): Promise<void> {
+  const group = await prisma.group.findUnique({
+    where: { id: groupId },
+  });
+
+  if (!group) {
+    throw new Error("Group not found");
+  }
+
+  // Check if updater has permission
+  const canUpdate = await checkPermission({
+    namespace: "Organization",
+    object: group.organizationId,
+    relation: "create_group",
+    subject: updaterId,
+  });
+
+  if (!canUpdate) {
+    throw new Error("Insufficient permissions to update group");
+  }
+
+  await prisma.group.update({
+    where: { id: groupId },
+    data: {
+      name: data.name,
+      description: data.description,
+    },
+  });
 }
 
 /**
@@ -264,19 +343,38 @@ export async function getUserGroups(
       (rt: { object: string }) => rt.object,
     );
 
-    // Build group objects (fetch metadata from DB in real implementation)
-    const groups: Group[] = [];
-    for (const groupId of groupIds) {
-      const members = await getGroupMembers(groupId);
-      groups.push({
-        id: groupId,
-        name: groupId, // Replace with DB lookup
-        organizationId: organizationId || "",
-        memberCount: members.length,
-      });
-    }
+    // Fetch group metadata from database
+    const groups = await prisma.group.findMany({
+      where: {
+        id: { in: groupIds },
+        ...(organizationId ? { organizationId } : {}),
+      },
+    });
 
-    return groups;
+    // Add member counts
+    const groupsWithCounts = await Promise.all(
+      groups.map(
+        async (group: {
+          id: string;
+          name: string;
+          description: string | null;
+          organizationId: string;
+          createdAt: Date;
+        }) => {
+          const members = await getGroupMembers(group.id);
+          return {
+            id: group.id,
+            name: group.name,
+            description: group.description || undefined,
+            organizationId: group.organizationId,
+            memberCount: members.length,
+            createdAt: group.createdAt,
+          };
+        },
+      ),
+    );
+
+    return groupsWithCounts;
   } catch (error) {
     console.error("Error fetching user groups:", error);
     return [];
@@ -357,7 +455,10 @@ export async function deleteGroup(
     });
   }
 
-  // Delete group metadata from database (implement DB deletion)
+  // Delete group metadata from database
+  await prisma.group.delete({
+    where: { id: groupId },
+  });
 }
 
 /**

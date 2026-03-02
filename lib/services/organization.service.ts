@@ -3,6 +3,7 @@
  * Handles member invitations, role assignments, and permission checks
  */
 
+import { prisma } from "@/lib/db";
 import {
   checkPermission,
   grantPermission,
@@ -34,7 +35,16 @@ export async function createOrganization(
 ): Promise<Organization> {
   const orgId = `org_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
-  // Make creator the owner
+  // Store org metadata in database
+  const org = await prisma.organization.create({
+    data: {
+      id: orgId,
+      name: orgData.name,
+      description: orgData.description,
+    },
+  });
+
+  // Make creator the owner in Keto
   await grantPermission({
     namespace: "Organization",
     object: orgId,
@@ -42,12 +52,11 @@ export async function createOrganization(
     subject: creatorId,
   });
 
-  // Store org metadata in database (implement DB storage)
   return {
-    id: orgId,
-    name: orgData.name,
-    description: orgData.description,
-    createdAt: new Date(),
+    id: org.id,
+    name: org.name,
+    description: org.description || undefined,
+    createdAt: org.createdAt,
   };
 }
 
