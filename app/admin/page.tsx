@@ -1,6 +1,10 @@
 import { getServerSession } from "@ory/nextjs/app";
 import { redirect } from "next/navigation";
 import { isGlobalAdmin } from "@/lib/services/permission.service";
+import { listIdentities } from "@/lib/services/kratos.service";
+import { getOrganizationGroups } from "@/lib/services/group.service";
+import { getDefaultOrganizationId } from "@/lib/services/organization.service";
+import Link from "next/link";
 
 export default async function AdminPage() {
   // Verify the user is authenticated
@@ -23,6 +27,11 @@ export default async function AdminPage() {
     redirect("/dashboard");
   }
 
+  // Fetch statistics
+  const identities = await listIdentities(0, 1000);
+  const organizationId = getDefaultOrganizationId();
+  const groups = await getOrganizationGroups(organizationId);
+
   return (
     <div>
       <div className="mb-8">
@@ -34,26 +43,6 @@ export default async function AdminPage() {
         </p>
       </div>
 
-      {/* Admin Badge */}
-      <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-        <div className="flex items-center gap-2">
-          <svg
-            className="w-5 h-5 text-blue-600 dark:text-blue-400"
-            fill="currentColor"
-            viewBox="0 0 20 20"
-          >
-            <path
-              fillRule="evenodd"
-              d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-              clipRule="evenodd"
-            />
-          </svg>
-          <span className="text-sm font-medium text-blue-900 dark:text-blue-100">
-            Global Administrator - Full Platform Access
-          </span>
-        </div>
-      </div>
-
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div className="bg-white dark:bg-zinc-900 p-6 rounded-lg border border-zinc-200 dark:border-zinc-800">
@@ -63,7 +52,7 @@ export default async function AdminPage() {
                 Total Identities
               </p>
               <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
-                --
+                {identities.length}
               </p>
             </div>
             <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center">
@@ -88,10 +77,10 @@ export default async function AdminPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-1">
-                Active Sessions
+                Total Groups
               </p>
               <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
-                --
+                {groups.length}
               </p>
             </div>
             <div className="w-12 h-12 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center">
@@ -105,7 +94,7 @@ export default async function AdminPage() {
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth={2}
-                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                  d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
                 />
               </svg>
             </div>
@@ -138,6 +127,93 @@ export default async function AdminPage() {
               </svg>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Groups Section */}
+      <div className="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800">
+        <div className="p-6 border-b border-zinc-200 dark:border-zinc-800">
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">
+              Groups
+            </h2>
+            <Link
+              href="/admin/groups"
+              className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+            >
+              View All →
+            </Link>
+          </div>
+        </div>
+        <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
+          {groups.length > 0 ? (
+            groups.slice(0, 5).map((group) => (
+              <Link
+                key={group.id}
+                href={`/admin/groups/${group.id}`}
+                className="p-6 flex items-center justify-between hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center">
+                    <svg
+                      className="w-5 h-5 text-blue-600 dark:text-blue-400"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                      />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-zinc-900 dark:text-zinc-50">
+                      {group.name}
+                    </h3>
+                    {group.description && (
+                      <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                        {group.description}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-4">
+                  <span className="text-sm text-zinc-600 dark:text-zinc-400">
+                    {group.memberCount}{" "}
+                    {group.memberCount === 1 ? "member" : "members"}
+                  </span>
+                  <svg
+                    className="w-5 h-5 text-zinc-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 5l7 7-7 7"
+                    />
+                  </svg>
+                </div>
+              </Link>
+            ))
+          ) : (
+            <div className="p-12 text-center">
+              <p className="text-zinc-600 dark:text-zinc-400 mb-4">
+                No groups created yet.
+              </p>
+              <Link
+                href="/admin/groups/new"
+                className="inline-block px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+              >
+                Create First Group
+              </Link>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "@ory/nextjs/app";
 import { isGlobalAdmin } from "@/lib/services/permission.service";
-import { deleteGroup, getGroupMembers } from "@/lib/services/group.service";
+import { deleteGroup, getGroupById } from "@/lib/services/group.service";
 
 /**
  * GET /api/admin/groups/[id]
@@ -26,17 +26,12 @@ export async function GET(
 
     const { id: groupId } = await params;
 
-    // Fetch actual member count
-    const memberIds = await getGroupMembers(groupId);
+    // Fetch group metadata from database
+    const group = await getGroupById(groupId);
 
-    // In a real implementation, fetch group metadata from database
-    // For now, return basic structure with actual member count
-    const group = {
-      id: groupId,
-      name: groupId, // Replace with DB lookup
-      description: "", // Replace with DB lookup
-      memberCount: memberIds.length,
-    };
+    if (!group) {
+      return NextResponse.json({ error: "Group not found" }, { status: 404 });
+    }
 
     return NextResponse.json(group);
   } catch (error) {
