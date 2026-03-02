@@ -1,7 +1,5 @@
-import { getLoginFlow, OryPageParams } from "@ory/nextjs/app";
-import config from "@/ory.config";
-import { redirect } from "next/navigation";
-import { LoginClient } from "./login-client";
+import { OryPageParams } from "@ory/nextjs/app";
+import { AutoOAuth2Login } from "../components/oauth2-login";
 
 export const dynamic = "force-dynamic";
 
@@ -14,22 +12,6 @@ export default async function LoginPage(props: OryPageParams) {
   // Get error from search params for OAuth errors
   const error = searchParams.error;
 
-  // Pass return_to to the login flow if it exists
-  const flowParams = returnTo
-    ? { ...searchParams, return_to: returnTo }
-    : searchParams;
-
-  const flow = await getLoginFlow(config, flowParams);
-
-  // If flow doesn't exist, redirect to create a new flow with return_to
-  if (!flow) {
-    const params = new URLSearchParams();
-    if (returnTo) {
-      params.set("return_to", returnTo as string);
-    }
-    redirect(`/auth/login${params.toString() ? `?${params.toString()}` : ""}`);
-  }
-
   // Error messages for OAuth failures
   const errorMessages: Record<string, string> = {
     missing_parameters: "Authentication failed: Missing required parameters",
@@ -37,10 +19,12 @@ export default async function LoginPage(props: OryPageParams) {
     access_denied: "You denied access to your SimpleLogin account",
     no_code: "No authorization code received",
     oauth_failed: "OAuth authentication failed",
+    token_exchange_failed: "Failed to exchange authorization code for tokens",
+    callback_failed: "OAuth callback processing failed",
   };
 
   return (
-    <>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
       {error && typeof error === "string" && (
         <div className="fixed top-4 right-4 max-w-md p-4 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-200 rounded-md shadow-lg z-50">
           <p className="font-medium">Authentication Error</p>
@@ -49,7 +33,19 @@ export default async function LoginPage(props: OryPageParams) {
           </p>
         </div>
       )}
-      <LoginClient flow={flow} config={config} />
-    </>
+      
+      {!error && <AutoOAuth2Login returnTo={returnTo as string} />}
+      
+      {error && (
+        <div className="text-center">
+          <button
+            onClick={() => window.location.href = "/auth/login"}
+            className="mt-4 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
+          >
+            Try Again
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
