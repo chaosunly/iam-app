@@ -3,13 +3,11 @@
  * Receives authorization code from Hydra and exchanges it for tokens
  */
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/headers";
 import { cookies } from "next/headers";
 
-const HYDRA_TOKEN_URL = `${process.env.NEXT_PUBLIC_GATEWAY_URL}/oauth2/token`;
-const OAUTH2_CLIENT_ID = process.env.OAUTH2_CLIENT_ID;
-const OAUTH2_CLIENT_SECRET = process.env.OAUTH2_CLIENT_SECRET;
-const OAUTH2_REDIRECT_URI = `${process.env.NEXT_PUBLIC_GATEWAY_URL}/auth/callback`;
+const OAUTH2_CLIENT_ID = process.env.OAUTH2_CLIENT_ID || "ac90875e-fd72-46f9-a761-75686ba1ab76";
+const OAUTH2_CLIENT_SECRET = process.env.OAUTH2_CLIENT_SECRET || "8tU~ewz38tL8btFMMWoHvtEtM4";
 
 export async function GET(request: NextRequest) {
   try {
@@ -17,6 +15,11 @@ export async function GET(request: NextRequest) {
     const code = searchParams.get("code");
     const state = searchParams.get("state");
     const error = searchParams.get("error");
+
+    // Get the base URL from the request
+    const baseUrl = `${request.nextUrl.protocol}//${request.nextUrl.host}`;
+    const HYDRA_TOKEN_URL = `${baseUrl}/oauth2/token`;
+    const OAUTH2_REDIRECT_URI = `${baseUrl}/auth/callback`;
 
     // Check for OAuth errors
     if (error) {
