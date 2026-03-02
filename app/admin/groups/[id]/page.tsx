@@ -85,11 +85,14 @@ export default function GroupDetailPage() {
 
       if (!response.ok) throw new Error("Failed to load users");
 
-      const users = await response.json();
+      const result = await response.json();
+      // API returns { data: [...], status: 200 }
+      const users = Array.isArray(result.data) ? result.data : [];
       setAllUsers(users);
     } catch (err) {
       console.error("Failed to load users:", err);
       setError(err instanceof Error ? err.message : "Failed to load users");
+      setAllUsers([]); // Ensure it's always an array
     } finally {
       setIsLoadingUsers(false);
     }
