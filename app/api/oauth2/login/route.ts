@@ -13,6 +13,7 @@ export async function GET(request: NextRequest) {
     console.info("/api/oauth2/login start", {
       url: request.nextUrl.toString(),
       cookies: request.cookies.getAll().map((c) => c.name),
+      query: Object.fromEntries(request.nextUrl.searchParams.entries()),
     });
 
     const searchParams = request.nextUrl.searchParams;
