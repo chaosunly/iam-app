@@ -55,14 +55,16 @@ export async function GET(request: NextRequest) {
       // Redirect user back to Hydra
       return NextResponse.redirect(acceptResult.redirect_to);
     } else {
-      // No Kratos session - redirect to Kratos login
+      // No Kratos session - redirect to Kratos self-service login
+      // After login, Kratos will redirect back here with the session
       const baseUrl = `${request.nextUrl.protocol}//${request.nextUrl.host}`;
       const returnTo = encodeURIComponent(
         `${baseUrl}/api/oauth2/login?login_challenge=${login_challenge}`
       );
       
+      // Redirect to Kratos to create a login flow
       return NextResponse.redirect(
-        `${baseUrl}/auth/login?return_to=${returnTo}`
+        `${baseUrl}/.ory/self-service/login/browser?return_to=${returnTo}`
       );
     }
   } catch (error) {
