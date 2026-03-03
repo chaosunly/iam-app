@@ -48,14 +48,13 @@ export async function GET(request: NextRequest) {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
-        Authorization: `Basic ${Buffer.from(
-          `${OAUTH2_CLIENT_ID}:${OAUTH2_CLIENT_SECRET}`
-        ).toString("base64")}`,
       },
       body: new URLSearchParams({
         grant_type: "authorization_code",
         code: code,
         redirect_uri: OAUTH2_REDIRECT_URI,
+        client_id: OAUTH2_CLIENT_ID,
+        client_secret: OAUTH2_CLIENT_SECRET,
       }),
     });
 
