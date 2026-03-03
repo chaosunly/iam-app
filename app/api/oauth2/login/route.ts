@@ -11,7 +11,12 @@ const HYDRA_ADMIN_URL = process.env.HYDRA_ADMIN_URL || "http://hydra.railway.int
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
-    const login_challenge = searchParams.get("login_challenge");
+    let login_challenge = searchParams.get("login_challenge");
+    
+    // If no login_challenge in URL, try to get it from cookie
+    if (!login_challenge) {
+      login_challenge = request.cookies.get("oauth2_login_challenge")?.value || null;
+    }
 
     if (!login_challenge) {
       return NextResponse.json(
@@ -52,15 +57,30 @@ export async function GET(request: NextRequest) {
 
       const acceptResult = await acceptResponse.json();
       
-      // Redirect user back to Hydra
-      return NextResponse.redirect(acceptResult.redirect_to);
-    } else {
-      // No Kratos session - redirect to Kratos self-service login
-      // Include login_challenge in the return_to URL so it survives the OIDC flow
+      // Clear the cookie and redirect user back to Hydra
+      const response = NextResponse.redirect(acceptResult.redirect_to);
+      response.cookies.delete("oauth2_login_challenge");
+      return response;store login_challenge in cookie and redirect to Kratos
       const baseUrl = `${request.nextUrl.protocol}//${request.nextUrl.host}`;
-      const returnToUrl = `${baseUrl}/api/oauth2/login?login_challenge=${login_challenge}`;
+      const returnToUrl = `${baseUrl}/api/oauth2/login`;
       
-      return NextResponse.redirect(
+      const response = NextResponse.redirect(
+        `${baseUrl}/.ory/self-service/login/browser?return_to=${encodeURIComponent(returnToUrl)}`
+      );
+      
+      // Store login_challenge in a secure cookie that survives the OIDC redirect
+      response.cookies.set("oauth2_login_challenge", login_challenge, {
+        httpOnly: true,
+        secure: true,
+        sameSite: "none", // Allow cross-site to work with OIDC redirects
+        maxAge: 600, // 10 minutes
+        path: "/",
+        domain: request.nextUrl.hostname.includes("railway.app") 
+          ? ".up.railway.app" 
+          : request.nextUrl.hostname,
+      });
+      
+      return responseeturn NextResponse.redirect(
         `${baseUrl}/.ory/self-service/login/browser?return_to=${encodeURIComponent(returnToUrl)}`
       );
     }
