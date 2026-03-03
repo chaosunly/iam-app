@@ -56,15 +56,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(acceptResult.redirect_to);
     } else {
       // No Kratos session - redirect to Kratos self-service login
-      // Store login_challenge in a cookie so it survives the OIDC flow
-      const baseUrl = `${request.nextUrl.protocol}//${request.nextUrl.host}`;
-      Include login_challenge in the return_to URL so it survives the OIDC flow
+      // Include login_challenge in the return_to URL so it survives the OIDC flow
       const baseUrl = `${request.nextUrl.protocol}//${request.nextUrl.host}`;
       const returnToUrl = `${baseUrl}/api/oauth2/login?login_challenge=${login_challenge}`;
       
       return NextResponse.redirect(
         `${baseUrl}/.ory/self-service/login/browser?return_to=${encodeURIComponent(returnToUrl)}`
-      )
+      );
+    }
+  } catch (error) {
     console.error("OAuth2 login error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
