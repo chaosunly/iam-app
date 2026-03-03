@@ -5,7 +5,6 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "@ory/nextjs/app";
-import config from "@/ory.config";
 
 const HYDRA_ADMIN_URL = process.env.HYDRA_ADMIN_URL || "http://hydra.railway.internal:4445";
 
@@ -22,7 +21,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Check if user has Kratos session
-    const session = await getServerSession(config);
+    const session = await getServerSession();
 
     if (session) {
       // User is already authenticated with Kratos
