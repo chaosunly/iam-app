@@ -2,6 +2,10 @@ export const dynamic = "force-dynamic";
 
 export default async function ErrorPage({ searchParams }: { searchParams: Record<string, string | string[] | undefined> }) {
   const params = await searchParams;
+  
+  console.error("[ErrorPage] Hit with params:", params);
+  console.error("[ErrorPage] Query keys:", Object.keys(params));
+  
   const error = typeof params.error === "string" ? params.error : "";
   const desc = typeof params.error_description === "string" ? params.error_description : "";
   const reason = typeof params.reason === "string" ? params.reason : "";
