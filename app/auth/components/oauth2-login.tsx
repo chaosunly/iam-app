@@ -82,11 +82,30 @@ export function AutoOAuth2Login({ returnTo }: { returnTo?: string }) {
     window.location.href = authorizeUrl;
   }, [returnTo]);
 
+  const clientId = getClientId();
+  
+  if (!clientId) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center max-w-md p-6 bg-red-50 rounded-lg border border-red-200">
+          <h2 className="text-lg font-semibold text-red-900 mb-2">Configuration Error</h2>
+          <p className="text-sm text-red-700">
+            OAuth2 Client ID is not configured. Please set NEXT_PUBLIC_OAUTH2_CLIENT_ID environment variable.
+          </p>
+          <div className="mt-4 text-xs text-red-600 font-mono">
+            current NEXT_PUBLIC_OAUTH2_CLIENT_ID: {process.env.NEXT_PUBLIC_OAUTH2_CLIENT_ID || "undefined"}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex items-center justify-center min-h-screen">
       <div className="text-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
         <p className="text-gray-600">Redirecting to login...</p>
+        <p className="text-xs text-gray-400 mt-2">Starting OAuth2 flow...</p>
       </div>
     </div>
   );
