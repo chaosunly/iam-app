@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     // Check if user has Kratos session
     const session = await getServerSession();
 
-    if (session) {
+    if (session && session.identity) {
       // User is already authenticated with Kratos
       // Accept the login request and tell Hydra who the user is
       const acceptResponse = await fetch(
