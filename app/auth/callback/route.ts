@@ -100,7 +100,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Redirect to the state parameter (return URL) or dashboard
-    const redirectUrl = state || "/dashboard";
+    const redirectUrl = state ? decodeURIComponent(state) : "/dashboard";
     return NextResponse.redirect(`${gatewayUrl}${redirectUrl}`);
   } catch (error) {
     console.error("OAuth callback error:", error);
