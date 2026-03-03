@@ -56,6 +56,8 @@ export function AutoOAuth2Login({ returnTo }: { returnTo?: string }) {
     const gatewayUrl = getGatewayUrl();
     const clientId = getClientId();
     
+    console.log("[AutoOAuth2Login] Starting", { gatewayUrl, clientId, returnTo });
+    
     if (!clientId) {
       console.error("OAuth2 Client ID not configured");
       return;
@@ -73,8 +75,11 @@ export function AutoOAuth2Login({ returnTo }: { returnTo?: string }) {
       state: encodeURIComponent(state),
     });
 
+    const authorizeUrl = `${gatewayUrl}/oauth2/auth?${params.toString()}`;
+    console.log("[AutoOAuth2Login] Redirecting to:", authorizeUrl);
+
     // Auto-redirect to Hydra
-    window.location.href = `${gatewayUrl}/oauth2/auth?${params.toString()}`;
+    window.location.href = authorizeUrl;
   }, [returnTo]);
 
   return (
