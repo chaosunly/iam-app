@@ -10,6 +10,11 @@ const HYDRA_ADMIN_URL = process.env.HYDRA_ADMIN_URL || "http://hydra.railway.int
 
 export async function GET(request: NextRequest) {
   try {
+    console.info("/api/oauth2/login start", {
+      url: request.nextUrl.toString(),
+      cookies: request.cookies.getAll().map((c) => c.name),
+    });
+
     const searchParams = request.nextUrl.searchParams;
     let login_challenge = searchParams.get("login_challenge");
 
@@ -70,6 +75,12 @@ export async function GET(request: NextRequest) {
       maxAge: 600,
       path: "/",
       domain: request.nextUrl.hostname,
+    });
+
+    console.info("/api/oauth2/login set cookie", {
+      login_challenge,
+      domain: request.nextUrl.hostname,
+      returnToUrl,
     });
 
     return response;
