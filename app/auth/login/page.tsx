@@ -1,7 +1,7 @@
-import { OryPageParams, getFlowForPage } from "@ory/nextjs/app";
+import { OryPageParams, getLoginFlow } from "@ory/nextjs/app";
 import { AutoOAuth2Login } from "../components/oauth2-login";
 import { LoginClient } from "./login-client";
-import { oryConfig } from "@/ory.config";
+import config from "@/ory.config";
 
 export const dynamic = "force-dynamic";
 
@@ -13,13 +13,11 @@ export default async function LoginPage(props: OryPageParams) {
   
   // If there's a Kratos flow, show the Kratos login form
   if (flowId) {
-    const flow = await getFlowForPage({
-      flowType: "login",
-      searchParams,
-      oryConfig,
-    });
+    const flow = await getLoginFlow(config, searchParams);
     
-    return <LoginClient flow={flow} config={oryConfig} />;
+    if (flow) {
+      return <LoginClient flow={flow} config={config} />;
+    }
   }
 
   // Otherwise, trigger OAuth2 flow
