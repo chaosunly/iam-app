@@ -19,6 +19,10 @@ export async function GET(request: NextRequest) {
     }
 
     if (!login_challenge) {
+      console.error("login_challenge missing", {
+        hasCookie: Boolean(request.cookies.get("oauth2_login_challenge")),
+        cookieDomain: request.nextUrl.hostname,
+      });
       return NextResponse.json({ error: "login_challenge is required" }, { status: 400 });
     }
 
@@ -65,9 +69,7 @@ export async function GET(request: NextRequest) {
       sameSite: "none", // allow cross-site redirects back from SimpleLogin
       maxAge: 600,
       path: "/",
-      domain: request.nextUrl.hostname.endsWith(".up.railway.app")
-        ? ".up.railway.app"
-        : request.nextUrl.hostname,
+      domain: request.nextUrl.hostname,
     });
 
     return response;
