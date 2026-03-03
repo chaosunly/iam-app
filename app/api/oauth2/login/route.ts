@@ -69,8 +69,18 @@ export async function GET(request: NextRequest) {
     }
 
     // No Kratos session: store challenge and send to Kratos login
-    const baseUrl = `${request.nextUrl.protocol}//${request.nextUrl.host}`;
+    // Use X-Forwarded-Host from nginx to get the public gateway URL
+    const forwardedHost = request.headers.get("x-forwarded-host") || request.nextUrl.host;
+    const forwardedProto = request.headers.get("x-forwarded-proto") || request.nextUrl.protocol.replace(":", "");
+    const baseUrl = `${forwardedProto}://${forwardedHost}`;
     const returnToUrl = `${baseUrl}/api/oauth2/login?login_challenge=${login_challenge}`;
+
+    console.info("/api/oauth2/login redirecting to Kratos", {
+      forwardedHost,
+      forwardedProto,
+      baseUrl,
+      returnToUrl,
+    });
 
     const response = NextResponse.redirect(
       `${baseUrl}/.ory/self-service/login/browser?return_to=${encodeURIComponent(returnToUrl)}`
