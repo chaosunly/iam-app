@@ -11,12 +11,7 @@ const HYDRA_ADMIN_URL = process.env.HYDRA_ADMIN_URL || "http://hydra.railway.int
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
-    let login_challenge = searchParams.get("login_challenge");
-
-    // If no login_challenge in URL, check cookie (preserved from initial call)
-    if (!login_challenge) {
-      login_challenge = request.cookies.get("hydra_login_challenge")?.value || null;
-    }
+    const login_challenge = searchParams.get("login_challenge");
 
     if (!login_challenge) {
       return NextResponse.json(
@@ -57,31 +52,19 @@ export async function GET(request: NextRequest) {
 
       const acceptResult = await acceptResponse.json();
       
-      // Redirect user back to Hydra and clear the cookie
-      const response = NextResponse.redirect(acceptResult.redirect_to);
-      response.cookies.delete("hydra_login_challenge");
-      return response;
+      // Redirect user back to Hydra
+      return NextResponse.redirect(acceptResult.redirect_to);
     } else {
       // No Kratos session - redirect to Kratos self-service login
       // Store login_challenge in a cookie so it survives the OIDC flow
       const baseUrl = `${request.nextUrl.protocol}//${request.nextUrl.host}`;
+      Include login_challenge in the return_to URL so it survives the OIDC flow
+      const baseUrl = `${request.nextUrl.protocol}//${request.nextUrl.host}`;
+      const returnToUrl = `${baseUrl}/api/oauth2/login?login_challenge=${login_challenge}`;
       
-      const response = NextResponse.redirect(
-        `${baseUrl}/.ory/self-service/login/browser?return_to=${encodeURIComponent(`${baseUrl}/api/oauth2/login`)}`
-      );
-      
-      // Store login_challenge in a secure cookie
-      response.cookies.set("hydra_login_challenge", login_challenge, {
-        httpOnly: true,
-        secure: true,
-        sameSite: "lax",
-        maxAge: 600, // 10 minutes
-        path: "/",
-      });
-      
-      return response;
-    }
-  } catch (error) {
+      return NextResponse.redirect(
+        `${baseUrl}/.ory/self-service/login/browser?return_to=${encodeURIComponent(returnToUrl)}`
+      )
     console.error("OAuth2 login error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
