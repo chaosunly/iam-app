@@ -24,11 +24,18 @@ export async function GET(request: NextRequest) {
     }
 
     if (!login_challenge) {
+      const cookies = request.cookies.getAll().map((c) => c.name);
       console.error("login_challenge missing", {
         hasCookie: Boolean(request.cookies.get("oauth2_login_challenge")),
         cookieDomain: request.nextUrl.hostname,
+        cookies,
       });
-      return NextResponse.json({ error: "login_challenge is required" }, { status: 400 });
+      const res = NextResponse.json(
+        { error: "login_challenge is required", cookies, url: request.nextUrl.toString() },
+        { status: 400 }
+      );
+      res.headers.set("X-Debug-Login-Challenge", "missing");
+      return res;
     }
 
     const session = await getServerSession();
@@ -74,7 +81,7 @@ export async function GET(request: NextRequest) {
       sameSite: "none", // allow cross-site redirects back from SimpleLogin
       maxAge: 600,
       path: "/",
-      domain: request.nextUrl.hostname,
+      // No explicit domain to stick to current host; avoids mismatch
     });
 
     console.info("/api/oauth2/login set cookie", {
