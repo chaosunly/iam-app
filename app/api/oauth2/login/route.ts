@@ -11,7 +11,12 @@ const HYDRA_ADMIN_URL = process.env.HYDRA_ADMIN_URL || "http://hydra.railway.int
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
-    const login_challenge = searchParams.get("login_challenge");
+    let login_challenge = searchParams.get("login_challenge");
+
+    // If no login_challenge in URL, check cookie (preserved from initial call)
+    if (!login_challenge) {
+      login_challenge = request.cookies.get("hydra_login_challenge")?.value || null;
+    }
 
     if (!login_challenge) {
       return NextResponse.json(
@@ -52,20 +57,29 @@ export async function GET(request: NextRequest) {
 
       const acceptResult = await acceptResponse.json();
       
-      // Redirect user back to Hydra
-      return NextResponse.redirect(acceptResult.redirect_to);
+      // Redirect user back to Hydra and clear the cookie
+      const response = NextResponse.redirect(acceptResult.redirect_to);
+      response.cookies.delete("hydra_login_challenge");
+      return response;
     } else {
       // No Kratos session - redirect to Kratos self-service login
-      // After login, Kratos will redirect back here with the session
+      // Store login_challenge in a cookie so it survives the OIDC flow
       const baseUrl = `${request.nextUrl.protocol}//${request.nextUrl.host}`;
-      const returnTo = encodeURIComponent(
-        `${baseUrl}/api/oauth2/login?login_challenge=${login_challenge}`
+      
+      const response = NextResponse.redirect(
+        `${baseUrl}/.ory/self-service/login/browser?return_to=${encodeURIComponent(`${baseUrl}/api/oauth2/login`)}`
       );
       
-      // Redirect to Kratos to create a login flow
-      return NextResponse.redirect(
-        `${baseUrl}/.ory/self-service/login/browser?return_to=${returnTo}`
-      );
+      // Store login_challenge in a secure cookie
+      response.cookies.set("hydra_login_challenge", login_challenge, {
+        httpOnly: true,
+        secure: true,
+        sameSite: "lax",
+        maxAge: 600, // 10 minutes
+        path: "/",
+      });
+      
+      return response;
     }
   } catch (error) {
     console.error("OAuth2 login error:", error);
