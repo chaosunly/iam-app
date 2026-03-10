@@ -154,7 +154,7 @@ export default function GitlabRolesPage() {
   const resources = resourceType === "group" ? groups : projects;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6 md:p-8">
       <div>
         <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50">
           GitLab Role Assignments

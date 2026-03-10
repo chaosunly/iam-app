@@ -229,7 +229,7 @@ export function UserSidebar({
 
       {/* Desktop Sidebar */}
       <aside
-        className={`hidden md:flex flex-col border-r bg-background transition-all duration-300 ${
+        className={`hidden md:flex flex-col border-r bg-background h-screen transition-all duration-300 ${
           collapsed ? "w-18" : "w-64"
         }`}
       >

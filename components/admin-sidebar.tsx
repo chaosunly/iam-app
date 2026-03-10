@@ -14,7 +14,6 @@ import {
   Settings,
   LogOut,
   ChevronsUpDown,
-  LayoutDashboard,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -120,12 +119,6 @@ function UserProfileDropdown({
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
           <DropdownMenuItem asChild>
-            <Link href="/dashboard" className="cursor-pointer">
-              <LayoutDashboard className="h-4 w-4" />
-              User Dashboard
-            </Link>
-          </DropdownMenuItem>
-          <DropdownMenuItem asChild>
             <Link href="/auth/settings" className="cursor-pointer">
               <Settings className="h-4 w-4" />
               Account Settings
@@ -228,7 +221,7 @@ export function AdminSidebar({
 
       {/* Desktop Sidebar */}
       <aside
-        className={`hidden md:flex flex-col border-r bg-background transition-all duration-300 ${
+        className={`hidden md:flex flex-col border-r bg-background h-screen transition-all duration-300 ${
           collapsed ? "w-18" : "w-64"
         }`}
       >

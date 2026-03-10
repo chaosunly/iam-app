@@ -80,7 +80,7 @@ export default function GitlabProjectDetailPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6 md:p-8">
       <div>
         <Link
           href="/admin/gitlab/projects"

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
 
 export function LogoutButton() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -10,7 +11,6 @@ export function LogoutButton() {
     setIsLoggingOut(true);
 
     try {
-      // Call the logout API
       const response = await fetch("/api/auth/logout", {
         method: "POST",
         credentials: "include",
@@ -18,28 +18,21 @@ export function LogoutButton() {
 
       if (response.ok) {
         const data = await response.json();
-        // Redirect to the URL provided by the server
         window.location.href = data.redirectUrl || "/";
       } else {
-        // Fallback: navigate to home page
         window.location.href = "/";
       }
     } catch (error) {
       console.error("Logout error:", error);
-      // Force reload to home page on error
       window.location.href = "/";
     }
   };
 
   return (
     <form onSubmit={handleLogout}>
-      <button
-        type="submit"
-        disabled={isLoggingOut}
-        className="text-sm px-4 py-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-lg hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors disabled:opacity-50"
-      >
+      <Button type="submit" disabled={isLoggingOut} size="sm">
         {isLoggingOut ? "Logging out..." : "Logout"}
-      </button>
+      </Button>
     </form>
   );
 }

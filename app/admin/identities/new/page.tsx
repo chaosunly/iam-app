@@ -60,7 +60,7 @@ export default function NewIdentityPage() {
   };
 
   return (
-    <div className="max-w-2xl">
+    <div className="max-w-2xl p-6 md:p-8">
       <div className="mb-8">
         <h2 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50 mb-2">
           Create New Identity

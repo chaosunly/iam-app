@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { ReactNode } from "react";
 import { UserSidebar } from "@/components/user-sidebar";
 import { isGlobalAdmin } from "@/lib/services/permission.service";
+import { PageHeader } from "@/components/page-header";
 
 export default async function DashboardLayout({
   children,
@@ -29,13 +30,16 @@ export default async function DashboardLayout({
   const userEmail = traits.email || "";
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex h-screen overflow-hidden">
       <UserSidebar
         isAdmin={hasAdminAccess}
         userName={userName}
         userEmail={userEmail}
       />
-      <main className="flex-1 overflow-auto">{children}</main>
+      <main className="flex-1 flex flex-col overflow-hidden">
+        <PageHeader />
+        <div className="flex-1 overflow-auto">{children}</div>
+      </main>
     </div>
   );
 }

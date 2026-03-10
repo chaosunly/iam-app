@@ -40,7 +40,7 @@ export default function NewGitlabGroupPage() {
   }
 
   return (
-    <div className="max-w-2xl space-y-6">
+    <div className="max-w-2xl space-y-6 p-6 md:p-8">
       <div>
         <Link
           href="/admin/gitlab/groups"

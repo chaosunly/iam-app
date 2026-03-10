@@ -76,7 +76,7 @@ export default function GitlabProjectsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6 md:p-8">
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50">
