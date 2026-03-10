@@ -1,34 +1,47 @@
-import { getLoginFlow, OryPageParams } from "@ory/nextjs/app";
-import config from "@/ory.config";
-import { redirect } from "next/navigation";
+import { OryPageParams, getLoginFlow } from "@ory/nextjs/app";
+import { AutoOAuth2Login } from "../components/oauth2-login";
 import { LoginClient } from "./login-client";
+import { LoginError } from "./login-error";
+import config from "@/ory.config";
 
 export const dynamic = "force-dynamic";
 
 export default async function LoginPage(props: OryPageParams) {
   const searchParams = await props.searchParams;
 
-  // Get return_to from search params
+  console.log("[LoginPage] Rendering with params:", searchParams);
+
+  // Check if this is a Kratos flow (has flow parameter)
+  const flowId = searchParams.flow;
   const returnTo = searchParams.return_to;
-
-  // Get error from search params for OAuth errors
-  const error = searchParams.error;
-
-  // Pass return_to to the login flow if it exists
-  const flowParams = returnTo
-    ? { ...searchParams, return_to: returnTo }
-    : searchParams;
-
-  const flow = await getLoginFlow(config, flowParams);
-
-  // If flow doesn't exist, redirect to create a new flow with return_to
-  if (!flow) {
-    const params = new URLSearchParams();
-    if (returnTo) {
-      params.set("return_to", returnTo as string);
+  
+  console.log("[LoginPage] Flow ID:", flowId, "Return to:", returnTo);
+  
+  // If there's a Kratos flow, show the Kratos login form
+  if (flowId) {
+    console.log("[LoginPage] Getting Kratos flow");
+    const flow = await getLoginFlow(config, searchParams);
+    
+    if (flow) {
+      console.log("[LoginPage] Showing Kratos login form");
+      return <LoginClient flow={flow} config={config} />;
     }
-    redirect(`/auth/login${params.toString() ? `?${params.toString()}` : ""}`);
+    console.log("[LoginPage] Failed to get Kratos flow");
   }
+
+  // If there's a return_to but no flow, this means Kratos is asking us to login
+  // We need to redirect to Kratos to create a login flow, not start OAuth2
+  if (returnTo && !flowId) {
+    console.log("[LoginPage] Redirecting to create Kratos flow with return_to:", returnTo);
+    const { redirect } = await import("next/navigation");
+    const baseUrl = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}`;
+    redirect(`${baseUrl}/.ory/self-service/login/browser?return_to=${encodeURIComponent(returnTo as string)}`);
+  }
+
+  // Otherwise, trigger OAuth2 flow (fresh login request)
+  const error = searchParams.error;
+  
+  console.log("[LoginPage] No flow/return_to, showing OAuth2 login. Error:", error);
 
   // Error messages for OAuth failures
   const errorMessages: Record<string, string> = {
@@ -37,19 +50,20 @@ export default async function LoginPage(props: OryPageParams) {
     access_denied: "You denied access to your SimpleLogin account",
     no_code: "No authorization code received",
     oauth_failed: "OAuth authentication failed",
+    token_exchange_failed: "Failed to exchange authorization code for tokens",
+    callback_failed: "OAuth callback processing failed",
+    oauth_not_configured: "OAuth2 is not configured properly",
   };
 
+  // Show error if present
+  if (error && typeof error === "string") {
+    return <LoginError error={error} errorMessages={errorMessages} />;
+  }
+
+  // Trigger OAuth2 flow
   return (
-    <>
-      {error && typeof error === "string" && (
-        <div className="fixed top-4 right-4 max-w-md p-4 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-200 rounded-md shadow-lg z-50">
-          <p className="font-medium">Authentication Error</p>
-          <p className="text-sm mt-1">
-            {errorMessages[error] || "An unexpected error occurred"}
-          </p>
-        </div>
-      )}
-      <LoginClient flow={flow} config={config} />
-    </>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+      <AutoOAuth2Login returnTo={returnTo as string} />
+    </div>
   );
 }
