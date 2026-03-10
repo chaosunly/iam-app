@@ -16,9 +16,10 @@ export function LogoutButton() {
         credentials: "include",
       });
 
-      if (response.redirected) {
-        // Force a full page reload to clear all client-side state
-        window.location.href = response.url;
+      if (response.ok) {
+        const data = await response.json();
+        // Redirect to the URL provided by the server
+        window.location.href = data.redirectUrl || "/";
       } else {
         // Fallback: navigate to home page
         window.location.href = "/";

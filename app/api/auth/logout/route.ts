@@ -90,7 +90,17 @@ export async function POST(request: NextRequest) {
       console.log("[Logout] No session cookie found");
     }
 
-    const response = NextResponse.redirect(new URL("/auth/login", request.url));
+    // Get gateway URL for response
+    const forwardedHost = request.headers.get("x-forwarded-host");
+    const forwardedProto = request.headers.get("x-forwarded-proto") || "https";
+    const baseUrl = forwardedHost
+      ? `${forwardedProto}://${forwardedHost}`
+      : request.nextUrl.origin;
+
+    const response = NextResponse.json({ 
+      success: true, 
+      redirectUrl: `${baseUrl}/` 
+    });
 
     // Clear all auth cookies. Each cookie is cleared twice:
     //   • without Domain — deletes host-only cookies
@@ -151,9 +161,17 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Logout error:", error);
     // Even if there's an error, redirect to login and clear cookies
-    const host =
-      request.headers.get("x-forwarded-host") || request.nextUrl.hostname;
-    const response = NextResponse.redirect(new URL("/auth/login", request.url));
+    const forwardedHost = request.headers.get("x-forwarded-host");
+    const forwardedProto = request.headers.get("x-forwarded-proto") || "https";
+    const host = forwardedHost || request.nextUrl.hostname;
+    const baseUrl = forwardedHost
+      ? `${forwardedProto}://${forwardedHost}`
+      : request.nextUrl.origin;
+    
+    const response = NextResponse.json({ 
+      success: true, 
+      redirectUrl: `${baseUrl}/` 
+    });
     
     const isProduction = process.env.NODE_ENV === "production";
 
