@@ -14,9 +14,19 @@ export default async function AdminLayout({
     redirect("/auth/login");
   }
 
+  const traits = session.identity.traits as {
+    email?: string;
+    name?: { first?: string; last?: string };
+    username?: string;
+  };
+  const userName = traits.name?.first
+    ? `${traits.name.first} ${traits.name.last || ""}`.trim()
+    : traits.username || "Admin";
+  const userEmail = traits.email || "";
+
   return (
     <div className="flex min-h-screen">
-      <AdminSidebar />
+      <AdminSidebar userName={userName} userEmail={userEmail} />
       <main className="flex-1 overflow-auto">{children}</main>
     </div>
   );
