@@ -224,6 +224,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  // Redirect GET requests to POST (for direct link access)
-  return POST(request);
+  // For GET requests (direct browser access), redirect to the logout page
+  // which will handle the logout flow with proper UI
+  return NextResponse.redirect(new URL("/auth/logout", request.url));
 }
