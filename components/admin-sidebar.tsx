@@ -42,7 +42,6 @@ const navItems = [
   { href: "/admin/groups", label: "Groups", icon: UsersRound },
   { href: "/admin/permissions", label: "Permissions", icon: Shield },
   { href: "/admin/gitlab", label: "GitLab Access", icon: GitlabIcon },
-  { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
 
 interface AdminSidebarProps {

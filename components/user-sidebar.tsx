@@ -13,7 +13,6 @@ import {
   LogOut,
   Shield,
   ChevronsUpDown,
-  LayoutDashboard,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -45,7 +44,6 @@ const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: Home },
   { href: "/dashboard/groups", label: "My Groups", icon: UsersRound },
   { href: "/dashboard/projects", label: "My Projects", icon: FolderKanban },
-  { href: "/auth/settings", label: "Settings", icon: Settings },
 ];
 
 interface UserProfileDropdownProps {
@@ -132,12 +130,6 @@ function UserProfileDropdown({
             <Link href="/auth/settings" className="cursor-pointer">
               <Settings className="h-4 w-4" />
               Account Settings
-            </Link>
-          </DropdownMenuItem>
-          <DropdownMenuItem asChild>
-            <Link href="/dashboard" className="cursor-pointer">
-              <LayoutDashboard className="h-4 w-4" />
-              Dashboard
             </Link>
           </DropdownMenuItem>
         </DropdownMenuGroup>

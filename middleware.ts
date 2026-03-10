@@ -36,6 +36,7 @@ const PUBLIC_ROUTES = [
   /^\/auth\/verification/,
   /^\/auth\/callback/,
   /^\/auth\/error/,
+  /^\/auth\/settings/,
   /^\/api\/oauth2\//,
   /^\/error/,
   /^\/$/,
