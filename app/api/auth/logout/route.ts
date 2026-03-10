@@ -30,6 +30,7 @@ export async function POST(request: NextRequest) {
         const logoutResponse = await fetch(
           `${oryUrl}/self-service/logout/browser`,
           {
+            redirect: "manual",
             headers: {
               Accept: "application/json",
               Cookie: `${sessionCookie.name}=${sessionCookie.value}`,
@@ -47,6 +48,7 @@ export async function POST(request: NextRequest) {
               `${oryUrl}/self-service/logout?token=${logoutData.logout_token}`,
               {
                 method: "GET",
+                redirect: "manual",
                 headers: {
                   Cookie: `${sessionCookie.name}=${sessionCookie.value}`,
                 },

@@ -319,12 +319,14 @@ export async function getUserGroups(
     const params = new URLSearchParams({
       namespace: "Group",
       relation: "members",
-      "subject_id.id": userId,
+      subject_id: userId,
     });
 
     const KETO_READ_URL =
       process.env.ORY_KETO_READ_URL || "http://localhost:4466";
     const url = `${KETO_READ_URL}/relation-tuples?${params}`;
+
+    console.log("[getUserGroups] Fetching groups for user:", { userId, url });
 
     const response = await fetch(url, {
       method: "GET",
@@ -334,14 +336,24 @@ export async function getUserGroups(
     });
 
     if (!response.ok) {
-      console.error("Failed to fetch user groups");
+      console.error("[getUserGroups] Failed to fetch user groups:", {
+        status: response.status,
+        statusText: response.statusText,
+      });
       return [];
     }
 
     const data = await response.json();
+    console.log("[getUserGroups] Keto response:", {
+      tupleCount: data.relation_tuples?.length || 0,
+      tuples: data.relation_tuples,
+    });
+
     const groupIds = (data.relation_tuples || []).map(
       (rt: { object: string }) => rt.object,
     );
+
+    console.log("[getUserGroups] Group IDs found:", groupIds);
 
     // Fetch group metadata from database
     const groups = await prisma.group.findMany({

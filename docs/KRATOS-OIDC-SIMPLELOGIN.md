@@ -45,19 +45,36 @@ selfservice:
               - profile
 ```
 
-The `mapper_url` is base64 encoded JSON that maps SimpleLogin claims to Kratos identity traits:
+The `mapper_url` is base64 encoded Jsonnet that maps SimpleLogin claims to Kratos identity traits.
 
-```json
+**Important:** SimpleLogin may not provide a `name` claim, so use a defensive mapper:
+
+```jsonnet
+local claims = std.extVar('claims');
 {
-  "identity": {
-    "traits": {
-      "email": "{{ claims.email }}",
-      "name": {
-        "first": "{{ claims.name }}"
-      }
-    }
-  }
+  identity: {
+    traits: {
+      email: claims.email,
+      username: if std.objectHas(claims, 'name') then claims.name
+                else std.split(claims.email, '@')[0],
+    },
+  },
 }
+```
+
+To base64 encode this for the `mapper_url`:
+
+```bash
+echo 'local claims = std.extVar("claims");
+{
+  identity: {
+    traits: {
+      email: claims.email,
+      username: if std.objectHas(claims, "name") then claims.name
+                else std.split(claims.email, "@")[0],
+    },
+  },
+}' | base64
 ```
 
 ### 2. Update Your Login Page

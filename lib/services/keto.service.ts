@@ -134,7 +134,7 @@ export async function revokePermission(tuple: RelationTuple): Promise<void> {
       namespace: tuple.namespace,
       object: tuple.object,
       relation: tuple.relation,
-      "subject_id.id": tuple.subject,
+      subject_id: tuple.subject,
     });
 
     const url = `${KETO_WRITE_URL}/admin/relation-tuples?${params}`;
@@ -170,7 +170,7 @@ export async function listUserPermissions(
     }
 
     const params = new URLSearchParams({
-      "subject_id.id": userId,
+      subject_id: userId,
     });
 
     if (namespace) {
@@ -274,7 +274,7 @@ export async function listSubjectRelations(
     const params = new URLSearchParams({
       namespace,
       relation,
-      "subject_id.id": subjectId,
+      subject_id: subjectId,
     });
 
     const url = `${KETO_READ_URL}/relation-tuples?${params}`;

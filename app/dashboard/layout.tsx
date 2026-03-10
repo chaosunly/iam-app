@@ -1,9 +1,10 @@
 import { getServerSession } from "@ory/nextjs/app";
 import { redirect } from "next/navigation";
 import { ReactNode } from "react";
-import { AdminSidebar } from "@/components/admin-sidebar";
+import { UserSidebar } from "@/components/user-sidebar";
+import { isGlobalAdmin } from "@/lib/services/permission.service";
 
-export default async function AdminLayout({
+export default async function DashboardLayout({
   children,
 }: {
   children: ReactNode;
@@ -14,9 +15,12 @@ export default async function AdminLayout({
     redirect("/auth/login");
   }
 
+  const userId = session.identity.id;
+  const hasAdminAccess = await isGlobalAdmin(userId);
+
   return (
     <div className="flex min-h-screen">
-      <AdminSidebar />
+      <UserSidebar isAdmin={hasAdminAccess} />
       <main className="flex-1 overflow-auto">{children}</main>
     </div>
   );

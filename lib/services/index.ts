@@ -53,6 +53,26 @@ export {
   promoteToGlobalAdmin,
 } from "./user-setup.service";
 
+// GitLab Service (GitLab-style access management)
+export {
+  createGitlabGroup,
+  getGitlabGroups,
+  getGitlabGroupById,
+  getGitlabGroupWithMembers,
+  deleteGitlabGroup,
+  createGitlabProject,
+  getGitlabProjects,
+  getGitlabProjectById,
+  getGitlabProjectWithMembers,
+  deleteGitlabProject,
+  assignGitlabRole,
+  updateGitlabRole,
+  removeGitlabRole,
+  getResourceMembers,
+  getUserGitlabRoles,
+  checkGitlabPermission,
+} from "./gitlab.service";
+
 // Keto Helper Functions (Direct Keto operations)
 export {
   checkKetoHealth,

@@ -1,6 +1,5 @@
 import { getServerSession } from "@ory/nextjs/app";
 import { redirect } from "next/navigation";
-import { LogoutButton } from "./logout-button";
 import { isGlobalAdmin } from "@/lib/services/permission.service";
 import { getUserGroups } from "@/lib/services/group.service";
 import { getDefaultOrganizationId } from "@/lib/services/organization.service";
@@ -33,57 +32,25 @@ export default async function DashboardPage() {
   const userGroups = await getUserGroups(userId, organizationId);
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-black">
-      {/* Header */}
-      <header className="border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
-              IAM App
-            </h1>
-          </div>
-          <nav className="flex items-center gap-4">
-            {hasAdminAccess && (
-              <a
-                href="/admin"
-                className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700"
-              >
-                Admin Panel
-              </a>
-            )}
-            <a
-              href="/auth/settings"
-              className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-50"
-            >
-              Settings
-            </a>
-            <LogoutButton />
-          </nav>
-        </div>
-      </header>
-
+    <div className="flex flex-col h-full">
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="flex-1 p-6 md:p-8 overflow-auto">
         {/* Welcome Section */}
         <div className="mb-8">
-          <h2 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50 mb-2">
-            Welcome back, {name}!
-          </h2>
-          <p className="text-zinc-600 dark:text-zinc-400">
+          <h2 className="text-3xl font-bold mb-2">Welcome back, {name}!</h2>
+          <p className="text-muted-foreground">
             Here&apos;s what&apos;s happening with your account today.
           </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white dark:bg-zinc-900 p-6 rounded-lg border border-zinc-200 dark:border-zinc-800">
+          <div className="bg-card p-6 rounded-lg border">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-1">
+                <p className="text-sm text-muted-foreground mb-1">
                   Account Status
                 </p>
-                <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
-                  Active
-                </p>
+                <p className="text-2xl font-bold">Active</p>
               </div>
               <div className="w-12 h-12 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center">
                 <svg
@@ -103,15 +70,11 @@ export default async function DashboardPage() {
             </div>
           </div>
 
-          <div className="bg-white dark:bg-zinc-900 p-6 rounded-lg border border-zinc-200 dark:border-zinc-800">
+          <div className="bg-card p-6 rounded-lg border">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-1">
-                  Email
-                </p>
-                <p className="text-lg font-semibold text-zinc-900 dark:text-zinc-50 truncate">
-                  {email}
-                </p>
+                <p className="text-sm text-muted-foreground mb-1">Email</p>
+                <p className="text-lg font-semibold truncate">{email}</p>
               </div>
               <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center">
                 <svg
@@ -131,15 +94,11 @@ export default async function DashboardPage() {
             </div>
           </div>
 
-          <div className="bg-white dark:bg-zinc-900 p-6 rounded-lg border border-zinc-200 dark:border-zinc-800">
+          <div className="bg-card p-6 rounded-lg border">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-1">
-                  Groups
-                </p>
-                <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
-                  {userGroups.length}
-                </p>
+                <p className="text-sm text-muted-foreground mb-1">Groups</p>
+                <p className="text-2xl font-bold">{userGroups.length}</p>
               </div>
               <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/20 rounded-full flex items-center justify-center">
                 <svg
@@ -161,16 +120,14 @@ export default async function DashboardPage() {
         </div>
 
         {/* Groups Section */}
-        <div className="bg-white dark:bg-zinc-900 p-6 rounded-lg border border-zinc-200 dark:border-zinc-800 mb-8">
-          <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50 mb-4">
-            My Groups
-          </h3>
+        <div className="bg-card p-6 rounded-lg border mb-8">
+          <h3 className="text-lg font-semibold mb-4">My Groups</h3>
           {userGroups.length > 0 ? (
             <div className="space-y-3">
               {userGroups.map((group) => (
                 <div
                   key={group.id}
-                  className="flex items-center justify-between p-3 rounded-lg border border-zinc-200 dark:border-zinc-800"
+                  className="flex items-center justify-between p-3 rounded-lg border"
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
@@ -189,41 +146,37 @@ export default async function DashboardPage() {
                       </svg>
                     </div>
                     <div>
-                      <p className="font-medium text-zinc-900 dark:text-zinc-50">
-                        {group.name}
-                      </p>
+                      <p className="font-medium">{group.name}</p>
                       {group.description && (
-                        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                        <p className="text-sm text-muted-foreground">
                           {group.description}
                         </p>
                       )}
                     </div>
                   </div>
-                  <span className="text-sm text-zinc-600 dark:text-zinc-400">
+                  <span className="text-sm text-muted-foreground">
                     {group.memberCount || 0} members
                   </span>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-zinc-600 dark:text-zinc-400 text-center py-8">
+            <p className="text-muted-foreground text-center py-8">
               You are not a member of any groups yet.
             </p>
           )}
         </div>
 
         {/* Connected Services */}
-        <div className="bg-white dark:bg-zinc-900 p-6 rounded-lg border border-zinc-200 dark:border-zinc-800 mb-8">
-          <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50 mb-4">
-            Connected Services
-          </h3>
+        <div className="bg-card p-6 rounded-lg border mb-8">
+          <h3 className="text-lg font-semibold mb-4">Connected Services</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* GitLab */}
             <a
               href="https://gitlab.com"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex flex-col items-center gap-3 p-4 rounded-lg border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors group"
+              className="flex flex-col items-center gap-3 p-4 rounded-lg border hover:bg-accent transition-colors group"
             >
               <div className="w-12 h-12 bg-orange-100 dark:bg-orange-900/20 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
                 <svg
@@ -235,12 +188,8 @@ export default async function DashboardPage() {
                 </svg>
               </div>
               <div className="text-center">
-                <p className="font-medium text-zinc-900 dark:text-zinc-50">
-                  GitLab
-                </p>
-                <p className="text-xs text-zinc-600 dark:text-zinc-400">
-                  Code Repository
-                </p>
+                <p className="font-medium">GitLab</p>
+                <p className="text-xs text-muted-foreground">Code Repository</p>
               </div>
             </a>
 
@@ -530,7 +479,7 @@ export default async function DashboardPage() {
             </div>
           </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 }

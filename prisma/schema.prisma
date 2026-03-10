@@ -30,3 +30,43 @@ model Group {
   @@index([organizationId])
   @@map("groups")
 }
+
+// GitLab Access Management Models
+model GitlabGroup {
+  id          String           @id @default(cuid())
+  name        String           @unique
+  description String?
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+  projects    GitlabProject[]
+
+  @@map("gitlab_groups")
+}
+
+model GitlabProject {
+  id          String        @id @default(cuid())
+  name        String        @unique
+  description String?
+  groupId     String?       @map("group_id")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+  group       GitlabGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
+
+  @@index([groupId])
+  @@map("gitlab_projects")
+}
+
+model GitlabRoleAssignment {
+  id           String   @id @default(cuid())
+  userId       String   @map("user_id")
+  resourceType String   @map("resource_type") // "group" or "project"
+  resourceId   String   @map("resource_id")
+  role         String   // "owner", "maintainer", "developer", "reporter", "guest"
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@unique([userId, resourceType, resourceId])
+  @@index([userId])
+  @@index([resourceType, resourceId])
+  @@map("gitlab_role_assignments")
+}

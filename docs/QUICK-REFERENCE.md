@@ -363,7 +363,7 @@ curl -X DELETE "http://localhost:4467/admin/relation-tuples?\
 namespace=GlobalRole&\
 object=admin&\
 relation=is_admin&\
-subject_id.id=<user-id>"
+subject_id=<user-id>"
 ```
 
 ## 📦 Environment Setup

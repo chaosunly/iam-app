@@ -117,7 +117,7 @@ export async function deleteRelation(tuple: RelationTuple): Promise<boolean> {
       namespace: tuple.namespace,
       object: tuple.object,
       relation: tuple.relation,
-      "subject_id.id": tuple.subject,
+      subject_id: tuple.subject,
     });
 
     const url = `${KETO_WRITE_URL}/admin/relation-tuples?${params}`;
@@ -139,7 +139,7 @@ export async function listUserPermissions(
 ): Promise<RelationTuple[]> {
   try {
     const params = new URLSearchParams({
-      "subject_id.id": userId,
+      subject_id: userId,
     });
 
     if (namespace) {

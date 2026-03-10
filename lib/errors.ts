@@ -34,6 +34,15 @@ export class BadRequestError extends Error {
   }
 }
 
+export class ConflictError extends Error {
+  status = 409;
+  statusCode = 409;
+  constructor(message = "Conflict") {
+    super(message);
+    this.name = "ConflictError";
+  }
+}
+
 export class InternalServerError extends Error {
   status = 500;
   constructor(message = "Internal server error") {
@@ -45,7 +54,7 @@ export class InternalServerError extends Error {
 // Error response builder
 export function createErrorResponse(
   error: unknown,
-  defaultMessage = "An error occurred"
+  defaultMessage = "An error occurred",
 ): NextResponse<ApiError> {
   console.error("API Error:", error);
 
@@ -55,7 +64,7 @@ export function createErrorResponse(
         error: error.message,
         status: error.status,
       },
-      { status: error.status }
+      { status: error.status },
     );
   }
 
@@ -65,7 +74,7 @@ export function createErrorResponse(
         error: error.message,
         status: error.status,
       },
-      { status: error.status }
+      { status: error.status },
     );
   }
 
@@ -75,7 +84,7 @@ export function createErrorResponse(
         error: error.message,
         status: error.status,
       },
-      { status: error.status }
+      { status: error.status },
     );
   }
 
@@ -85,7 +94,17 @@ export function createErrorResponse(
         error: error.message,
         status: error.status,
       },
-      { status: error.status }
+      { status: error.status },
+    );
+  }
+
+  if (error instanceof ConflictError) {
+    return NextResponse.json(
+      {
+        error: error.message,
+        status: error.status,
+      },
+      { status: error.status },
     );
   }
 
@@ -95,7 +114,7 @@ export function createErrorResponse(
         error: error.message || defaultMessage,
         status: 500,
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 
@@ -104,27 +123,27 @@ export function createErrorResponse(
       error: defaultMessage,
       status: 500,
     },
-    { status: 500 }
+    { status: 500 },
   );
 }
 
 // Success response builder
 export function createSuccessResponse<T>(
   data: T,
-  status = 200
+  status = 200,
 ): NextResponse<ApiResponse<T>> {
   return NextResponse.json(
     {
       data,
       status,
     },
-    { status }
+    { status },
   );
 }
 
 // Generic API handler wrapper with error catching
 export function withErrorHandler<T = unknown>(
-  handler: () => Promise<NextResponse<T>>
+  handler: () => Promise<NextResponse<T>>,
 ): Promise<NextResponse<T | ApiError>> {
   return handler().catch((error) => createErrorResponse(error));
 }
