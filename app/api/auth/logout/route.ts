@@ -96,6 +96,39 @@ export async function POST(request: NextRequest) {
     //   • without Domain — deletes host-only cookies
     //   • with Domain=<host> — deletes cookies explicitly domain-scoped by Ory services
     //     (e.g. ory_kratos_session uses Domain=.<host>)
+    const isProduction = process.env.NODE_ENV === "production";
+
+    // Clear OAuth2 tokens (httpOnly cookies - must match original attributes)
+    response.cookies.set("access_token", "", {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 0,
+    });
+
+    response.cookies.set("id_token", "", {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 0,
+    });
+
+    response.cookies.set("refresh_token", "", {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 0,
+    });
+
+    // Also clear with domain variants
+    appendClearCookieHeaders(response, "access_token", host);
+    appendClearCookieHeaders(response, "id_token", host);
+    appendClearCookieHeaders(response, "refresh_token", host);
+
+    // Clear other authentication cookies (Ory + legacy)
     allCookies.forEach((cookie) => {
       if (
         cookie.name.startsWith("ory_") ||
@@ -121,6 +154,40 @@ export async function POST(request: NextRequest) {
     const host =
       request.headers.get("x-forwarded-host") || request.nextUrl.hostname;
     const response = NextResponse.redirect(new URL("/auth/login", request.url));
+    
+    const isProduction = process.env.NODE_ENV === "production";
+
+    // Clear OAuth2 tokens with httpOnly cookies (must match original attributes)
+    response.cookies.set("access_token", "", {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 0,
+    });
+
+    response.cookies.set("id_token", "", {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 0,
+    });
+
+    response.cookies.set("refresh_token", "", {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 0,
+    });
+
+    // Also clear with domain variants
+    appendClearCookieHeaders(response, "access_token", host);
+    appendClearCookieHeaders(response, "id_token", host);
+    appendClearCookieHeaders(response, "refresh_token", host);
+    
+    // Clear other Ory cookies
     const cookieStore = await cookies();
     const allCookies = cookieStore.getAll();
     allCookies.forEach((cookie) => {
@@ -129,9 +196,6 @@ export async function POST(request: NextRequest) {
         cookie.name.startsWith("csrf_token_") ||
         cookie.name === "simplelogin_session" ||
         cookie.name === "pending_simplelogin_user" ||
-        cookie.name === "access_token" ||
-        cookie.name === "id_token" ||
-        cookie.name === "refresh_token" ||
         cookie.name === "oauth2_login_challenge"
       ) {
         appendClearCookieHeaders(response, cookie.name, host);

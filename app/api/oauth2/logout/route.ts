@@ -4,7 +4,6 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
 
 const HYDRA_ADMIN_URL =
   process.env.HYDRA_ADMIN_URL || "http://hydra.railway.internal:4445";
@@ -34,13 +33,10 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const logout_challenge = searchParams.get("logout_challenge");
 
-    // Get gateway URL
+    // Get host for cookie clearing
     const forwardedHost = request.headers.get("x-forwarded-host");
     const forwardedProto = request.headers.get("x-forwarded-proto") || "https";
     const host = forwardedHost || request.nextUrl.hostname;
-    const gatewayUrl = forwardedHost
-      ? `${forwardedProto}://${forwardedHost}`
-      : `${request.nextUrl.protocol}//${request.nextUrl.host}`;
 
     if (!logout_challenge) {
       return NextResponse.json(
@@ -73,25 +69,37 @@ export async function GET(request: NextRequest) {
 
     const response = NextResponse.redirect(acceptResult.redirect_to);
 
-    // Read all current cookies so we can clear them
-    const cookieStore = await cookies();
-    const allCookies = cookieStore.getAll();
+    const isProduction = process.env.NODE_ENV === "production";
 
-    // Clear all auth cookies. Each cookie is cleared twice:
-    //   • without Domain — deletes host-only cookies
-    //   • with Domain=<host> — deletes cookies set with an explicit Domain attribute
-    allCookies.forEach((cookie) => {
-      if (
-        cookie.name.startsWith("ory_") ||
-        cookie.name.startsWith("csrf_token_") ||
-        cookie.name === "access_token" ||
-        cookie.name === "id_token" ||
-        cookie.name === "refresh_token" ||
-        cookie.name === "oauth2_login_challenge"
-      ) {
-        appendClearCookieHeaders(response, cookie.name, host);
-      }
+    // Clear OAuth2 tokens with httpOnly cookies (must match original attributes)
+    response.cookies.set("access_token", "", {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 0,
     });
+
+    response.cookies.set("id_token", "", {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 0,
+    });
+
+    response.cookies.set("refresh_token", "", {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 0,
+    });
+
+    // Also clear with domain variants to handle Ory cookies
+    appendClearCookieHeaders(response, "access_token", host);
+    appendClearCookieHeaders(response, "id_token", host);
+    appendClearCookieHeaders(response, "refresh_token", host);
 
     return response;
   } catch (error) {
