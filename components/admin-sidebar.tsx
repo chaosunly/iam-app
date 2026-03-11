@@ -16,12 +16,6 @@ import {
   ChevronsUpDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -65,20 +59,13 @@ function UserProfileDropdown({
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         {isCollapsed ? (
-          <Tooltip delayDuration={0}>
-            <TooltipTrigger asChild>
-              <button className="flex h-9 w-9 mx-auto items-center justify-center rounded-lg hover:bg-accent transition-colors">
-                <Avatar className="h-7 w-7 rounded-lg">
-                  <AvatarFallback className="rounded-lg text-xs bg-primary/10">
-                    {initials}
-                  </AvatarFallback>
-                </Avatar>
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="right">
-              <p>{userName}</p>
-            </TooltipContent>
-          </Tooltip>
+          <button className="flex h-9 w-9 mx-auto items-center justify-center rounded-lg hover:bg-accent transition-colors">
+            <Avatar className="h-7 w-7 rounded-lg">
+              <AvatarFallback className="rounded-lg text-xs bg-primary/10">
+                {initials}
+              </AvatarFallback>
+            </Avatar>
+          </button>
         ) : (
           <button className="flex w-full items-center gap-2 rounded-lg p-2 hover:bg-accent transition-colors text-left">
             <Avatar className="h-8 w-8 rounded-lg">
@@ -207,14 +194,12 @@ export function AdminSidebar({
           </nav>
           <Separator />
           <div className="p-3">
-            <TooltipProvider>
-              <UserProfileDropdown
-                isCollapsed={false}
-                initials={initials}
-                userName={userName}
-                userEmail={userEmail}
-              />
-            </TooltipProvider>
+            <UserProfileDropdown
+              isCollapsed={false}
+              initials={initials}
+              userName={userName}
+              userEmail={userEmail}
+            />
           </div>
         </SheetContent>
       </Sheet>
@@ -228,19 +213,12 @@ export function AdminSidebar({
         {/* Header */}
         {collapsed ? (
           <div className="flex h-16 items-center justify-center border-b px-2">
-            <Tooltip delayDuration={0}>
-              <TooltipTrigger asChild>
-                <button
-                  onClick={() => setCollapsed(false)}
-                  className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-                >
-                  <Shield className="h-4 w-4" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="right">
-                <p>IAM Admin</p>
-              </TooltipContent>
-            </Tooltip>
+            <button
+              onClick={() => setCollapsed(false)}
+              className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+            >
+              <Shield className="h-4 w-4" />
+            </button>
           </div>
         ) : (
           <div className="flex h-16 items-center gap-3 border-b px-4">
@@ -264,64 +242,42 @@ export function AdminSidebar({
           </div>
         )}
 
-        <TooltipProvider>
-          {/* Nav */}
-          <nav className="flex-1 overflow-y-auto p-3 space-y-1">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const active = isActive(item.href);
+        {/* Nav */}
+        <nav className="flex-1 overflow-y-auto p-3 space-y-1">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const active = isActive(item.href);
 
-              if (collapsed) {
-                return (
-                  <Tooltip key={item.href} delayDuration={0}>
-                    <TooltipTrigger asChild>
-                      <Link
-                        href={item.href}
-                        className={`flex items-center justify-center h-9 w-9 mx-auto rounded-lg transition-colors ${
-                          active
-                            ? "bg-primary text-primary-foreground"
-                            : "hover:bg-accent hover:text-accent-foreground"
-                        }`}
-                      >
-                        <Icon className="h-4 w-4" />
-                      </Link>
-                    </TooltipTrigger>
-                    <TooltipContent side="right">
-                      <p>{item.label}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                );
-              }
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`flex items-center justify-center rounded-lg transition-colors ${
+                  collapsed ? "h-9 w-9 mx-auto" : "gap-3 px-3 py-2 text-sm"
+                } ${
+                  active
+                    ? "bg-primary text-primary-foreground"
+                    : "hover:bg-accent hover:text-accent-foreground"
+                }`}
+              >
+                <Icon className="h-4 w-4 shrink-0" />
+                {!collapsed && <span>{item.label}</span>}
+              </Link>
+            );
+          })}
+        </nav>
 
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm ${
-                    active
-                      ? "bg-primary text-primary-foreground"
-                      : "hover:bg-accent hover:text-accent-foreground"
-                  }`}
-                >
-                  <Icon className="h-4 w-4 shrink-0" />
-                  <span>{item.label}</span>
-                </Link>
-              );
-            })}
-          </nav>
+        <Separator />
 
-          <Separator />
-
-          {/* User profile */}
-          <div className="p-3">
-            <UserProfileDropdown
-              isCollapsed={collapsed}
-              initials={initials}
-              userName={userName}
-              userEmail={userEmail}
-            />
-          </div>
-        </TooltipProvider>
+        {/* User profile */}
+        <div className="p-3">
+          <UserProfileDropdown
+            isCollapsed={collapsed}
+            initials={initials}
+            userName={userName}
+            userEmail={userEmail}
+          />
+        </div>
       </aside>
     </>
   );
