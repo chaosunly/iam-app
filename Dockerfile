@@ -50,9 +50,11 @@ COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
 
-# Prisma: copy generated client and migration files
+# Prisma: copy generated client, CLI, and migration files
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma/client ./node_modules/@prisma/client
+COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
+COPY --from=builder /app/node_modules/.bin/prisma ./node_modules/.bin/prisma
 COPY --from=builder /app/prisma ./prisma
 
 RUN chown -R nextjs:nodejs /app
@@ -62,4 +64,4 @@ USER nextjs
 EXPOSE 3000
 
 # Run database migrations then start the server
-CMD ["sh", "-c", "npx prisma migrate deploy && node server.js"]
+CMD ["sh", "-c", "./node_modules/.bin/prisma migrate deploy && node server.js"]
