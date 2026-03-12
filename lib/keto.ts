@@ -252,3 +252,42 @@ export async function hasAnyOrgMembership(userId: string): Promise<boolean> {
   const permissions = await listUserPermissions(userId, "Organization");
   return permissions.length > 0;
 }
+
+// Helper: Check if user is an admin of a specific group
+export async function isGroupAdmin(
+  userId: string,
+  groupId: string,
+): Promise<boolean> {
+  return checkPermission({
+    namespace: "Group",
+    object: groupId,
+    relation: "admins",
+    subject: userId,
+  });
+}
+
+// Helper: Grant group admin role to a user
+export async function grantGroupAdmin(
+  userId: string,
+  groupId: string,
+): Promise<boolean> {
+  return createRelation({
+    namespace: "Group",
+    object: groupId,
+    relation: "admins",
+    subject: userId,
+  });
+}
+
+// Helper: Revoke group admin role from a user
+export async function revokeGroupAdmin(
+  userId: string,
+  groupId: string,
+): Promise<boolean> {
+  return deleteRelation({
+    namespace: "Group",
+    object: groupId,
+    relation: "admins",
+    subject: userId,
+  });
+}

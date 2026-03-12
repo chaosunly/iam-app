@@ -35,6 +35,7 @@ export default function GroupDetailPage() {
 
   const [group, setGroup] = useState<Group | null>(null);
   const [members, setMembers] = useState<GroupMember[]>([]);
+  const [admins, setAdmins] = useState<GroupMember[]>([]);
   const [allUsers, setAllUsers] = useState<Identity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
@@ -42,6 +43,9 @@ export default function GroupDetailPage() {
   const [showAddMember, setShowAddMember] = useState(false);
   const [newMemberUserId, setNewMemberUserId] = useState("");
   const [isAddingMember, setIsAddingMember] = useState(false);
+  const [showAddAdmin, setShowAddAdmin] = useState(false);
+  const [newAdminUserId, setNewAdminUserId] = useState("");
+  const [isAddingAdmin, setIsAddingAdmin] = useState(false);
 
   useEffect(() => {
     loadGroupData();
@@ -58,9 +62,10 @@ export default function GroupDetailPage() {
   const loadGroupData = async () => {
     try {
       setIsLoading(true);
-      const [groupRes, membersRes] = await Promise.all([
+      const [groupRes, membersRes, adminsRes] = await Promise.all([
         fetch(`/api/admin/groups/${groupId}`),
         fetch(`/api/admin/groups/${groupId}/members`),
+        fetch(`/api/admin/groups/${groupId}/admins`),
       ]);
 
       if (!groupRes.ok) throw new Error("Failed to load group");
@@ -71,6 +76,11 @@ export default function GroupDetailPage() {
 
       setGroup(groupData);
       setMembers(membersData.members || []);
+
+      if (adminsRes.ok) {
+        const adminsData = await adminsRes.json();
+        setAdmins(adminsData.admins || []);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load group");
     } finally {
@@ -101,6 +111,11 @@ export default function GroupDetailPage() {
   // Get available users (not already members)
   const availableUsers = allUsers.filter(
     (user) => !members.some((member) => member.userId === user.id),
+  );
+
+  // Get users that can be made admin (members not already admins)
+  const availableAdminCandidates = allUsers.filter(
+    (user) => !admins.some((admin) => admin.userId === user.id),
   );
 
   const getUserDisplayName = (user: Identity) => {
@@ -188,6 +203,54 @@ export default function GroupDetailPage() {
       router.push("/admin/groups");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete group");
+    }
+  };
+
+  const handleAddAdmin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsAddingAdmin(true);
+    setError("");
+
+    try {
+      const response = await fetch(`/api/admin/groups/${groupId}/admins`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: newAdminUserId }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to grant admin");
+      }
+
+      setNewAdminUserId("");
+      setShowAddAdmin(false);
+      await loadGroupData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to grant admin");
+    } finally {
+      setIsAddingAdmin(false);
+    }
+  };
+
+  const handleRevokeAdmin = async (targetUserId: string) => {
+    if (!confirm("Remove admin role from this user?")) return;
+
+    try {
+      const response = await fetch(`/api/admin/groups/${groupId}/admins`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: targetUserId }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to revoke admin");
+      }
+
+      await loadGroupData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to revoke admin");
     }
   };
 
@@ -377,6 +440,138 @@ export default function GroupDetailPage() {
             <div className="p-12 text-center">
               <p className="text-zinc-600 dark:text-zinc-400">
                 No members in this group yet.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Group Admins Section */}
+      <div className="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800">
+        <div className="p-6 border-b border-zinc-200 dark:border-zinc-800">
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">
+                Group Admins ({admins.length})
+              </h2>
+              <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
+                Admins can manage members of this group.
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                setShowAddAdmin(!showAddAdmin);
+                if (!showAddAdmin && allUsers.length === 0) loadAllUsers();
+              }}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+            >
+              Add Admin
+            </button>
+          </div>
+        </div>
+
+        {showAddAdmin && (
+          <div className="p-6 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50">
+            <form onSubmit={handleAddAdmin} className="space-y-4">
+              <div>
+                <label
+                  htmlFor="adminUserId"
+                  className="block text-sm font-medium text-zinc-900 dark:text-zinc-50 mb-2"
+                >
+                  Select User
+                </label>
+                {isLoadingUsers ? (
+                  <div className="text-sm text-zinc-600 dark:text-zinc-400">
+                    Loading users...
+                  </div>
+                ) : availableAdminCandidates.length === 0 ? (
+                  <div className="text-sm text-zinc-600 dark:text-zinc-400">
+                    No users available to promote.
+                  </div>
+                ) : (
+                  <select
+                    id="adminUserId"
+                    value={newAdminUserId}
+                    onChange={(e) => setNewAdminUserId(e.target.value)}
+                    required
+                    className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">-- Select a user --</option>
+                    {availableAdminCandidates.map((user) => (
+                      <option key={user.id} value={user.id}>
+                        {getUserDisplayName(user)}
+                        {user.traits.email && ` (${user.traits.email})`}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowAddAdmin(false)}
+                  className="px-4 py-2 border border-zinc-300 dark:border-zinc-700 rounded-md text-zinc-900 dark:text-zinc-50 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isAddingAdmin || !newAdminUserId}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {isAddingAdmin ? "Granting..." : "Grant Admin"}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
+          {admins.length > 0 ? (
+            admins.map((admin) => (
+              <div
+                key={admin.userId}
+                className="p-6 flex items-center justify-between"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 bg-amber-100 dark:bg-amber-900/20 rounded-full flex items-center justify-center">
+                    <svg
+                      className="w-5 h-5 text-amber-600 dark:text-amber-400"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+                      />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="font-medium text-zinc-900 dark:text-zinc-50">
+                      {admin.name || admin.userId}
+                    </p>
+                    {admin.email && (
+                      <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                        {admin.email}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <button
+                  onClick={() => handleRevokeAdmin(admin.userId)}
+                  className="px-3 py-1 text-sm bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+                >
+                  Revoke
+                </button>
+              </div>
+            ))
+          ) : (
+            <div className="p-12 text-center">
+              <p className="text-zinc-600 dark:text-zinc-400">
+                No group admins assigned yet.
               </p>
             </div>
           )}

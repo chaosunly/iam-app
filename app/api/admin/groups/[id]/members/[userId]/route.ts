@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "@ory/nextjs/app";
-import { isGlobalAdmin } from "@/lib/services/permission.service";
+import { isGlobalAdmin, isGroupAdmin } from "@/lib/services/permission.service";
 import { removeUserFromGroup } from "@/lib/services/group.service";
 
 /**
@@ -18,13 +18,15 @@ export async function DELETE(
     }
 
     const adminId = session.identity.id;
-    const hasAdminAccess = await isGlobalAdmin(adminId);
+    const { id: groupId, userId } = await params;
+    const [globalAdmin, groupAdmin] = await Promise.all([
+      isGlobalAdmin(adminId),
+      isGroupAdmin(adminId, groupId),
+    ]);
 
-    if (!hasAdminAccess) {
+    if (!globalAdmin && !groupAdmin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
-
-    const { id: groupId, userId } = await params;
     await removeUserFromGroup(groupId, userId, adminId);
 
     return NextResponse.json({ success: true });

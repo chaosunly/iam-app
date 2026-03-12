@@ -106,22 +106,29 @@ export async function addUserToGroup(
     throw new Error("Could not determine group's organization");
   }
 
-  // Check if admin is an owner or admin of the organization
-  const isOwner = await checkPermission({
-    namespace: "Organization",
-    object: organizationId,
-    relation: "owners",
-    subject: adminId,
-  });
+  // Check if admin is an owner or admin of the organization, or admin of this group
+  const [isOwner, isAdmin, isGroupAdminCheck] = await Promise.all([
+    checkPermission({
+      namespace: "Organization",
+      object: organizationId,
+      relation: "owners",
+      subject: adminId,
+    }),
+    checkPermission({
+      namespace: "Organization",
+      object: organizationId,
+      relation: "admins",
+      subject: adminId,
+    }),
+    checkPermission({
+      namespace: "Group",
+      object: groupId,
+      relation: "admins",
+      subject: adminId,
+    }),
+  ]);
 
-  const isAdmin = await checkPermission({
-    namespace: "Organization",
-    object: organizationId,
-    relation: "admins",
-    subject: adminId,
-  });
-
-  if (!isOwner && !isAdmin) {
+  if (!isOwner && !isAdmin && !isGroupAdminCheck) {
     throw new Error("Insufficient permissions to add members to this group");
   }
 
@@ -149,22 +156,29 @@ export async function removeUserFromGroup(
     throw new Error("Could not determine group's organization");
   }
 
-  // Check if admin is an owner or admin of the organization
-  const isOwner = await checkPermission({
-    namespace: "Organization",
-    object: organizationId,
-    relation: "owners",
-    subject: adminId,
-  });
+  // Check if admin is an owner or admin of the organization, or admin of this group
+  const [isOwner, isAdmin, isGroupAdminCheck] = await Promise.all([
+    checkPermission({
+      namespace: "Organization",
+      object: organizationId,
+      relation: "owners",
+      subject: adminId,
+    }),
+    checkPermission({
+      namespace: "Organization",
+      object: organizationId,
+      relation: "admins",
+      subject: adminId,
+    }),
+    checkPermission({
+      namespace: "Group",
+      object: groupId,
+      relation: "admins",
+      subject: adminId,
+    }),
+  ]);
 
-  const isAdmin = await checkPermission({
-    namespace: "Organization",
-    object: organizationId,
-    relation: "admins",
-    subject: adminId,
-  });
-
-  if (!isOwner && !isAdmin) {
+  if (!isOwner && !isAdmin && !isGroupAdminCheck) {
     throw new Error(
       "Insufficient permissions to remove members from this group",
     );

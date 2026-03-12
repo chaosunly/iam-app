@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "@ory/nextjs/app";
-import { isGlobalAdmin } from "@/lib/services/permission.service";
+import {
+  isGlobalAdmin,
+  isOrgOwnerOrAdmin,
+} from "@/lib/services/permission.service";
 import {
   getOrganizationMembers,
   addOrganizationMember,
   removeOrganizationMember,
   updateMemberRole,
+  getDefaultOrganizationId,
 } from "@/lib/services/organization.service";
-import { getDefaultOrganizationId } from "@/lib/services/organization.service";
 
 /**
  * GET /api/admin/organization/members
@@ -21,13 +24,15 @@ export async function GET() {
     }
 
     const userId = session.identity.id;
-    const hasAdminAccess = await isGlobalAdmin(userId);
+    const organizationId = getDefaultOrganizationId();
+    const hasAccess =
+      (await isGlobalAdmin(userId)) ||
+      (await isOrgOwnerOrAdmin(userId, organizationId));
 
-    if (!hasAdminAccess) {
+    if (!hasAccess) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const organizationId = getDefaultOrganizationId();
     const members = await getOrganizationMembers(organizationId);
 
     return NextResponse.json({ members });
@@ -52,9 +57,12 @@ export async function POST(request: NextRequest) {
     }
 
     const inviterId = session.identity.id;
-    const hasAdminAccess = await isGlobalAdmin(inviterId);
+    const organizationId = getDefaultOrganizationId();
+    const hasAccess =
+      (await isGlobalAdmin(inviterId)) ||
+      (await isOrgOwnerOrAdmin(inviterId, organizationId));
 
-    if (!hasAdminAccess) {
+    if (!hasAccess) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -72,7 +80,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid role" }, { status: 400 });
     }
 
-    const organizationId = getDefaultOrganizationId();
     await addOrganizationMember(organizationId, userId, role, inviterId);
 
     return NextResponse.json({ success: true }, { status: 201 });
@@ -99,9 +106,12 @@ export async function PATCH(request: NextRequest) {
     }
 
     const updaterId = session.identity.id;
-    const hasAdminAccess = await isGlobalAdmin(updaterId);
+    const organizationId = getDefaultOrganizationId();
+    const hasAccess =
+      (await isGlobalAdmin(updaterId)) ||
+      (await isOrgOwnerOrAdmin(updaterId, organizationId));
 
-    if (!hasAdminAccess) {
+    if (!hasAccess) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -119,7 +129,6 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "Invalid role" }, { status: 400 });
     }
 
-    const organizationId = getDefaultOrganizationId();
     await updateMemberRole(organizationId, userId, role, updaterId);
 
     return NextResponse.json({ success: true });
@@ -149,9 +158,12 @@ export async function DELETE(request: NextRequest) {
     }
 
     const removerId = session.identity.id;
-    const hasAdminAccess = await isGlobalAdmin(removerId);
+    const organizationId = getDefaultOrganizationId();
+    const hasAccess =
+      (await isGlobalAdmin(removerId)) ||
+      (await isOrgOwnerOrAdmin(removerId, organizationId));
 
-    if (!hasAdminAccess) {
+    if (!hasAccess) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -165,7 +177,6 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const organizationId = getDefaultOrganizationId();
     await removeOrganizationMember(organizationId, userId, removerId);
 
     return NextResponse.json({ success: true });

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "@ory/nextjs/app";
-import { isGlobalAdmin } from "@/lib/services/permission.service";
+import { isGlobalAdmin, isGroupAdmin } from "@/lib/services/permission.service";
 import { getGroupMembers, addUserToGroup } from "@/lib/services/group.service";
 import { getIdentity } from "@/lib/services/kratos.service";
 
@@ -19,13 +19,16 @@ export async function GET(
     }
 
     const userId = session.identity.id;
-    const hasAdminAccess = await isGlobalAdmin(userId);
+    const { id: groupId } = await params;
+    const [globalAdmin, groupAdmin] = await Promise.all([
+      isGlobalAdmin(userId),
+      isGroupAdmin(userId, groupId),
+    ]);
 
-    if (!hasAdminAccess) {
+    if (!globalAdmin && !groupAdmin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const { id: groupId } = await params;
     const memberIds = await getGroupMembers(groupId);
 
     // Fetch user details from Kratos for each member
@@ -77,12 +80,6 @@ export async function POST(
     }
 
     const adminId = session.identity.id;
-    const hasAdminAccess = await isGlobalAdmin(adminId);
-
-    if (!hasAdminAccess) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
     const body = await request.json();
     const { userId } = body;
 
@@ -94,6 +91,14 @@ export async function POST(
     }
 
     const { id: groupId } = await params;
+    const [globalAdmin, groupAdmin] = await Promise.all([
+      isGlobalAdmin(adminId),
+      isGroupAdmin(adminId, groupId),
+    ]);
+
+    if (!globalAdmin && !groupAdmin) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
     await addUserToGroup(groupId, userId, adminId);
 
     return NextResponse.json({ success: true });

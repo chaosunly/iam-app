@@ -158,22 +158,60 @@ export async function hasOrgPermission(
  * Get user dashboard route based on permissions
  */
 export async function getUserDashboardRoute(userId: string): Promise<string> {
-  // Check if user is global admin
-  const isAdmin = await isGlobalAdmin(userId);
-
-  if (isAdmin) {
-    return "/admin";
-  }
-
-  // Regular user goes to dashboard
+  const hasAdminAccess = await canAccessAdmin(userId);
+  if (hasAdminAccess) return "/admin";
   return "/dashboard";
 }
 
 /**
+ * Check if user is a group admin for a specific group
+ */
+export async function isGroupAdmin(
+  userId: string,
+  groupId: string,
+): Promise<boolean> {
+  return checkPermissionCached({
+    namespace: "Group",
+    object: groupId,
+    relation: "admins",
+    subject: userId,
+  });
+}
+
+/**
+ * Check if user is an owner or admin of an organization
+ */
+export async function isOrgOwnerOrAdmin(
+  userId: string,
+  orgId: string,
+): Promise<boolean> {
+  const [isOwner, isAdmin] = await Promise.all([
+    checkPermissionCached({
+      namespace: "Organization",
+      object: orgId,
+      relation: "owners",
+      subject: userId,
+    }),
+    checkPermissionCached({
+      namespace: "Organization",
+      object: orgId,
+      relation: "admins",
+      subject: userId,
+    }),
+  ]);
+  return isOwner || isAdmin;
+}
+
+/**
  * Check if user can access admin panel
+ * Allows global admins and organization owners/admins
  */
 export async function canAccessAdmin(userId: string): Promise<boolean> {
-  return await isGlobalAdmin(userId);
+  const globalAdmin = await isGlobalAdmin(userId);
+  if (globalAdmin) return true;
+
+  const defaultOrgId = process.env.DEFAULT_ORG_ID || "default-org";
+  return isOrgOwnerOrAdmin(userId, defaultOrgId);
 }
 
 /**

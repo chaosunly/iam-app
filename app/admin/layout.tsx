@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { ReactNode } from "react";
 import { AdminSidebar } from "@/components/admin-sidebar";
 import { PageHeader } from "@/components/page-header";
+import { canAccessAdmin } from "@/lib/services/permission.service";
 
 export default async function AdminLayout({
   children,
@@ -13,6 +14,11 @@ export default async function AdminLayout({
 
   if (!session || !session.identity) {
     redirect("/auth/login");
+  }
+
+  const userId = session.identity.id;
+  if (!(await canAccessAdmin(userId))) {
+    redirect("/dashboard");
   }
 
   const traits = session.identity.traits as {
