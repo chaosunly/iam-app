@@ -3,6 +3,27 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { AlertCircle, ChevronLeft } from "lucide-react";
 
 interface GroupMember {
   userId: string;
@@ -46,6 +67,15 @@ export default function GroupDetailPage() {
   const [showAddAdmin, setShowAddAdmin] = useState(false);
   const [newAdminUserId, setNewAdminUserId] = useState("");
   const [isAddingAdmin, setIsAddingAdmin] = useState(false);
+
+  // Dialog state
+  const [removeMemberDialog, setRemoveMemberDialog] = useState<string | null>(
+    null,
+  );
+  const [revokeAdminDialog, setRevokeAdminDialog] = useState<string | null>(
+    null,
+  );
+  const [deleteGroupDialog, setDeleteGroupDialog] = useState(false);
 
   useEffect(() => {
     loadGroupData();
@@ -157,8 +187,6 @@ export default function GroupDetailPage() {
   };
 
   const handleRemoveMember = async (userId: string) => {
-    if (!confirm("Are you sure you want to remove this member?")) return;
-
     try {
       const response = await fetch(
         `/api/admin/groups/${groupId}/members/${userId}`,
@@ -183,13 +211,6 @@ export default function GroupDetailPage() {
   };
 
   const handleDeleteGroup = async () => {
-    if (
-      !confirm(
-        "Are you sure you want to delete this group? This action cannot be undone.",
-      )
-    )
-      return;
-
     try {
       const response = await fetch(`/api/admin/groups/${groupId}`, {
         method: "DELETE",
@@ -234,8 +255,6 @@ export default function GroupDetailPage() {
   };
 
   const handleRevokeAdmin = async (targetUserId: string) => {
-    if (!confirm("Remove admin role from this user?")) return;
-
     try {
       const response = await fetch(`/api/admin/groups/${groupId}/admins`, {
         method: "DELETE",
@@ -275,90 +294,64 @@ export default function GroupDetailPage() {
       <div>
         <Link
           href="/admin/groups"
-          className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1 mb-4"
+          className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 mb-4"
         >
-          <svg
-            className="w-4 h-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M15 19l-7-7 7-7"
-            />
-          </svg>
+          <ChevronLeft className="w-4 h-4" />
           Back to Groups
         </Link>
         <div className="flex justify-between items-start">
           <div>
-            <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50">
-              {group.name}
-            </h1>
+            <h1 className="text-3xl font-bold">{group.name}</h1>
             {group.description && (
-              <p className="text-zinc-600 dark:text-zinc-400 mt-1">
-                {group.description}
-              </p>
+              <p className="text-muted-foreground mt-1">{group.description}</p>
             )}
           </div>
-          <button
-            onClick={handleDeleteGroup}
-            className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+          <Button
+            variant="destructive"
+            onClick={() => setDeleteGroupDialog(true)}
           >
             Delete Group
-          </button>
+          </Button>
         </div>
       </div>
 
       {error && (
-        <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-          <p className="text-sm text-red-900 dark:text-red-100">{error}</p>
-        </div>
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       )}
 
       {/* Members Section */}
-      <div className="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800">
-        <div className="p-6 border-b border-zinc-200 dark:border-zinc-800">
-          <div className="flex justify-between items-center">
-            <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">
-              Members ({members.length})
-            </h2>
-            <button
-              onClick={() => setShowAddMember(!showAddMember)}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-            >
-              Add Member
-            </button>
-          </div>
+      <div className="rounded-lg border overflow-hidden">
+        <div className="p-4 border-b flex justify-between items-center bg-muted/30">
+          <h2 className="text-lg font-semibold">Members ({members.length})</h2>
+          <Button size="sm" onClick={() => setShowAddMember(!showAddMember)}>
+            Add Member
+          </Button>
         </div>
 
         {showAddMember && (
-          <div className="p-6 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50">
-            <form onSubmit={handleAddMember} className="space-y-4">
-              <div>
-                <label
-                  htmlFor="userId"
-                  className="block text-sm font-medium text-zinc-900 dark:text-zinc-50 mb-2"
-                >
+          <div className="p-4 border-b bg-muted/10">
+            <form onSubmit={handleAddMember} className="flex items-end gap-3">
+              <div className="flex-1">
+                <label className="block text-sm font-medium mb-1">
                   Select User
                 </label>
                 {isLoadingUsers ? (
-                  <div className="text-sm text-zinc-600 dark:text-zinc-400">
+                  <p className="text-sm text-muted-foreground">
                     Loading users...
-                  </div>
+                  </p>
                 ) : availableUsers.length === 0 ? (
-                  <div className="text-sm text-zinc-600 dark:text-zinc-400">
-                    No available users to add. All users are already members.
-                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    All users are already members.
+                  </p>
                 ) : (
                   <select
-                    id="userId"
                     value={newMemberUserId}
                     onChange={(e) => setNewMemberUserId(e.target.value)}
                     required
-                    className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-input rounded-md bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                   >
                     <option value="">-- Select a user --</option>
                     {availableUsers.map((user) => (
@@ -370,131 +363,120 @@ export default function GroupDetailPage() {
                   </select>
                 )}
               </div>
-              <div className="flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowAddMember(false)}
-                  className="px-4 py-2 border border-zinc-300 dark:border-zinc-700 rounded-md text-zinc-900 dark:text-zinc-50 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={
-                    isAddingMember ||
-                    !newMemberUserId ||
-                    availableUsers.length === 0
-                  }
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {isAddingMember ? "Adding..." : "Add Member"}
-                </button>
-              </div>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowAddMember(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={
+                  isAddingMember ||
+                  !newMemberUserId ||
+                  availableUsers.length === 0
+                }
+              >
+                {isAddingMember ? "Adding..." : "Add Member"}
+              </Button>
             </form>
           </div>
         )}
 
-        <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
-          {members.length > 0 ? (
-            members.map((member) => (
-              <div
-                key={member.userId}
-                className="p-6 flex items-center justify-between"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-zinc-100 dark:bg-zinc-800 rounded-full flex items-center justify-center">
-                    <svg
-                      className="w-5 h-5 text-zinc-600 dark:text-zinc-400"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                      />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="font-medium text-zinc-900 dark:text-zinc-50">
-                      {member.name || member.userId}
-                    </p>
-                    {member.email && (
-                      <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                        {member.email}
-                      </p>
-                    )}
-                  </div>
-                </div>
-                <button
-                  onClick={() => handleRemoveMember(member.userId)}
-                  className="px-3 py-1 text-sm bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Name</TableHead>
+              <TableHead>Email</TableHead>
+              <TableHead>User ID</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {members.length === 0 ? (
+              <TableRow>
+                <TableCell
+                  colSpan={4}
+                  className="text-center text-muted-foreground py-10"
                 >
-                  Remove
-                </button>
-              </div>
-            ))
-          ) : (
-            <div className="p-12 text-center">
-              <p className="text-zinc-600 dark:text-zinc-400">
-                No members in this group yet.
-              </p>
-            </div>
-          )}
-        </div>
+                  No members in this group yet.
+                </TableCell>
+              </TableRow>
+            ) : (
+              members.map((member) => (
+                <TableRow key={member.userId}>
+                  <TableCell className="font-medium">
+                    {member.name || "—"}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {member.email || "—"}
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-xs font-mono text-muted-foreground">
+                      {member.userId.substring(0, 16)}...
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => setRemoveMemberDialog(member.userId)}
+                    >
+                      Remove
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
       </div>
 
       {/* Group Admins Section */}
-      <div className="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800">
-        <div className="p-6 border-b border-zinc-200 dark:border-zinc-800">
-          <div className="flex justify-between items-center">
-            <div>
-              <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">
-                Group Admins ({admins.length})
-              </h2>
-              <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
-                Admins can manage members of this group.
-              </p>
-            </div>
-            <button
-              onClick={() => {
-                setShowAddAdmin(!showAddAdmin);
-                if (!showAddAdmin && allUsers.length === 0) loadAllUsers();
-              }}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-            >
-              Add Admin
-            </button>
+      <div className="rounded-lg border overflow-hidden">
+        <div className="p-4 border-b flex justify-between items-center bg-muted/30">
+          <div>
+            <h2 className="text-lg font-semibold">
+              Group Admins ({admins.length})
+            </h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Admins can manage members of this group.
+            </p>
           </div>
+          <Button
+            size="sm"
+            onClick={() => {
+              setShowAddAdmin(!showAddAdmin);
+              if (!showAddAdmin && allUsers.length === 0) loadAllUsers();
+            }}
+          >
+            Add Admin
+          </Button>
         </div>
 
         {showAddAdmin && (
-          <div className="p-6 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50">
-            <form onSubmit={handleAddAdmin} className="space-y-4">
-              <div>
-                <label
-                  htmlFor="adminUserId"
-                  className="block text-sm font-medium text-zinc-900 dark:text-zinc-50 mb-2"
-                >
+          <div className="p-4 border-b bg-muted/10">
+            <form onSubmit={handleAddAdmin} className="flex items-end gap-3">
+              <div className="flex-1">
+                <label className="block text-sm font-medium mb-1">
                   Select User
                 </label>
                 {isLoadingUsers ? (
-                  <div className="text-sm text-zinc-600 dark:text-zinc-400">
+                  <p className="text-sm text-muted-foreground">
                     Loading users...
-                  </div>
+                  </p>
                 ) : availableAdminCandidates.length === 0 ? (
-                  <div className="text-sm text-zinc-600 dark:text-zinc-400">
+                  <p className="text-sm text-muted-foreground">
                     No users available to promote.
-                  </div>
+                  </p>
                 ) : (
                   <select
-                    id="adminUserId"
                     value={newAdminUserId}
                     onChange={(e) => setNewAdminUserId(e.target.value)}
                     required
-                    className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-input rounded-md bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                   >
                     <option value="">-- Select a user --</option>
                     {availableAdminCandidates.map((user) => (
@@ -506,77 +488,147 @@ export default function GroupDetailPage() {
                   </select>
                 )}
               </div>
-              <div className="flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowAddAdmin(false)}
-                  className="px-4 py-2 border border-zinc-300 dark:border-zinc-700 rounded-md text-zinc-900 dark:text-zinc-50 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isAddingAdmin || !newAdminUserId}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {isAddingAdmin ? "Granting..." : "Grant Admin"}
-                </button>
-              </div>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowAddAdmin(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isAddingAdmin || !newAdminUserId}>
+                {isAddingAdmin ? "Granting..." : "Grant Admin"}
+              </Button>
             </form>
           </div>
         )}
 
-        <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
-          {admins.length > 0 ? (
-            admins.map((admin) => (
-              <div
-                key={admin.userId}
-                className="p-6 flex items-center justify-between"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-amber-100 dark:bg-amber-900/20 rounded-full flex items-center justify-center">
-                    <svg
-                      className="w-5 h-5 text-amber-600 dark:text-amber-400"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-                      />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="font-medium text-zinc-900 dark:text-zinc-50">
-                      {admin.name || admin.userId}
-                    </p>
-                    {admin.email && (
-                      <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                        {admin.email}
-                      </p>
-                    )}
-                  </div>
-                </div>
-                <button
-                  onClick={() => handleRevokeAdmin(admin.userId)}
-                  className="px-3 py-1 text-sm bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Name</TableHead>
+              <TableHead>Email</TableHead>
+              <TableHead>User ID</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {admins.length === 0 ? (
+              <TableRow>
+                <TableCell
+                  colSpan={4}
+                  className="text-center text-muted-foreground py-10"
                 >
-                  Revoke
-                </button>
-              </div>
-            ))
-          ) : (
-            <div className="p-12 text-center">
-              <p className="text-zinc-600 dark:text-zinc-400">
-                No group admins assigned yet.
-              </p>
-            </div>
-          )}
-        </div>
+                  No group admins assigned yet.
+                </TableCell>
+              </TableRow>
+            ) : (
+              admins.map((admin) => (
+                <TableRow key={admin.userId}>
+                  <TableCell className="font-medium">
+                    {admin.name || "—"}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {admin.email || "—"}
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-xs font-mono text-muted-foreground">
+                      {admin.userId.substring(0, 16)}...
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => setRevokeAdminDialog(admin.userId)}
+                    >
+                      Revoke
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
       </div>
+      {/* Remove Member Dialog */}
+      <AlertDialog
+        open={!!removeMemberDialog}
+        onOpenChange={(open) => !open && setRemoveMemberDialog(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove Member</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove this member from the group?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (removeMemberDialog) handleRemoveMember(removeMemberDialog);
+                setRemoveMemberDialog(null);
+              }}
+            >
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Revoke Admin Dialog */}
+      <AlertDialog
+        open={!!revokeAdminDialog}
+        onOpenChange={(open) => !open && setRevokeAdminDialog(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Revoke Admin Role</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove the admin role from this user?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (revokeAdminDialog) handleRevokeAdmin(revokeAdminDialog);
+                setRevokeAdminDialog(null);
+              }}
+            >
+              Revoke
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Group Dialog */}
+      <AlertDialog open={deleteGroupDialog} onOpenChange={setDeleteGroupDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Group</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this group? This action cannot be
+              undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                setDeleteGroupDialog(false);
+                handleDeleteGroup();
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

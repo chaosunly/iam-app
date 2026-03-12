@@ -343,14 +343,10 @@ export default function OrganizationPage() {
                     <TableRow key={member.userId}>
                       <TableCell>
                         <div>
-                          <p className="font-medium">
-                            {member.name || member.email || member.userId}
+                          <p className="font-medium">{member.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {member.email}
                           </p>
-                          {member.name && member.email && (
-                            <p className="text-xs text-muted-foreground">
-                              {member.email}
-                            </p>
-                          )}
                         </div>
                       </TableCell>
                       <TableCell>

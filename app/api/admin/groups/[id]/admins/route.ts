@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "@ory/nextjs/app";
-import { isGlobalAdmin } from "@/lib/services/permission.service";
+import {
+  isGlobalAdmin,
+  invalidateUserCache,
+} from "@/lib/services/permission.service";
 import { getGroupById } from "@/lib/services/group.service";
 import { getIdentity } from "@/lib/services/kratos.service";
 import {
@@ -107,6 +110,8 @@ export async function POST(
       subject: targetUserId,
     });
 
+    invalidateUserCache(targetUserId);
+
     return NextResponse.json(
       { message: "Group admin granted successfully" },
       { status: 201 },
@@ -157,6 +162,8 @@ export async function DELETE(
       relation: "admins",
       subject: targetUserId,
     });
+
+    invalidateUserCache(targetUserId);
 
     return NextResponse.json({ message: "Group admin revoked successfully" });
   } catch (error) {

@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "@ory/nextjs/app";
-import { isGlobalAdmin, isGroupAdmin } from "@/lib/services/permission.service";
+import {
+  isGlobalAdmin,
+  isGroupAdmin,
+  invalidateUserCache,
+} from "@/lib/services/permission.service";
 import { getGroupMembers, addUserToGroup } from "@/lib/services/group.service";
 import { getIdentity } from "@/lib/services/kratos.service";
 
@@ -100,6 +104,7 @@ export async function POST(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     await addUserToGroup(groupId, userId, adminId);
+    invalidateUserCache(userId);
 
     return NextResponse.json({ success: true });
   } catch (error) {

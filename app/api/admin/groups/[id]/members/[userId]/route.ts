@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "@ory/nextjs/app";
-import { isGlobalAdmin, isGroupAdmin } from "@/lib/services/permission.service";
+import {
+  isGlobalAdmin,
+  isGroupAdmin,
+  invalidateUserCache,
+} from "@/lib/services/permission.service";
 import { removeUserFromGroup } from "@/lib/services/group.service";
 
 /**
@@ -28,6 +32,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     await removeUserFromGroup(groupId, userId, adminId);
+    invalidateUserCache(userId);
 
     return NextResponse.json({ success: true });
   } catch (error) {

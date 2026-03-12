@@ -13,6 +13,7 @@
     "@ory/elements-react": "^1.1.0",
     "@ory/nextjs": "^1.0.0-rc.1",
     "@prisma/client": "^6.19.2",
+    "@radix-ui/react-alert-dialog": "^1.1.15",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.563.0",
