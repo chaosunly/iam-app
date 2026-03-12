@@ -10,6 +10,7 @@ import {
   revokePermission,
   listObjectPermissions,
 } from "./keto.service";
+import { getIdentity } from "./kratos.service";
 
 export interface OrganizationMember {
   userId: string;
@@ -196,10 +197,21 @@ export async function getOrganizationMembers(
       );
 
       for (const rel of roleMembers) {
+        let email = "";
+        let name = "";
+        try {
+          const identity = await getIdentity(rel.subject);
+          email = identity.traits.email || "";
+          const first = identity.traits.name?.first || "";
+          const last = identity.traits.name?.last || "";
+          name = `${first} ${last}`.trim() || email;
+        } catch {
+          // identity not found — leave blank
+        }
         members.push({
           userId: rel.subject,
-          email: "", // Fetch from Kratos
-          name: "", // Fetch from Kratos
+          email,
+          name,
           role,
         });
       }
