@@ -19,8 +19,7 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Generate Prisma client & build (output: standalone)
-# Placeholder values satisfy module-level env guards during build-time page data collection.
+# Server-side placeholders: satisfy module-level env guards at build time.
 # Real values must be supplied at runtime via environment variables or secrets.
 ENV DATABASE_URL="postgresql://placeholder:placeholder@placeholder:5432/placeholder"
 ENV ORY_KRATOS_ADMIN_URL="http://placeholder:4434"
@@ -28,6 +27,17 @@ ENV ORY_SDK_URL="http://placeholder:4433"
 ENV ORY_KETO_READ_URL="http://placeholder:4466"
 ENV ORY_KETO_WRITE_URL="http://placeholder:4467"
 ENV NEXT_TELEMETRY_DISABLED=1
+
+# NEXT_PUBLIC_* vars are inlined into the client bundle at build time.
+# Pass them via --build-arg when running `docker build`.
+ARG NEXT_PUBLIC_APP_URL
+ARG NEXT_PUBLIC_ORY_SDK_URL
+ARG NEXT_PUBLIC_OAUTH2_CLIENT_ID
+ARG NEXT_PUBLIC_SIMPLELOGIN_CLIENT_ID
+ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
+ENV NEXT_PUBLIC_ORY_SDK_URL=$NEXT_PUBLIC_ORY_SDK_URL
+ENV NEXT_PUBLIC_OAUTH2_CLIENT_ID=$NEXT_PUBLIC_OAUTH2_CLIENT_ID
+ENV NEXT_PUBLIC_SIMPLELOGIN_CLIENT_ID=$NEXT_PUBLIC_SIMPLELOGIN_CLIENT_ID
 
 RUN npm run build
 
