@@ -20,8 +20,13 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # Generate Prisma client & build (output: standalone)
-# DATABASE_URL is required only at runtime; set a placeholder for build-time
-ENV DATABASE_URL="postgresql://postgres:WZYPgDkKOToPceknNZHHmdihTmWeEmFA@metro.proxy.rlwy.net:57412/railway"
+# Placeholder values satisfy module-level env guards during build-time page data collection.
+# Real values must be supplied at runtime via environment variables or secrets.
+ENV DATABASE_URL="postgresql://placeholder:placeholder@placeholder:5432/placeholder"
+ENV ORY_KRATOS_ADMIN_URL="http://placeholder:4434"
+ENV ORY_SDK_URL="http://placeholder:4433"
+ENV ORY_KETO_READ_URL="http://placeholder:4466"
+ENV ORY_KETO_WRITE_URL="http://placeholder:4467"
 ENV NEXT_TELEMETRY_DISABLED=1
 
 RUN npm run build
