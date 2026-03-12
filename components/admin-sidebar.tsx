@@ -9,6 +9,7 @@ import {
   UsersRound,
   Shield,
   GitlabIcon,
+  Building2,
   ChevronLeft,
   Menu,
   Settings,
@@ -33,6 +34,7 @@ const navItems = [
   { href: "/admin", label: "Dashboard", icon: Home },
   { href: "/admin/identities", label: "Identities", icon: Users },
   { href: "/admin/groups", label: "Groups", icon: UsersRound },
+  { href: "/admin/organization", label: "Organization", icon: Building2 },
   { href: "/admin/permissions", label: "Permissions", icon: Shield },
   { href: "/admin/gitlab", label: "GitLab Access", icon: GitlabIcon },
 ];

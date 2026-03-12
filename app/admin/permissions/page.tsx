@@ -85,30 +85,6 @@ export default function PermissionsPage() {
     );
   };
 
-  const grantAccess = async (userId: string) => {
-    try {
-      setActionLoading(userId);
-      const response = await fetch("/api/admin/permissions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ userId }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to grant access");
-      }
-
-      await fetchData();
-    } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to grant access");
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
   const revokeAccess = async (userId: string) => {
     if (!confirm("Are you sure you want to revoke admin access?")) {
       return;
@@ -238,7 +214,7 @@ export default function PermissionsPage() {
                         )}
                       </TableCell>
                       <TableCell className="text-right">
-                        {isAdmin ? (
+                        {isAdmin && (
                           <Button
                             variant="ghost"
                             size="sm"
@@ -247,15 +223,6 @@ export default function PermissionsPage() {
                             disabled={isLoading}
                           >
                             {isLoading ? "Revoking..." : "Revoke"}
-                          </Button>
-                        ) : (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => grantAccess(identity.id)}
-                            disabled={isLoading}
-                          >
-                            {isLoading ? "Granting..." : "Grant Admin"}
                           </Button>
                         )}
                       </TableCell>
