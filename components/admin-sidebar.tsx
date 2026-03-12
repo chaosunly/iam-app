@@ -252,8 +252,10 @@ export function AdminSidebar({
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center justify-center rounded-lg transition-colors ${
-                  collapsed ? "h-9 w-9 mx-auto" : "gap-3 px-3 py-2 text-sm"
+                className={`flex items-center rounded-lg transition-colors ${
+                  collapsed
+                    ? "h-9 w-9 mx-auto justify-center"
+                    : "gap-3 px-3 py-2 text-sm"
                 } ${
                   active
                     ? "bg-primary text-primary-foreground"

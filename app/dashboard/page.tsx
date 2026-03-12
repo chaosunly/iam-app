@@ -61,10 +61,12 @@ export default async function DashboardPage() {
           </Card>
 
           <Card>
-            <CardContent className="p-6 flex items-center justify-between">
-              <div>
+            <CardContent className="p-6 flex items-center justify-between gap-4">
+              <div className="min-w-0">
                 <p className="text-sm text-muted-foreground mb-1">Email</p>
-                <p className="text-lg font-semibold truncate">{email}</p>
+                <p className="text-lg font-semibold truncate" title={email}>
+                  {email}
+                </p>
               </div>
               <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center">
                 <Mail className="w-6 h-6 text-blue-600 dark:text-blue-400" />
