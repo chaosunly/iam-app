@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "@ory/nextjs/app";
-import { isGlobalAdmin } from "@/lib/services/permission.service";
-import { deleteGroup, getGroupById } from "@/lib/services/group.service";
+import { isGlobalAdmin, isGroupAdmin } from "@/lib/services/permission.service";
+import {
+  deleteGroup,
+  getGroupById,
+  updateGroup,
+} from "@/lib/services/group.service";
 
 /**
  * GET /api/admin/groups/[id]
@@ -18,13 +22,15 @@ export async function GET(
     }
 
     const userId = session.identity.id;
-    const hasAdminAccess = await isGlobalAdmin(userId);
+    const { id: groupId } = await params;
+    const [globalAdmin, groupAdmin] = await Promise.all([
+      isGlobalAdmin(userId),
+      isGroupAdmin(userId, groupId),
+    ]);
 
-    if (!hasAdminAccess) {
+    if (!globalAdmin && !groupAdmin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
-
-    const { id: groupId } = await params;
 
     // Fetch group metadata from database
     const group = await getGroupById(groupId);
@@ -58,13 +64,16 @@ export async function DELETE(
     }
 
     const userId = session.identity.id;
-    const hasAdminAccess = await isGlobalAdmin(userId);
+    const { id: groupId } = await params;
+    const [globalAdmin, groupAdmin] = await Promise.all([
+      isGlobalAdmin(userId),
+      isGroupAdmin(userId, groupId),
+    ]);
 
-    if (!hasAdminAccess) {
+    if (!globalAdmin && !groupAdmin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const { id: groupId } = await params;
     await deleteGroup(groupId, userId);
 
     return NextResponse.json({ success: true });
@@ -74,6 +83,56 @@ export async function DELETE(
       {
         error:
           error instanceof Error ? error.message : "Failed to delete group",
+      },
+      { status: 500 },
+    );
+  }
+}
+
+/**
+ * PATCH /api/admin/groups/[id]
+ * Update group name / description — accessible to global admins and group admins
+ */
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const session = await getServerSession();
+    if (!session?.identity) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const userId = session.identity.id;
+    const { id: groupId } = await params;
+    const [globalAdmin, groupAdmin] = await Promise.all([
+      isGlobalAdmin(userId),
+      isGroupAdmin(userId, groupId),
+    ]);
+
+    if (!globalAdmin && !groupAdmin) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const body = await request.json();
+    const { name, description } = body;
+
+    if (!name && description === undefined) {
+      return NextResponse.json(
+        { error: "At least one of name or description is required" },
+        { status: 400 },
+      );
+    }
+
+    await updateGroup(groupId, { name, description }, userId);
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Error updating group:", error);
+    return NextResponse.json(
+      {
+        error:
+          error instanceof Error ? error.message : "Failed to update group",
       },
       { status: 500 },
     );

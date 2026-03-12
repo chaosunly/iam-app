@@ -281,15 +281,23 @@ export async function updateGroup(
     throw new Error("Group not found");
   }
 
-  // Check if updater has permission
-  const canUpdate = await checkPermission({
-    namespace: "Organization",
-    object: group.organizationId,
-    relation: "create_group",
-    subject: updaterId,
-  });
+  // Check if updater has permission (org owner/admin or group admin)
+  const [canUpdate, isGroupAdminCheck] = await Promise.all([
+    checkPermission({
+      namespace: "Organization",
+      object: group.organizationId,
+      relation: "create_group",
+      subject: updaterId,
+    }),
+    checkPermission({
+      namespace: "Group",
+      object: groupId,
+      relation: "admins",
+      subject: updaterId,
+    }),
+  ]);
 
-  if (!canUpdate) {
+  if (!canUpdate && !isGroupAdminCheck) {
     throw new Error("Insufficient permissions to update group");
   }
 
@@ -431,14 +439,22 @@ export async function canManageGroup(
 
   if (isOwner) return true;
 
-  const isAdmin = await checkPermission({
-    namespace: "Organization",
-    object: organizationId,
-    relation: "admins",
-    subject: userId,
-  });
+  const [isAdmin, isGroupAdminCheck] = await Promise.all([
+    checkPermission({
+      namespace: "Organization",
+      object: organizationId,
+      relation: "admins",
+      subject: userId,
+    }),
+    checkPermission({
+      namespace: "Group",
+      object: groupId,
+      relation: "admins",
+      subject: userId,
+    }),
+  ]);
 
-  return isAdmin;
+  return isAdmin || isGroupAdminCheck;
 }
 
 /**

@@ -19,6 +19,13 @@ interface Identity {
   updated_at: string;
 }
 
+interface AccessInfo {
+  globalRoles: { role: string; object: string }[];
+  orgRoles: { organizationId: string; role: string }[];
+  groupMemberships: { groupId: string; role: string }[];
+  gitlabAccess: { resourceType: string; resourceId: string; role: string }[];
+}
+
 export default function IdentityDetailPage() {
   const router = useRouter();
   const params = useParams();
@@ -39,11 +46,15 @@ export default function IdentityDetailPage() {
     firstName: "",
     lastName: "",
   });
+  const [accessInfo, setAccessInfo] = useState<AccessInfo | null>(null);
+  const [accessLoading, setAccessLoading] = useState(false);
 
   useEffect(() => {
     if (id) {
       fetchIdentity();
+      fetchAccess();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const fetchIdentity = async () => {
@@ -73,6 +84,22 @@ export default function IdentityDetailPage() {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchAccess = async () => {
+    if (!id) return;
+    try {
+      setAccessLoading(true);
+      const response = await fetch(`/api/admin/identities/${id}/access`);
+      if (response.ok) {
+        const result = await response.json();
+        setAccessInfo(result.data || result);
+      }
+    } catch {
+      // Non-critical: silently fail, access card will show empty state
+    } finally {
+      setAccessLoading(false);
     }
   };
 
@@ -400,6 +427,136 @@ export default function IdentityDetailPage() {
                 </dd>
               </div>
             </dl>
+          </div>
+
+          {/* Access & Permissions Card */}
+          <div className="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 p-6">
+            <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50 mb-4">
+              Access &amp; Permissions
+            </h3>
+            {accessLoading ? (
+              <div className="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
+                <div className="w-4 h-4 border-2 border-zinc-300 dark:border-zinc-600 border-t-zinc-600 dark:border-t-zinc-300 rounded-full animate-spin" />
+                Loading access info...
+              </div>
+            ) : (
+              <dl className="space-y-5">
+                {/* Global Roles */}
+                <div>
+                  <dt className="text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-1">
+                    Global Roles
+                  </dt>
+                  <dd>
+                    {accessInfo?.globalRoles &&
+                    accessInfo.globalRoles.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {accessInfo.globalRoles.map((r, i) => (
+                          <span
+                            key={i}
+                            className="px-2 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400"
+                          >
+                            {r.role}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-sm text-zinc-400 dark:text-zinc-500">
+                        None
+                      </span>
+                    )}
+                  </dd>
+                </div>
+
+                {/* Organization Roles */}
+                <div>
+                  <dt className="text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-1">
+                    Organization Roles
+                  </dt>
+                  <dd>
+                    {accessInfo?.orgRoles && accessInfo.orgRoles.length > 0 ? (
+                      <div className="space-y-1">
+                        {accessInfo.orgRoles.map((r, i) => (
+                          <div key={i} className="flex items-center gap-2">
+                            <span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400">
+                              {r.role}
+                            </span>
+                            <span className="text-xs text-zinc-500 dark:text-zinc-400 font-mono truncate">
+                              {r.organizationId}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-sm text-zinc-400 dark:text-zinc-500">
+                        None
+                      </span>
+                    )}
+                  </dd>
+                </div>
+
+                {/* Group Memberships */}
+                <div>
+                  <dt className="text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-1">
+                    Group Memberships
+                  </dt>
+                  <dd>
+                    {accessInfo?.groupMemberships &&
+                    accessInfo.groupMemberships.length > 0 ? (
+                      <div className="space-y-1">
+                        {accessInfo.groupMemberships.map((g, i) => (
+                          <div key={i} className="flex items-center gap-2">
+                            <span className="px-2 py-1 text-xs font-semibold rounded-full bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                              {g.role}
+                            </span>
+                            <span className="text-xs text-zinc-500 dark:text-zinc-400 font-mono truncate">
+                              {g.groupId}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-sm text-zinc-400 dark:text-zinc-500">
+                        None
+                      </span>
+                    )}
+                  </dd>
+                </div>
+
+                {/* GitLab Access */}
+                <div>
+                  <dt className="text-sm font-medium text-zinc-500 dark:text-zinc-400 mb-1">
+                    GitLab Access
+                  </dt>
+                  <dd>
+                    {accessInfo?.gitlabAccess &&
+                    accessInfo.gitlabAccess.length > 0 ? (
+                      <div className="space-y-1">
+                        {accessInfo.gitlabAccess.map((g, i) => (
+                          <div
+                            key={i}
+                            className="flex items-center gap-2 flex-wrap"
+                          >
+                            <span className="px-2 py-1 text-xs font-semibold rounded-full bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400">
+                              {g.role}
+                            </span>
+                            <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                              {g.resourceType}:
+                            </span>
+                            <span className="text-xs text-zinc-700 dark:text-zinc-300 font-mono truncate">
+                              {g.resourceId}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-sm text-zinc-400 dark:text-zinc-500">
+                        None
+                      </span>
+                    )}
+                  </dd>
+                </div>
+              </dl>
+            )}
           </div>
         </div>
       )}
