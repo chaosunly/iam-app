@@ -3,9 +3,9 @@
  * Implements session caching to reduce load on Keto
  */
 
-import { checkPermission, RelationTuple } from "@/lib/keto";
+import type { RelationTuple } from "@/lib/types";
 import { logAudit } from "./audit.service";
-import { assertRequiredKetoNamespaces } from "./keto.service";
+import { assertRequiredKetoNamespaces, checkPermission } from "./keto.service";
 
 // Simple in-memory cache with TTL
 interface CacheEntry {
@@ -232,6 +232,7 @@ export async function canAccessAdmin(userId: string): Promise<boolean> {
  * Check if user is member of any organization
  */
 export async function isMemberOfAnyOrg(_userId: string): Promise<boolean> {
+  void _userId;
   // This is a simplified check - in production, you'd query for all orgs
   // and check membership. For now, we'll assume if not admin, they're a regular user.
   return true;
