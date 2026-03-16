@@ -91,7 +91,7 @@ export async function isGlobalAdmin(userId: string): Promise<boolean> {
   const allowed = await checkPermissionCached({
     namespace: "GlobalRole",
     object: "admin",
-    relation: "members",
+    relation: "is_admin",
     subject: userId,
   });
 

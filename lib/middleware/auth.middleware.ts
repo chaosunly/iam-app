@@ -66,7 +66,7 @@ export async function requireAdmin(request: NextRequest): Promise<UserContext> {
   await requirePermission(userContext, {
     namespace: "GlobalRole",
     object: "admin",
-    relation: "members",
+    relation: "is_admin",
   });
 
   return userContext;

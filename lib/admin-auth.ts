@@ -19,7 +19,7 @@ export async function checkAuth(request: NextRequest) {
     const hasPermission = await checkPermission({
       namespace: "GlobalRole",
       object: "admin",
-      relation: "members",
+      relation: "is_admin",
       subject: userId,
     });
 
