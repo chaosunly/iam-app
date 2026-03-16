@@ -11,6 +11,25 @@ const KETO_READ_URL = process.env.ORY_KETO_READ_URL || "http://localhost:4466";
 const KETO_WRITE_URL =
   process.env.ORY_KETO_WRITE_URL || "http://localhost:4467";
 
+interface KetoRelationTupleResponse {
+  namespace?: string;
+  object?: string;
+  relation?: string;
+  subject_id?: string | { id?: string };
+}
+
+function toRelationTuple(rt: KetoRelationTupleResponse): RelationTuple {
+  const subject =
+    typeof rt.subject_id === "string" ? rt.subject_id : rt.subject_id?.id || "";
+
+  return {
+    namespace: rt.namespace || "",
+    object: rt.object || "",
+    relation: rt.relation || "",
+    subject,
+  };
+}
+
 /**
  * Format tuple for Keto API
  */
@@ -53,18 +72,32 @@ export async function checkPermission(tuple: RelationTuple): Promise<boolean> {
       body: JSON.stringify(formatTupleForApi(tuple)),
     });
 
+    const responseText = await response.text();
+    let data: PermissionCheck = { allowed: false };
+
+    try {
+      data = JSON.parse(responseText);
+    } catch {
+      // Keep default denied result when response body is not JSON.
+    }
+
+    // Keto returns 403 with {"allowed": false} for denied checks.
+    // Treat this as a valid authz decision, not a transport/server failure.
+    if (response.status === 403 && data.allowed === false) {
+      console.log("[Keto] Check denied:", { tuple });
+      return false;
+    }
+
     if (!response.ok) {
-      const errorText = await response.text();
       console.error("[Keto] Check failed:", {
         status: response.status,
         statusText: response.statusText,
-        error: errorText,
+        error: responseText,
         url,
       });
       return false; // Fail closed - deny by default
     }
 
-    const data: PermissionCheck = await response.json();
     console.log("[Keto] Check result:", { allowed: data.allowed, tuple });
     return data.allowed === true;
   } catch (error) {
@@ -102,6 +135,14 @@ export async function grantPermission(tuple: RelationTuple): Promise<void> {
 
     if (!response.ok) {
       const error = await response.text();
+      if (
+        response.status === 404 &&
+        error.includes("Unknown namespace with name")
+      ) {
+        throw new InternalServerError(
+          `Failed to grant permission: namespace '${tuple.namespace}' is not defined in Keto permission model. ${error}`,
+        );
+      }
       throw new InternalServerError(`Failed to grant permission: ${error}`);
     }
   } catch (error) {
@@ -191,12 +232,9 @@ export async function listUserPermissions(
     }
 
     const data = await response.json();
-    return (data.relation_tuples || []).map((rt: Record<string, any>) => ({
-      namespace: rt.namespace,
-      object: rt.object,
-      relation: rt.relation,
-      subject: rt.subject_id?.id || rt.subject_id,
-    }));
+    return (data.relation_tuples || []).map((rt: KetoRelationTupleResponse) =>
+      toRelationTuple(rt),
+    );
   } catch (error) {
     if (
       error instanceof BadRequestError ||
@@ -239,12 +277,9 @@ export async function listObjectPermissions(
     }
 
     const data = await response.json();
-    return (data.relation_tuples || []).map((rt: Record<string, any>) => ({
-      namespace: rt.namespace,
-      object: rt.object,
-      relation: rt.relation,
-      subject: rt.subject_id?.id || rt.subject_id,
-    }));
+    return (data.relation_tuples || []).map((rt: KetoRelationTupleResponse) =>
+      toRelationTuple(rt),
+    );
   } catch (error) {
     if (
       error instanceof BadRequestError ||
@@ -291,12 +326,9 @@ export async function listSubjectRelations(
     }
 
     const data = await response.json();
-    return (data.relation_tuples || []).map((rt: Record<string, any>) => ({
-      namespace: rt.namespace,
-      object: rt.object,
-      relation: rt.relation,
-      subject: rt.subject_id?.id || rt.subject_id,
-    }));
+    return (data.relation_tuples || []).map((rt: KetoRelationTupleResponse) =>
+      toRelationTuple(rt),
+    );
   } catch (error) {
     if (
       error instanceof BadRequestError ||

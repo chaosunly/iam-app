@@ -358,6 +358,14 @@ export async function getUserGroups(
     });
 
     if (!response.ok) {
+      if (response.status === 404) {
+        console.warn(
+          "[getUserGroups] Group namespace not found in Keto, returning empty groups",
+          { userId },
+        );
+        return [];
+      }
+
       console.error("[getUserGroups] Failed to fetch user groups:", {
         status: response.status,
         statusText: response.statusText,

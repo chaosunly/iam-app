@@ -62,18 +62,30 @@ export async function checkPermission(tuple: RelationTuple): Promise<boolean> {
 
     clearTimeout(timeoutId);
 
+    const responseText = await response.text();
+    let data: { allowed?: boolean } = {};
+
+    try {
+      data = JSON.parse(responseText);
+    } catch {
+      // Leave as empty object if body is not JSON.
+    }
+
+    // Keto returns 403 with {"allowed": false} for a denied permission check.
+    if (response.status === 403 && data.allowed === false) {
+      return false;
+    }
+
     if (!response.ok) {
-      const errorText = await response.text();
       console.error("Keto check failed:", {
         status: response.status,
         statusText: response.statusText,
-        body: errorText,
+        body: responseText,
         tuple,
       });
       return false;
     }
 
-    const data = await response.json();
     console.log("[Keto] Check result:", data);
     return data.allowed === true;
   } catch (error) {

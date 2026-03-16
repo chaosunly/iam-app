@@ -4,6 +4,9 @@
  */
 
 export * from "./user";
+export * from "./globalRole";
+export * from "./organization";
+export * from "./group";
 export * from "./gitlabGroup";
 export * from "./gitlabProject";
 
