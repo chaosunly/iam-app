@@ -81,14 +81,18 @@ export async function middleware(request: NextRequest) {
 
     const userId = session.identity.id;
 
-    const isProtectedRoute =
-      PROTECTED_ROUTES.admin.pattern.test(pathname) ||
-      PROTECTED_ROUTES.dashboard.pattern.test(pathname) ||
-      PROTECTED_ROUTES.api.pattern.test(pathname);
+    let requiredNamespaces: readonly string[] | null = null;
+    if (PROTECTED_ROUTES.admin.pattern.test(pathname)) {
+      requiredNamespaces = ["GlobalRole"];
+    } else if (PROTECTED_ROUTES.dashboard.pattern.test(pathname)) {
+      requiredNamespaces = ["GlobalRole", "Organization", "Group"];
+    } else if (PROTECTED_ROUTES.api.pattern.test(pathname)) {
+      requiredNamespaces = ["GlobalRole", "Organization", "Group"];
+    }
 
-    if (isProtectedRoute) {
+    if (requiredNamespaces) {
       try {
-        await assertRequiredKetoNamespaces();
+        await assertRequiredKetoNamespaces(requiredNamespaces);
       } catch (error) {
         const message =
           error instanceof Error

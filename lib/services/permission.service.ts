@@ -5,6 +5,7 @@
 
 import { checkPermission, RelationTuple } from "@/lib/keto";
 import { logAudit } from "./audit.service";
+import { assertRequiredKetoNamespaces } from "./keto.service";
 
 // Simple in-memory cache with TTL
 interface CacheEntry {
@@ -209,6 +210,19 @@ export async function isOrgOwnerOrAdmin(
 export async function canAccessAdmin(userId: string): Promise<boolean> {
   const globalAdmin = await isGlobalAdmin(userId);
   if (globalAdmin) return true;
+
+  try {
+    await assertRequiredKetoNamespaces(["Organization"]);
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Organization namespace unavailable";
+    console.warn(
+      `[Permission] Skipping Organization fallback for admin access: ${message}`,
+    );
+    return false;
+  }
 
   const defaultOrgId = process.env.DEFAULT_ORG_ID || "default-org";
   return isOrgOwnerOrAdmin(userId, defaultOrgId);

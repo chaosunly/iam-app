@@ -19,10 +19,12 @@ export const REQUIRED_KETO_NAMESPACES = [
 
 const NAMESPACE_CHECK_TTL_MS = 30_000;
 
-let namespaceCheckCache: {
+type NamespaceCheckCacheEntry = {
   checkedAt: number;
   missing: string[];
-} | null = null;
+};
+
+const namespaceCheckCache = new Map<string, NamespaceCheckCacheEntry>();
 
 interface KetoRelationTupleResponse {
   namespace?: string;
@@ -90,15 +92,17 @@ export async function assertRequiredKetoNamespaces(
   forceRefresh = false,
 ): Promise<void> {
   const now = Date.now();
+  const cacheKey = [...requiredNamespaces].sort().join("|");
+  const cached = namespaceCheckCache.get(cacheKey);
 
   if (
     !forceRefresh &&
-    namespaceCheckCache &&
-    now - namespaceCheckCache.checkedAt < NAMESPACE_CHECK_TTL_MS
+    cached &&
+    now - cached.checkedAt < NAMESPACE_CHECK_TTL_MS
   ) {
-    if (namespaceCheckCache.missing.length > 0) {
+    if (cached.missing.length > 0) {
       throw new InternalServerError(
-        `Keto namespace model is not ready. Missing namespaces: ${namespaceCheckCache.missing.join(", ")}.`,
+        `Keto namespace model is not ready. Missing namespaces: ${cached.missing.join(", ")}.`,
       );
     }
     return;
@@ -115,10 +119,10 @@ export async function assertRequiredKetoNamespaces(
     .filter((result) => !result.available)
     .map((result) => result.namespace);
 
-  namespaceCheckCache = {
+  namespaceCheckCache.set(cacheKey, {
     checkedAt: now,
     missing,
-  };
+  });
 
   if (missing.length > 0) {
     throw new InternalServerError(
