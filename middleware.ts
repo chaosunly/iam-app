@@ -7,6 +7,7 @@ import {
   getUserDashboardRoute,
 } from "@/lib/services/permission.service";
 import { logAccessDenied } from "@/lib/services/audit.service";
+import { assertRequiredKetoNamespaces } from "@/lib/services/keto.service";
 
 // Create Ory proxy middleware for authentication flows
 const oryProxy = createOryMiddleware(oryConfig);
@@ -79,6 +80,39 @@ export async function middleware(request: NextRequest) {
     }
 
     const userId = session.identity.id;
+
+    const isProtectedRoute =
+      PROTECTED_ROUTES.admin.pattern.test(pathname) ||
+      PROTECTED_ROUTES.dashboard.pattern.test(pathname) ||
+      PROTECTED_ROUTES.api.pattern.test(pathname);
+
+    if (isProtectedRoute) {
+      try {
+        await assertRequiredKetoNamespaces();
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Keto namespaces unavailable";
+        console.error("[Middleware] Keto namespace check failed:", message);
+
+        if (pathname.startsWith("/api/")) {
+          return NextResponse.json(
+            {
+              error: "Authorization service misconfigured",
+              details: message,
+              status: 503,
+            },
+            { status: 503 },
+          );
+        }
+
+        const errorUrl = new URL("/error", request.url);
+        errorUrl.searchParams.set("error", "authorization_service_unavailable");
+        errorUrl.searchParams.set("error_description", message);
+        return NextResponse.redirect(errorUrl);
+      }
+    }
 
     // Check if trying to access admin panel
     if (PROTECTED_ROUTES.admin.pattern.test(pathname)) {

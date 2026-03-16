@@ -11,6 +11,19 @@ const KETO_READ_URL = process.env.ORY_KETO_READ_URL || "http://localhost:4466";
 const KETO_WRITE_URL =
   process.env.ORY_KETO_WRITE_URL || "http://localhost:4467";
 
+export const REQUIRED_KETO_NAMESPACES = [
+  "GlobalRole",
+  "Organization",
+  "Group",
+] as const;
+
+const NAMESPACE_CHECK_TTL_MS = 30_000;
+
+let namespaceCheckCache: {
+  checkedAt: number;
+  missing: string[];
+} | null = null;
+
 interface KetoRelationTupleResponse {
   namespace?: string;
   object?: string;
@@ -28,6 +41,90 @@ function toRelationTuple(rt: KetoRelationTupleResponse): RelationTuple {
     relation: rt.relation || "",
     subject,
   };
+}
+
+function isUnknownNamespaceError(responseText: string, namespace: string) {
+  return (
+    responseText.includes("Unknown namespace with name") &&
+    responseText.includes(`\"${namespace}\"`)
+  );
+}
+
+async function isNamespaceAvailable(namespace: string): Promise<boolean> {
+  const params = new URLSearchParams({
+    namespace,
+    page_size: "1",
+  });
+
+  const url = `${KETO_READ_URL}/relation-tuples?${params}`;
+  const response = await fetch(url, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (response.ok) {
+    return true;
+  }
+
+  const responseText = await response.text();
+  if (
+    response.status === 404 &&
+    isUnknownNamespaceError(responseText, namespace)
+  ) {
+    return false;
+  }
+
+  throw new InternalServerError(
+    `Failed to verify Keto namespace '${namespace}': ${responseText}`,
+  );
+}
+
+/**
+ * Ensures required Keto namespaces are loaded in the active runtime model.
+ * Uses a short-lived in-memory cache to avoid repeated checks per request.
+ */
+export async function assertRequiredKetoNamespaces(
+  requiredNamespaces: readonly string[] = REQUIRED_KETO_NAMESPACES,
+  forceRefresh = false,
+): Promise<void> {
+  const now = Date.now();
+
+  if (
+    !forceRefresh &&
+    namespaceCheckCache &&
+    now - namespaceCheckCache.checkedAt < NAMESPACE_CHECK_TTL_MS
+  ) {
+    if (namespaceCheckCache.missing.length > 0) {
+      throw new InternalServerError(
+        `Keto namespace model is not ready. Missing namespaces: ${namespaceCheckCache.missing.join(", ")}.`,
+      );
+    }
+    return;
+  }
+
+  const results = await Promise.all(
+    requiredNamespaces.map(async (namespace) => ({
+      namespace,
+      available: await isNamespaceAvailable(namespace),
+    })),
+  );
+
+  const missing = results
+    .filter((result) => !result.available)
+    .map((result) => result.namespace);
+
+  namespaceCheckCache = {
+    checkedAt: now,
+    missing,
+  };
+
+  if (missing.length > 0) {
+    throw new InternalServerError(
+      `Keto namespace model is not ready. Missing namespaces: ${missing.join(", ")}.`,
+    );
+  }
 }
 
 /**

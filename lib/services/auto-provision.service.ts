@@ -4,7 +4,11 @@
  * Ensures all authenticated users have basic organization membership
  */
 
-import { checkPermission, grantPermission } from "./keto.service";
+import {
+  checkPermission,
+  grantPermission,
+  assertRequiredKetoNamespaces,
+} from "./keto.service";
 import { getDefaultOrganizationId } from "./organization.service";
 import { logAudit } from "./audit.service";
 
@@ -51,6 +55,8 @@ async function hasAnyPermissions(userId: string): Promise<boolean> {
  */
 export async function autoProvisionUser(userId: string): Promise<void> {
   try {
+    await assertRequiredKetoNamespaces();
+
     // Check if user already has permissions
     const hasPermissions = await hasAnyPermissions(userId);
 
