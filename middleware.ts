@@ -85,7 +85,9 @@ export async function middleware(request: NextRequest) {
     if (PROTECTED_ROUTES.admin.pattern.test(pathname)) {
       requiredNamespaces = ["GlobalRole"];
     } else if (PROTECTED_ROUTES.dashboard.pattern.test(pathname)) {
-      requiredNamespaces = ["GlobalRole", "Organization", "Group"];
+      // Keep dashboard reachable during partial Keto namespace rollouts.
+      // Admin routes remain protected by GlobalRole checks.
+      requiredNamespaces = ["GlobalRole"];
     } else if (PROTECTED_ROUTES.api.pattern.test(pathname)) {
       requiredNamespaces = ["GlobalRole", "Organization", "Group"];
     }

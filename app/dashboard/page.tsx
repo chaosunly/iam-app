@@ -4,7 +4,6 @@ import { isGlobalAdmin } from "@/lib/services/permission.service";
 import { getUserGroups } from "@/lib/services/group.service";
 import { getDefaultOrganizationId } from "@/lib/services/organization.service";
 import { autoProvisionUser } from "@/lib/services/auto-provision.service";
-import { assertRequiredKetoNamespaces } from "@/lib/services/keto.service";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Check, Mail, Users, Settings, Lock, Info } from "lucide-react";
 
@@ -20,8 +19,6 @@ export default async function DashboardPage() {
   const userId = user.id;
   const email = user.traits.email || "No email";
   const name = user.traits.name?.first || user.traits.username || "User";
-
-  await assertRequiredKetoNamespaces();
 
   // Auto-provision user if they don't have permissions yet
   await autoProvisionUser(userId);
