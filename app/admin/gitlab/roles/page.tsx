@@ -14,6 +14,11 @@ interface GitlabProject {
   name: string;
 }
 
+interface Identity {
+  id: string;
+  traits: { email?: string; name?: string };
+}
+
 const GITLAB_ROLES = ["owner", "maintainer", "developer", "reporter", "guest"];
 
 export default function GitlabRolesPage() {
@@ -29,6 +34,7 @@ export default function GitlabRolesPage() {
 
   const [groups, setGroups] = useState<GitlabGroup[]>([]);
   const [projects, setProjects] = useState<GitlabProject[]>([]);
+  const [identities, setIdentities] = useState<Identity[]>([]);
   const [members, setMembers] = useState<any[]>([]);
 
   const [loading, setLoading] = useState(false);
@@ -38,6 +44,7 @@ export default function GitlabRolesPage() {
   useEffect(() => {
     fetchGroups();
     fetchProjects();
+    fetchIdentities();
   }, []);
 
   useEffect(() => {
@@ -67,6 +74,18 @@ export default function GitlabRolesPage() {
       }
     } catch (err) {
       console.error("Failed to fetch projects:", err);
+    }
+  }
+
+  async function fetchIdentities() {
+    try {
+      const response = await fetch("/api/admin/identities?per_page=250");
+      if (response.ok) {
+        const data = await response.json();
+        setIdentities(data.identities || data || []);
+      }
+    } catch (err) {
+      console.error("Failed to fetch identities:", err);
     }
   }
 
@@ -223,16 +242,21 @@ export default function GitlabRolesPage() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-zinc-900 dark:text-zinc-50 mb-2">
-                User ID
+                User
               </label>
-              <input
-                type="text"
+              <select
                 value={userId}
                 onChange={(e) => setUserId(e.target.value)}
                 required
-                placeholder="Enter user ID"
                 className="w-full px-4 py-2 border border-zinc-300 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-50 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
+              >
+                <option value="">Select a user</option>
+                {identities.map((identity) => (
+                  <option key={identity.id} value={identity.id}>
+                    {identity.traits?.email || identity.traits?.name || identity.id}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div>
