@@ -81,8 +81,8 @@ export default function GitlabRolesPage() {
     try {
       const response = await fetch("/api/admin/identities?per_page=250");
       if (response.ok) {
-        const data = await response.json();
-        setIdentities(data.identities || data || []);
+        const json = await response.json();
+        setIdentities(json.data || []);
       }
     } catch (err) {
       console.error("Failed to fetch identities:", err);
