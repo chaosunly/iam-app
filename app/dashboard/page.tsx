@@ -2,8 +2,9 @@ import { getServerSession } from "@ory/nextjs/app";
 import { redirect } from "next/navigation";
 import { isGlobalAdmin } from "@/lib/services/permission.service";
 import { getUserGroups } from "@/lib/services/group.service";
-import { getDefaultOrganizationId } from "@/lib/services/organization.service";
+import { getDefaultOrganizationId, getUserRole } from "@/lib/services/organization.service";
 import { autoProvisionUser } from "@/lib/services/auto-provision.service";
+import { getUserGitlabRoles } from "@/lib/services/gitlab.service";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Check, Mail, Users, Settings, Lock, Info } from "lucide-react";
 
@@ -31,7 +32,11 @@ export default async function DashboardPage() {
 
   // Get user's organization and groups
   const organizationId = getDefaultOrganizationId();
-  const userGroups = await getUserGroups(userId, organizationId);
+  const [userGroups, orgRole, gitlabRoles] = await Promise.all([
+    getUserGroups(userId, organizationId),
+    getUserRole(organizationId, userId),
+    getUserGitlabRoles(userId),
+  ]);
 
   return (
     <div className="flex flex-col h-full">
@@ -124,6 +129,71 @@ export default async function DashboardPage() {
                 You are not a member of any groups yet.
               </p>
             )}
+          </CardContent>
+        </Card>
+
+        {/* Access & Permissions */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle>Access &amp; Permissions</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div>
+              <p className="text-sm font-medium text-muted-foreground mb-2">Global Roles</p>
+              <p className="text-sm text-muted-foreground">None</p>
+            </div>
+
+            <div>
+              <p className="text-sm font-medium text-muted-foreground mb-2">Organization Roles</p>
+              {orgRole ? (
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                    {orgRole}
+                  </span>
+                  <span className="text-sm text-muted-foreground">{organizationId}</span>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">None</p>
+              )}
+            </div>
+
+            <div>
+              <p className="text-sm font-medium text-muted-foreground mb-2">Group Memberships</p>
+              {userGroups.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {userGroups.map((group) => (
+                    <span
+                      key={group.id}
+                      className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400"
+                    >
+                      {group.name}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">None</p>
+              )}
+            </div>
+
+            <div>
+              <p className="text-sm font-medium text-muted-foreground mb-2">GitLab Access</p>
+              {gitlabRoles.length > 0 ? (
+                <div className="space-y-2">
+                  {gitlabRoles.map((assignment) => (
+                    <div key={assignment.id} className="flex items-center gap-2">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
+                        {assignment.role}
+                      </span>
+                      <span className="text-sm text-muted-foreground">
+                        {assignment.resourceType}: {assignment.resourceId}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">None</p>
+              )}
+            </div>
           </CardContent>
         </Card>
 
