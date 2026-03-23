@@ -125,7 +125,7 @@ export default async function AdminClientPage() {
                   <TableCell className="text-right">
                     {client.client_id ? (
                       <div className="flex justify-end gap-2">
-                        <Button asChild variant="outline" size="sm">
+                        <Button asChild variant="ghost" size="sm">
                           <Link
                             href={`/admin/client/${encodeURIComponent(client.client_id)}`}
                           >

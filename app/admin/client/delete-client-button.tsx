@@ -4,7 +4,13 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 
-export function DeleteClientButton({ clientId }: { clientId: string }) {
+export function DeleteClientButton({
+  clientId,
+  onDeleted,
+}: {
+  clientId: string;
+  onDeleted?: () => void;
+}) {
   const [isDeleting, setIsDeleting] = useState(false);
   const router = useRouter();
 
@@ -33,6 +39,7 @@ export function DeleteClientButton({ clientId }: { clientId: string }) {
         return;
       }
 
+      onDeleted?.();
       router.refresh();
     } catch (error) {
       window.alert(
@@ -45,8 +52,9 @@ export function DeleteClientButton({ clientId }: { clientId: string }) {
 
   return (
     <Button
-      variant="destructive"
+      variant="ghost"
       size="sm"
+      className="text-destructive hover:text-destructive"
       onClick={onDelete}
       disabled={isDeleting}
     >

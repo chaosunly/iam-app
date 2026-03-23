@@ -31,7 +31,10 @@ export default function AdminClientCreatePage() {
   const [skipConsent, setSkipConsent] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [copyMessage, setCopyMessage] = useState("");
   const [result, setResult] = useState<CreateClientResponse | null>(null);
+
+  const maskedSecret = "........";
 
   const authUrl = useMemo(() => {
     const firstRedirect = redirectUris
@@ -58,6 +61,7 @@ export default function AdminClientCreatePage() {
     e.preventDefault();
     setIsSubmitting(true);
     setError("");
+    setCopyMessage("");
     setResult(null);
 
     try {
@@ -95,6 +99,21 @@ export default function AdminClientCreatePage() {
       setError(err instanceof Error ? err.message : "Unexpected error");
     } finally {
       setIsSubmitting(false);
+    }
+  }
+
+  async function onCopySecret() {
+    const secret = result?.credentials?.client_secret;
+    if (!secret) {
+      setCopyMessage("No secret available to copy.");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(secret);
+      setCopyMessage("Secret copied.");
+    } catch {
+      setCopyMessage("Failed to copy secret.");
     }
   }
 
@@ -195,10 +214,16 @@ export default function AdminClientCreatePage() {
                   <span className="font-medium">Client ID:</span>{" "}
                   {result.credentials?.client_id}
                 </p>
-                <p className="break-all">
-                  <span className="font-medium">Client Secret:</span>{" "}
-                  {result.credentials?.client_secret}
-                </p>
+                <div className="flex items-center gap-2">
+                  <p className="break-all">
+                    <span className="font-medium">Client Secret:</span>{" "}
+                    {maskedSecret}
+                  </p>
+                  <Button type="button" variant="ghost" size="sm" onClick={onCopySecret}>
+                    Copy
+                  </Button>
+                </div>
+                {copyMessage && <p className="text-xs text-green-800">{copyMessage}</p>}
               </div>
             )}
 
