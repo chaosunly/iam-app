@@ -1,8 +1,8 @@
 import { getServerSession } from "@ory/nextjs/app";
 import { redirect } from "next/navigation";
 import { ReactNode } from "react";
-import { AdminSidebar } from "@/components/admin-sidebar";
-import { PageHeader } from "@/components/page-header";
+import { AdminSidebar } from "@/components/layout/admin-sidebar";
+import { PageHeader } from "@/components/layout/page-header";
 import { canAccessAdmin } from "@/lib/services/permission.service";
 
 export default async function AdminLayout({

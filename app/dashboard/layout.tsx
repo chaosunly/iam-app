@@ -1,9 +1,9 @@
 import { getServerSession } from "@ory/nextjs/app";
 import { redirect } from "next/navigation";
 import { ReactNode } from "react";
-import { UserSidebar } from "@/components/user-sidebar";
+import { UserSidebar } from "@/components/layout/user-sidebar";
 import { isGlobalAdmin } from "@/lib/services/permission.service";
-import { PageHeader } from "@/components/page-header";
+import { PageHeader } from "@/components/layout/page-header";
 
 export default async function DashboardLayout({
   children,

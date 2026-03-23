@@ -1,5 +1,5 @@
 import { OryPageParams, getLoginFlow } from "@ory/nextjs/app";
-import { AutoOAuth2Login } from "../components/oauth2-login";
+import { AutoOAuth2Login } from "../_components/oauth2-login";
 import { LoginClient } from "./login-client";
 import { LoginError } from "./login-error";
 import config from "@/ory.config";
