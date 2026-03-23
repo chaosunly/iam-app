@@ -70,3 +70,64 @@ model GitlabRoleAssignment {
   @@index([resourceType, resourceId])
   @@map("gitlab_role_assignments")
 }
+
+// ─── Matrix Access Management Models ──────────────────────────────────────────
+// NOTE: Run `prisma migrate dev --name add_matrix_models` after adding these.
+
+model MatrixOrg {
+  id          String        @id @default(cuid())
+  name        String        @unique
+  description String?
+  homeserver  String?       // e.g. "matrix.acme.corp"
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+  spaces      MatrixSpace[]
+
+  @@map("matrix_orgs")
+}
+
+model MatrixSpace {
+  id          String      @id @default(cuid())
+  name        String
+  description String?
+  matrixId    String?     @map("matrix_id") // Element internal space ID (!abc:matrix.org)
+  orgId       String      @map("org_id")
+  org         MatrixOrg   @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+  rooms       MatrixRoom[]
+
+  @@unique([orgId, name])
+  @@index([orgId])
+  @@map("matrix_spaces")
+}
+
+model MatrixRoom {
+  id          String      @id @default(cuid())
+  name        String
+  description String?
+  matrixId    String?     @map("matrix_id") // Element internal room ID (!xyz:matrix.org)
+  spaceId     String      @map("space_id")
+  space       MatrixSpace @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  @@unique([spaceId, name])
+  @@index([spaceId])
+  @@map("matrix_rooms")
+}
+
+model MatrixRoleAssignment {
+  id           String   @id @default(cuid())
+  userId       String   @map("user_id")
+  resourceType String   @map("resource_type") // "org" | "space" | "room"
+  resourceId   String   @map("resource_id")
+  role         String   // "matrix_admin" | "moderator" | "support" | "member" | "viewer"
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@unique([userId, resourceType, resourceId])
+  @@index([userId])
+  @@index([resourceType, resourceId])
+  @@map("matrix_role_assignments")
+}
