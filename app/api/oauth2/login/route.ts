@@ -68,22 +68,17 @@ export async function GET(request: NextRequest) {
       return response;
     }
 
-    // No Kratos session: store challenge and send to Kratos login
-    // Use X-Forwarded-Host from nginx to get the public gateway URL
-    const forwardedHost = request.headers.get("x-forwarded-host") || request.nextUrl.host;
-    const forwardedProto = request.headers.get("x-forwarded-proto") || request.nextUrl.protocol.replace(":", "");
-    const baseUrl = `${forwardedProto}://${forwardedHost}`;
-    const returnToUrl = `${baseUrl}/api/oauth2/login?login_challenge=${login_challenge}`;
+    // No Kratos session: store challenge and send to Kratos login.
+    // Use NEXT_PUBLIC_APP_URL so the return_to always uses the correct public HTTPS URL.
+    // Reconstructing from x-forwarded-proto is unreliable because Oathkeeper proxies
+    // to the UI over HTTP internally, which can cause the header to arrive as "http".
+    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/$/, "");
+    const returnToUrl = `${appUrl}/api/oauth2/login?login_challenge=${login_challenge}`;
 
-    console.info("/api/oauth2/login redirecting to Kratos", {
-      forwardedHost,
-      forwardedProto,
-      baseUrl,
-      returnToUrl,
-    });
+    console.info("/api/oauth2/login redirecting to Kratos", { appUrl, returnToUrl });
 
     const response = NextResponse.redirect(
-      `${baseUrl}/.ory/self-service/login/browser?return_to=${encodeURIComponent(returnToUrl)}`
+      `${appUrl}/.ory/self-service/login/browser?return_to=${encodeURIComponent(returnToUrl)}`
     );
 
     response.cookies.set("oauth2_login_challenge", login_challenge, {
