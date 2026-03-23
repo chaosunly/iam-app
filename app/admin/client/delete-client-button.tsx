@@ -80,7 +80,7 @@ export function DeleteClientButton({
             <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={onDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="bg-destructive text-white hover:bg-destructive/90"
               disabled={isDeleting}
             >
               {isDeleting ? "Deleting..." : "Delete"}
