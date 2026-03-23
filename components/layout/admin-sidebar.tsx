@@ -12,6 +12,7 @@ import {
   ChevronLeft,
   Menu,
   Settings,
+  KeyRound,
   LogOut,
   ChevronsUpDown,
 } from "lucide-react";
@@ -35,6 +36,7 @@ const navItems = [
   { href: "/admin/groups", label: "Groups", icon: UsersRound },
   { href: "/admin/organization", label: "Organization", icon: Building2 },
   { href: "/admin/permissions", label: "Permissions", icon: Shield },
+  { href: "/admin/client", label: "Client", icon: KeyRound },
 ];
 
 interface AdminSidebarProps {
