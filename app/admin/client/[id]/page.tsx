@@ -434,7 +434,7 @@ export default function AdminClientDetailPage() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4">
                 <p className="font-medium">Client Secret</p>
                 <div className="md:col-span-2 flex items-center gap-2">
-                  <p className="font-mono text-xs">{MASKED_SECRET}</p>
+                  <p className="text-sm tracking-wider">{MASKED_SECRET}</p>
                   <Button type="button" variant="ghost" size="sm" onClick={copySecret}>
                     Copy
                   </Button>
