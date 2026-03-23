@@ -12,6 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { KeyRound } from "lucide-react";
+import { DeleteClientButton } from "./delete-client-button";
 
 type OAuth2Client = {
   client_id?: string;
@@ -76,13 +77,14 @@ export default async function AdminClientPage() {
               <TableHead>Scope</TableHead>
               <TableHead>Redirect URIs</TableHead>
               <TableHead>Consent</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {clients.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={6}
+                  colSpan={7}
                   className="text-center text-muted-foreground py-12"
                 >
                   <KeyRound className="w-10 h-10 mx-auto mb-3 text-muted-foreground/50" />
@@ -119,6 +121,22 @@ export default async function AdminClientPage() {
                   </TableCell>
                   <TableCell>
                     {client.skip_consent ? "Skip" : "Required"}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {client.client_id ? (
+                      <div className="flex justify-end gap-2">
+                        <Button asChild variant="outline" size="sm">
+                          <Link
+                            href={`/admin/client/${encodeURIComponent(client.client_id)}`}
+                          >
+                            View
+                          </Link>
+                        </Button>
+                        <DeleteClientButton clientId={client.client_id} />
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground">-</span>
+                    )}
                   </TableCell>
                 </TableRow>
               ))
