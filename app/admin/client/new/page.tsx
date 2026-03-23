@@ -34,7 +34,7 @@ export default function AdminClientCreatePage() {
   const [copyMessage, setCopyMessage] = useState("");
   const [result, setResult] = useState<CreateClientResponse | null>(null);
 
-  const maskedSecret = "........";
+  const maskedSecret = "●●●●●●●●●●●●";
 
   const authUrl = useMemo(() => {
     const firstRedirect = redirectUris

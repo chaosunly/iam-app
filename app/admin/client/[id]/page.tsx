@@ -37,7 +37,7 @@ type UpdateResponse = {
   error?: string;
 };
 
-const MASKED_SECRET = "........";
+const MASKED_SECRET = "●●●●●●●●●●●●";
 
 export default function AdminClientDetailPage() {
   const router = useRouter();
