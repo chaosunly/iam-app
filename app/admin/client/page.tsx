@@ -1,219 +1,131 @@
-"use client";
-
-import { FormEvent, useMemo, useState } from "react";
+import { getServerSession } from "@ory/nextjs/app";
+import { redirect } from "next/navigation";
+import Link from "next/link";
+import { isGlobalAdmin } from "@/lib/services/permission.service";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { KeyRound } from "lucide-react";
 
-type CreateClientResponse = {
-	success: boolean;
-	client?: {
-		client_id?: string;
-		redirect_uris?: string[];
-		scope?: string;
-	};
-	credentials?: {
-		client_id: string;
-		client_secret: string;
-	};
-	error?: string;
+type OAuth2Client = {
+  client_id?: string;
+  client_name?: string;
+  scope?: string;
+  redirect_uris?: string[];
+  grant_types?: string[];
+  skip_consent?: boolean;
 };
 
-export default function AdminClientPage() {
-	const [clientId, setClientId] = useState("iam-app");
-	const [clientName, setClientName] = useState("IAM UI App");
-	const [clientSecret, setClientSecret] = useState("");
-	const [redirectUris, setRedirectUris] = useState(
-		"https://gateway-sengly-branch.up.railway.app/auth/callback",
-	);
-	const [scope, setScope] = useState("openid offline_access email profile");
-	const [skipConsent, setSkipConsent] = useState(true);
-	const [isSubmitting, setIsSubmitting] = useState(false);
-	const [error, setError] = useState("");
-	const [result, setResult] = useState<CreateClientResponse | null>(null);
+async function getClients(): Promise<OAuth2Client[]> {
+  const hydraAdminUrl =
+    process.env.HYDRA_ADMIN_URL || "http://hydra.railway.internal:4445";
 
-	const authUrl = useMemo(() => {
-		const firstRedirect = redirectUris
-			.split("\n")
-			.map((s) => s.trim())
-			.filter(Boolean)[0];
+  const response = await fetch(`${hydraAdminUrl}/admin/clients`, {
+    cache: "no-store",
+  });
 
-		if (!clientId || !firstRedirect) {
-			return "";
-		}
+  if (!response.ok) {
+    throw new Error("Failed to load OAuth2 clients");
+  }
 
-		const params = new URLSearchParams({
-			client_id: clientId,
-			response_type: "code",
-			scope,
-			redirect_uri: firstRedirect,
-			state: "from-admin-client-page",
-		});
+  const data = (await response.json()) as OAuth2Client[];
+  return Array.isArray(data) ? data : [];
+}
 
-		return `/oauth2/auth?${params.toString()}`;
-	}, [clientId, redirectUris, scope]);
+export default async function AdminClientPage() {
+  const session = await getServerSession();
 
-	async function onSubmit(e: FormEvent) {
-		e.preventDefault();
-		setIsSubmitting(true);
-		setError("");
-		setResult(null);
+  if (!session?.identity) {
+    redirect("/auth/login");
+  }
 
-		try {
-			const response = await fetch("/api/admin/create-client", {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-				},
-				body: JSON.stringify({
-					client_id: clientId.trim(),
-					client_name: clientName.trim(),
-					client_secret: clientSecret.trim() || undefined,
-					redirect_uris: redirectUris
-						.split("\n")
-						.map((uri) => uri.trim())
-						.filter(Boolean),
-					scope: scope.trim(),
-					grant_types: ["authorization_code", "refresh_token"],
-					response_types: ["code"],
-					token_endpoint_auth_method: "client_secret_post",
-					skip_consent: skipConsent,
-				}),
-			});
+  const hasAdminAccess = await isGlobalAdmin(session.identity.id);
+  if (!hasAdminAccess) {
+    redirect("/dashboard");
+  }
 
-			const data = (await response.json()) as CreateClientResponse;
+  const clients = await getClients();
 
-			if (!response.ok) {
-				setError(data.error || "Failed to create client");
-				return;
-			}
+  return (
+    <div className="space-y-6 p-6 md:p-8">
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold">OAuth2 Clients</h1>
+          <p className="text-muted-foreground mt-1">
+            Manage Hydra OAuth2 clients for IAM and integrated services.
+          </p>
+        </div>
+        <Button asChild>
+          <Link href="/admin/client/new">Create Client</Link>
+        </Button>
+      </div>
 
-			setResult(data);
-			setClientSecret(data.credentials?.client_secret || "");
-		} catch (err) {
-			setError(err instanceof Error ? err.message : "Unexpected error");
-		} finally {
-			setIsSubmitting(false);
-		}
-	}
-
-	return (
-		<div className="space-y-6 p-6 md:p-8">
-			<div>
-				<h1 className="text-3xl font-bold">Create OAuth2 Client</h1>
-				<p className="text-muted-foreground mt-1">
-					Create a Hydra OAuth2 client for applications like IAM UI, Element, or
-					other services.
-				</p>
-			</div>
-
-			<Card>
-				<CardHeader>
-					<CardTitle>Client Configuration</CardTitle>
-				</CardHeader>
-				<CardContent>
-					<form onSubmit={onSubmit} className="space-y-5">
-						<div className="space-y-2">
-							<label className="text-sm font-medium">Client ID</label>
-							<Input
-								required
-								value={clientId}
-								onChange={(e) => setClientId(e.target.value)}
-								placeholder="my-app"
-							/>
-						</div>
-
-						<div className="space-y-2">
-							<label className="text-sm font-medium">Client Name</label>
-							<Input
-								value={clientName}
-								onChange={(e) => setClientName(e.target.value)}
-								placeholder="My Application"
-							/>
-						</div>
-
-						<div className="space-y-2">
-							<label className="text-sm font-medium">
-								Client Secret (leave empty to auto-generate)
-							</label>
-							<Input
-								value={clientSecret}
-								onChange={(e) => setClientSecret(e.target.value)}
-								placeholder="my-super-secret-secret"
-							/>
-						</div>
-
-						<div className="space-y-2">
-							<label className="text-sm font-medium">
-								Redirect URIs (one per line)
-							</label>
-							<textarea
-								required
-								value={redirectUris}
-								onChange={(e) => setRedirectUris(e.target.value)}
-								className="w-full min-h-28 rounded-md border bg-background px-3 py-2 text-sm"
-								placeholder="https://gateway.example.com/auth/callback"
-							/>
-						</div>
-
-						<div className="space-y-2">
-							<label className="text-sm font-medium">Scope</label>
-							<Input
-								value={scope}
-								onChange={(e) => setScope(e.target.value)}
-								placeholder="openid offline_access email profile"
-							/>
-						</div>
-
-						<label className="flex items-center gap-2 text-sm">
-							<input
-								type="checkbox"
-								checked={skipConsent}
-								onChange={(e) => setSkipConsent(e.target.checked)}
-							/>
-							Skip consent for first-party app
-						</label>
-
-						{error && (
-							<div className="rounded-md border border-red-300 bg-red-50 text-red-700 p-3 text-sm">
-								{error}
-							</div>
-						)}
-
-						{result?.success && (
-							<div className="space-y-3 rounded-md border border-green-300 bg-green-50 p-3 text-sm">
-								<p className="font-medium text-green-800">
-									Client created successfully.
-								</p>
-								<p>
-									<span className="font-medium">Client ID:</span>{" "}
-									{result.credentials?.client_id}
-								</p>
-								<p className="break-all">
-									<span className="font-medium">Client Secret:</span>{" "}
-									{result.credentials?.client_secret}
-								</p>
-							</div>
-						)}
-
-						<div className="flex items-center gap-3">
-							<Button type="submit" disabled={isSubmitting}>
-								{isSubmitting ? "Creating..." : "Create Client"}
-							</Button>
-							{authUrl && (
-								<a
-									href={authUrl}
-									className="text-sm text-blue-700 hover:underline"
-									target="_blank"
-									rel="noreferrer"
-								>
-									Test authorization URL
-								</a>
-							)}
-						</div>
-					</form>
-				</CardContent>
-			</Card>
-		</div>
-	);
+      <div className="rounded-lg border overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Client ID</TableHead>
+              <TableHead>Name</TableHead>
+              <TableHead>Grant Types</TableHead>
+              <TableHead>Scope</TableHead>
+              <TableHead>Redirect URIs</TableHead>
+              <TableHead>Consent</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {clients.length === 0 ? (
+              <TableRow>
+                <TableCell
+                  colSpan={6}
+                  className="text-center text-muted-foreground py-12"
+                >
+                  <KeyRound className="w-10 h-10 mx-auto mb-3 text-muted-foreground/50" />
+                  No OAuth2 clients found.
+                </TableCell>
+              </TableRow>
+            ) : (
+              clients.map((client) => (
+                <TableRow key={client.client_id}>
+                  <TableCell className="font-medium">
+                    {client.client_id || "-"}
+                  </TableCell>
+                  <TableCell>{client.client_name || "-"}</TableCell>
+                  <TableCell className="max-w-56 truncate" title={(client.grant_types || []).join(", ")}>
+                    {(client.grant_types || []).join(", ") || "-"}
+                  </TableCell>
+                  <TableCell className="max-w-72 truncate" title={client.scope || ""}>
+                    {client.scope || "-"}
+                  </TableCell>
+                  <TableCell className="max-w-80">
+                    <div className="space-y-1">
+                      {(client.redirect_uris || []).length === 0 && <span>-</span>}
+                      {(client.redirect_uris || []).slice(0, 2).map((uri) => (
+                        <p key={uri} className="truncate" title={uri}>
+                          {uri}
+                        </p>
+                      ))}
+                      {(client.redirect_uris || []).length > 2 && (
+                        <p className="text-muted-foreground text-xs">
+                          +{(client.redirect_uris || []).length - 2} more
+                        </p>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    {client.skip_consent ? "Skip" : "Required"}
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
+  );
 }
