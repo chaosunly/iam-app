@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Plus, AlertCircle } from "lucide-react";
+
+const PAGE_SIZE = 15;
 
 interface Identity {
   id: string;
@@ -36,6 +38,7 @@ export default function IdentitiesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     fetchIdentities();
@@ -96,18 +99,25 @@ export default function IdentitiesPage() {
     }
   };
 
-  const filteredIdentities = identities.filter((identity) => {
-    const email = identity.traits.email?.toLowerCase() || "";
-    const name = `${identity.traits.name?.first || ""} ${
-      identity.traits.name?.last || ""
-    }`.toLowerCase();
+  const filteredIdentities = useMemo(() => {
     const search = searchTerm.toLowerCase();
-    return (
-      email.includes(search) ||
-      name.includes(search) ||
-      identity.id.includes(search)
-    );
-  });
+    return identities.filter((identity) => {
+      const email = identity.traits.email?.toLowerCase() || "";
+      const name = `${identity.traits.name?.first || ""} ${
+        identity.traits.name?.last || ""
+      }`.toLowerCase();
+      return (
+        email.includes(search) ||
+        name.includes(search) ||
+        identity.id.includes(search)
+      );
+    });
+  }, [identities, searchTerm]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredIdentities.length / PAGE_SIZE));
+  const safePage = Math.min(currentPage, totalPages);
+  const startIndex = (safePage - 1) * PAGE_SIZE;
+  const paginatedIdentities = filteredIdentities.slice(startIndex, startIndex + PAGE_SIZE);
 
   if (loading) {
     return (
@@ -156,7 +166,7 @@ export default function IdentitiesPage() {
           type="text"
           placeholder="Search by email, name, or ID..."
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
         />
       </div>
 
@@ -174,7 +184,7 @@ export default function IdentitiesPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredIdentities.length === 0 ? (
+              {paginatedIdentities.length === 0 ? (
                 <TableRow>
                   <TableCell
                     colSpan={5}
@@ -186,7 +196,7 @@ export default function IdentitiesPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredIdentities.map((identity) => (
+                paginatedIdentities.map((identity) => (
                   <TableRow key={identity.id}>
                     <TableCell>
                       <div className="font-medium">
@@ -234,9 +244,34 @@ export default function IdentitiesPage() {
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="mt-4 text-sm text-muted-foreground">
-        Showing {filteredIdentities.length} of {identities.length} identities
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mt-4">
+        <p className="text-sm text-muted-foreground">
+          Showing {filteredIdentities.length === 0 ? 0 : startIndex + 1}-
+          {Math.min(startIndex + PAGE_SIZE, filteredIdentities.length)} of {filteredIdentities.length} identities
+        </p>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+            disabled={safePage <= 1}
+          >
+            Previous
+          </Button>
+          <span className="text-sm text-muted-foreground">
+            Page {safePage} of {totalPages}
+          </span>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+            disabled={safePage >= totalPages}
+          >
+            Next
+          </Button>
+        </div>
       </div>
     </div>
   );

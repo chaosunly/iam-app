@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+
+const PAGE_SIZE = 15;
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -48,6 +50,7 @@ export default function OrganizationPage() {
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Add member form state
   const [showAddForm, setShowAddForm] = useState(false);
@@ -170,14 +173,20 @@ export default function OrganizationPage() {
     return full || identity.traits.email || identity.id;
   };
 
-  const filteredMembers = members.filter((m) => {
+  const filteredMembers = useMemo(() => {
     const term = searchTerm.toLowerCase();
-    return (
-      m.email.toLowerCase().includes(term) ||
-      m.name.toLowerCase().includes(term) ||
-      m.userId.includes(term)
+    return members.filter(
+      (m) =>
+        m.email.toLowerCase().includes(term) ||
+        m.name.toLowerCase().includes(term) ||
+        m.userId.includes(term),
     );
-  });
+  }, [members, searchTerm]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredMembers.length / PAGE_SIZE));
+  const safePage = Math.min(currentPage, totalPages);
+  const startIndex = (safePage - 1) * PAGE_SIZE;
+  const paginatedMembers = filteredMembers.slice(startIndex, startIndex + PAGE_SIZE);
 
   const roleCounts = ROLE_OPTIONS.reduce(
     (acc, r) => ({ ...acc, [r]: members.filter((m) => m.role === r).length }),
@@ -308,7 +317,7 @@ export default function OrganizationPage() {
         <Input
           placeholder="Search by name, email or ID..."
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
         />
       </div>
 
@@ -325,7 +334,7 @@ export default function OrganizationPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredMembers.length === 0 ? (
+              {paginatedMembers.length === 0 ? (
                 <TableRow>
                   <TableCell
                     colSpan={4}
@@ -337,7 +346,7 @@ export default function OrganizationPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredMembers.map((member) => {
+                paginatedMembers.map((member) => {
                   const isLoading = actionLoading === member.userId;
                   return (
                     <TableRow key={member.userId}>
@@ -397,6 +406,36 @@ export default function OrganizationPage() {
               )}
             </TableBody>
           </Table>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mt-4">
+        <p className="text-sm text-muted-foreground">
+          Showing {filteredMembers.length === 0 ? 0 : startIndex + 1}-
+          {Math.min(startIndex + PAGE_SIZE, filteredMembers.length)} of {filteredMembers.length} members
+        </p>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+            disabled={safePage <= 1}
+          >
+            Previous
+          </Button>
+          <span className="text-sm text-muted-foreground">
+            Page {safePage} of {totalPages}
+          </span>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+            disabled={safePage >= totalPages}
+          >
+            Next
+          </Button>
         </div>
       </div>
     </div>
