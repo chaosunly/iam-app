@@ -50,7 +50,7 @@ model GitlabProject {
   groupId     String?       @map("group_id")
   createdAt   DateTime      @default(now()) @map("created_at")
   updatedAt   DateTime      @updatedAt @map("updated_at")
-  group       GitlabGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  group       GitlabGroup?  @relation(fields: [groupId], references: [id], onDelete: SetNull)
 
   @@index([groupId])
   @@map("gitlab_projects")
@@ -72,13 +72,13 @@ model GitlabRoleAssignment {
 }
 
 // ─── Matrix Access Management Models ──────────────────────────────────────────
-// NOTE: Run `prisma migrate dev --name add_matrix_models` after adding these.
 
 model MatrixOrg {
   id          String        @id @default(cuid())
   name        String        @unique
   description String?
-  homeserver  String?       // e.g. "matrix.acme.corp"
+  homeserver  String?                                    // e.g. "matrix.acme.corp"
+  iamOrgId    String?       @unique @map("iam_org_id")  // links to Organization.id
   createdAt   DateTime      @default(now()) @map("created_at")
   updatedAt   DateTime      @updatedAt @map("updated_at")
   spaces      MatrixSpace[]
@@ -87,14 +87,14 @@ model MatrixOrg {
 }
 
 model MatrixSpace {
-  id          String      @id @default(cuid())
+  id          String       @id @default(cuid())
   name        String
   description String?
-  matrixId    String?     @map("matrix_id") // Element internal space ID (!abc:matrix.org)
-  orgId       String      @map("org_id")
-  org         MatrixOrg   @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  createdAt   DateTime    @default(now()) @map("created_at")
-  updatedAt   DateTime    @updatedAt @map("updated_at")
+  matrixId    String?      @map("matrix_id")  // Element internal space ID (!abc:matrix.org)
+  orgId       String       @map("org_id")
+  org         MatrixOrg    @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
   rooms       MatrixRoom[]
 
   @@unique([orgId, name])
@@ -106,7 +106,9 @@ model MatrixRoom {
   id          String      @id @default(cuid())
   name        String
   description String?
-  matrixId    String?     @map("matrix_id") // Element internal room ID (!xyz:matrix.org)
+  matrixId    String?     @map("matrix_id")               // Element internal room ID (!xyz:matrix.org)
+  roomType    String      @default("general") @map("room_type")  // "group" | "general"
+  iamGroupId  String?     @unique @map("iam_group_id")    // links to Group.id (group rooms only)
   spaceId     String      @map("space_id")
   space       MatrixSpace @relation(fields: [spaceId], references: [id], onDelete: Cascade)
   createdAt   DateTime    @default(now()) @map("created_at")
@@ -120,7 +122,7 @@ model MatrixRoom {
 model MatrixRoleAssignment {
   id           String   @id @default(cuid())
   userId       String   @map("user_id")
-  resourceType String   @map("resource_type") // "org" | "space" | "room"
+  resourceType String   @map("resource_type")  // "org" | "space" | "room"
   resourceId   String   @map("resource_id")
   role         String   // "matrix_admin" | "moderator" | "support" | "member" | "viewer"
   createdAt    DateTime @default(now()) @map("created_at")
@@ -130,4 +132,18 @@ model MatrixRoleAssignment {
   @@index([userId])
   @@index([resourceType, resourceId])
   @@map("matrix_role_assignments")
+}
+
+/// Links a Kratos identity (IAM userId) to its Matrix account.
+/// Created eagerly when a user is first provisioned.
+model MatrixAccount {
+  id           String   @id @default(cuid())
+  iamUserId    String   @unique @map("iam_user_id")    // Kratos identity ID
+  matrixUserId String   @unique @map("matrix_user_id") // @user:server
+  homeserver   String                                   // matrix.acme.corp
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@index([iamUserId])
+  @@map("matrix_accounts")
 }
