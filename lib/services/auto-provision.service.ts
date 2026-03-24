@@ -11,6 +11,7 @@ import {
 } from "./keto.service";
 import { getDefaultOrganizationId } from "./organization.service";
 import { logAudit } from "./audit.service";
+import { backgroundProvisionMatrixAccount } from "./matrix-provision.service";
 
 /**
  * Check if user has any permissions in the system
@@ -90,6 +91,11 @@ export async function autoProvisionUser(userId: string): Promise<void> {
     });
 
     console.log(`[AutoProvision] ✓ User ${userId} added to ${orgId} as member`);
+
+    // Eagerly provision a Matrix account (fire-and-forget).
+    // displayName falls back to userId — Kratos profile data is not available
+    // here, but the Matrix account can be updated later via the admin API.
+    backgroundProvisionMatrixAccount(userId, userId);
   } catch (error) {
     console.error("[AutoProvision] Error provisioning user:", error);
     // Don't throw - let user continue even if provisioning fails
