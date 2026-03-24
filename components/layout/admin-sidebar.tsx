@@ -43,8 +43,8 @@ const navItems = [
 ];
 
 const permissionSubItems = [
-  { href: "/admin/permissions/gitlab", label: "GitLab Access", icon: GitBranch },
-  { href: "/admin/permissions/matrix", label: "Matrix Access", icon: Hash },
+  { href: "/admin/gitlab", label: "GitLab Access", icon: GitBranch },
+  { href: "/admin/matrix", label: "Matrix Access", icon: Hash },
 ];
 
 interface AdminSidebarProps {
@@ -213,7 +213,9 @@ export function AdminSidebar({
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
   const [permissionsOpen, setPermissionsOpen] = useState(() =>
-    pathname.startsWith("/admin/permissions")
+    pathname.startsWith("/admin/permissions") ||
+    pathname.startsWith("/admin/gitlab") ||
+    pathname.startsWith("/admin/matrix")
   );
 
   const isActive = (href: string) => {
@@ -223,7 +225,10 @@ export function AdminSidebar({
     return pathname.startsWith(href);
   };
 
-  const isPermissionsActive = pathname.startsWith("/admin/permissions");
+  const isPermissionsActive =
+    pathname.startsWith("/admin/permissions") ||
+    pathname.startsWith("/admin/gitlab") ||
+    pathname.startsWith("/admin/matrix");
 
   const initials = userName
     .split(" ")
