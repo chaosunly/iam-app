@@ -10,11 +10,15 @@ import {
   Shield,
   Building2,
   ChevronLeft,
+  ChevronDown,
+  ChevronRight,
   Menu,
   Settings,
   KeyRound,
   LogOut,
   ChevronsUpDown,
+  GitBranch,
+  Hash,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -35,8 +39,12 @@ const navItems = [
   { href: "/admin/identities", label: "Identities", icon: Users },
   { href: "/admin/groups", label: "Groups", icon: UsersRound },
   { href: "/admin/organization", label: "Organization", icon: Building2 },
-  { href: "/admin/permissions", label: "Permissions", icon: Shield },
   { href: "/admin/client", label: "Client", icon: KeyRound },
+];
+
+const permissionSubItems = [
+  { href: "/admin/permissions/gitlab", label: "GitLab Access", icon: GitBranch },
+  { href: "/admin/permissions/matrix", label: "Matrix Access", icon: Hash },
 ];
 
 interface AdminSidebarProps {
@@ -129,12 +137,84 @@ function UserProfileDropdown({
   );
 }
 
+interface PermissionsNavItemProps {
+  mobile?: boolean;
+  collapsed: boolean;
+  permissionsOpen: boolean;
+  isPermissionsActive: boolean;
+  onToggle: () => void;
+  isActive: (href: string) => boolean;
+}
+
+function PermissionsNavItem({
+  mobile = false,
+  collapsed,
+  permissionsOpen,
+  isPermissionsActive,
+  onToggle,
+  isActive,
+}: PermissionsNavItemProps) {
+  return (
+    <div>
+      <button
+        onClick={onToggle}
+        className={`w-full flex items-center rounded-lg transition-colors ${
+          !mobile && collapsed
+            ? "h-9 w-9 mx-auto justify-center"
+            : "gap-3 px-3 py-2 text-sm"
+        } ${
+          isPermissionsActive && (!permissionsOpen || (!mobile && collapsed))
+            ? "bg-primary text-primary-foreground"
+            : "hover:bg-accent hover:text-accent-foreground"
+        }`}
+      >
+        <Shield className="h-4 w-4 shrink-0" />
+        {(mobile || !collapsed) && (
+          <>
+            <span className="flex-1 text-left">Permissions</span>
+            {permissionsOpen ? (
+              <ChevronDown className="h-4 w-4 shrink-0" />
+            ) : (
+              <ChevronRight className="h-4 w-4 shrink-0" />
+            )}
+          </>
+        )}
+      </button>
+
+      {permissionsOpen && (mobile || !collapsed) && (
+        <div className="mt-1 ml-4 pl-3 border-l space-y-1">
+          {permissionSubItems.map((sub) => {
+            const Icon = sub.icon;
+            return (
+              <Link
+                key={sub.href}
+                href={sub.href}
+                className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm ${
+                  isActive(sub.href)
+                    ? "bg-primary text-primary-foreground"
+                    : "hover:bg-accent hover:text-accent-foreground"
+                }`}
+              >
+                <Icon className="h-4 w-4 shrink-0" />
+                <span>{sub.label}</span>
+              </Link>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function AdminSidebar({
   userName = "Admin",
   userEmail = "",
 }: AdminSidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
+  const [permissionsOpen, setPermissionsOpen] = useState(() =>
+    pathname.startsWith("/admin/permissions")
+  );
 
   const isActive = (href: string) => {
     if (href === "/admin") {
@@ -142,6 +222,8 @@ export function AdminSidebar({
     }
     return pathname.startsWith(href);
   };
+
+  const isPermissionsActive = pathname.startsWith("/admin/permissions");
 
   const initials = userName
     .split(" ")
@@ -193,6 +275,14 @@ export function AdminSidebar({
                 </Link>
               );
             })}
+            <PermissionsNavItem
+              mobile
+              collapsed={collapsed}
+              permissionsOpen={permissionsOpen}
+              isPermissionsActive={isPermissionsActive}
+              onToggle={() => setPermissionsOpen((prev) => !prev)}
+              isActive={isActive}
+            />
           </nav>
           <Separator />
           <div className="p-3">
@@ -269,6 +359,13 @@ export function AdminSidebar({
               </Link>
             );
           })}
+          <PermissionsNavItem
+            collapsed={collapsed}
+            permissionsOpen={permissionsOpen}
+            isPermissionsActive={isPermissionsActive}
+            onToggle={() => setPermissionsOpen((prev) => !prev)}
+            isActive={isActive}
+          />
         </nav>
 
         <Separator />
