@@ -17,6 +17,7 @@
 
 import { logAdminAction } from "./audit.service";
 import type { MatrixResourceType, MatrixRole } from "@/lib/keto/namespaces";
+import { setPowerLevel as adminSetPowerLevel } from "@/lib/matrix-admin";
 
 // ============================================================
 // Public interface
@@ -82,7 +83,7 @@ export async function syncMatrixRole(
   }
 
   try {
-    const result = await callMatrixApi(homeserverUrl, adminToken, payload);
+    const result = await callMatrixApi(payload);
     await logAdminAction(
       payload.actorUserId,
       `matrix_sync_${payload.action}`,
@@ -131,12 +132,8 @@ const ROLE_TO_POWER_LEVEL: Record<MatrixRole, number> = {
 };
 
 async function callMatrixApi(
-  homeserverUrl: string,
-  adminToken: string,
   payload: MatrixSyncPayload,
 ): Promise<MatrixSyncResult> {
-  // If no Element room/space ID is provided we can only update membership,
-  // not power levels. Log a warning and return partial success.
   if (!payload.matrixResourceId) {
     console.warn(
       "[MatrixSync] No matrixResourceId on payload — cannot set power levels.",
@@ -145,65 +142,10 @@ async function callMatrixApi(
     return { synced: true, skipped: false };
   }
 
-  if (payload.action === "revoke") {
-    // For revoke, kick the user from the room (or set power level to 0)
-    // TODO: Decide whether revoke means "kick from room" or just "reset power level".
-    // For now we reset to power level 0 (member) rather than kick.
-    await setPowerLevel(homeserverUrl, adminToken, payload.matrixResourceId, payload.targetUserId, 0);
-    return { synced: true, skipped: false };
-  }
+  const powerLevel = payload.action === "revoke"
+    ? 0
+    : (ROLE_TO_POWER_LEVEL[payload.role] ?? 0);
 
-  const powerLevel = ROLE_TO_POWER_LEVEL[payload.role] ?? 0;
-  await setPowerLevel(homeserverUrl, adminToken, payload.matrixResourceId, payload.targetUserId, powerLevel);
+  await adminSetPowerLevel(payload.matrixResourceId, payload.targetUserId, powerLevel);
   return { synced: true, skipped: false };
-}
-
-/**
- * Updates a user's power level in a Matrix room via the Client-Server API.
- *
- * Matrix power levels are room state events (m.room.power_levels).
- * To change a single user's level we must:
- *   1. GET current m.room.power_levels state
- *   2. Merge the new user entry into `users`
- *   3. PUT the updated state event back
- *
- * TODO: Implement proper state merging. Current stub sends a minimal payload
- *       which will replace the existing power_levels state — do NOT use in
- *       production without implementing the GET + merge step.
- */
-async function setPowerLevel(
-  homeserverUrl: string,
-  adminToken: string,
-  matrixRoomId: string,
-  matrixUserId: string,
-  powerLevel: number,
-): Promise<void> {
-  // TODO: Step 1 — GET /_matrix/client/v3/rooms/{roomId}/state/m.room.power_levels
-  // TODO: Step 2 — merge `users[matrixUserId] = powerLevel` into existing state
-  // TODO: Step 3 — PUT /_matrix/client/v3/rooms/{roomId}/state/m.room.power_levels
-
-  const url = `${homeserverUrl}/_matrix/client/v3/rooms/${encodeURIComponent(matrixRoomId)}/state/m.room.power_levels`;
-
-  // Stub payload — replace with full state merge in production
-  const body = {
-    users: {
-      [matrixUserId]: powerLevel,
-    },
-  };
-
-  const response = await fetch(url, {
-    method: "PUT",
-    headers: {
-      Authorization: `Bearer ${adminToken}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  });
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(
-      `Matrix API error ${response.status} for room ${matrixRoomId}: ${text}`,
-    );
-  }
 }
