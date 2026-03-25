@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, PanelLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useSidebar } from "@/components/layout/sidebar-context";
 import {
   Tooltip,
   TooltipContent,
@@ -51,10 +53,14 @@ function buildCrumbs(pathname: string): Crumb[] {
 export function PageHeader() {
   const pathname = usePathname();
   const crumbs = buildCrumbs(pathname);
+  const { toggle } = useSidebar();
 
   return (
     <TooltipProvider>
       <header className="flex h-14 shrink-0 items-center gap-2 border-b bg-background px-4 md:px-6">
+        <Button variant="ghost" size="icon" onClick={toggle} className="h-7 w-7">
+          <PanelLeft className="h-4 w-4" />
+        </Button>
         <Separator orientation="vertical" className="mx-1 h-4" />
         <nav aria-label="Breadcrumb">
           <ol className="flex items-center gap-1.5 text-sm">

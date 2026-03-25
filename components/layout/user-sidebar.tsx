@@ -2,19 +2,18 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
 import {
   type LucideIcon,
   Home,
   UsersRound,
   FolderKanban,
   Settings,
-  ChevronLeft,
   Menu,
   LogOut,
   Shield,
   ChevronsUpDown,
 } from "lucide-react";
+import { useSidebar } from "@/components/layout/sidebar-context";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
@@ -160,7 +159,7 @@ export function UserSidebar({
   userName = "User",
   userEmail = "",
 }: UserSidebarProps) {
-  const [collapsed, setCollapsed] = useState(false);
+  const { collapsed } = useSidebar();
   const pathname = usePathname();
 
   const isActive = (href: string) => {
@@ -254,12 +253,9 @@ export function UserSidebar({
         {/* Header */}
         {collapsed ? (
           <div className="flex h-16 items-center justify-center border-b px-2">
-            <button
-              onClick={() => setCollapsed(false)}
-              className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-            >
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
               <Home className="h-4 w-4" />
-            </button>
+            </div>
           </div>
         ) : (
           <div className="flex h-16 items-center gap-3 border-b px-4">
@@ -270,14 +266,6 @@ export function UserSidebar({
               <span className="text-sm font-semibold">IAM App</span>
               <span className="text-xs text-muted-foreground">User Portal</span>
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setCollapsed(true)}
-              className="ml-auto h-7 w-7"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
           </div>
         )}
 

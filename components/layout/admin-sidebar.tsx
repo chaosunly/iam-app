@@ -10,7 +10,6 @@ import {
   UsersRound,
   Shield,
   Building2,
-  ChevronLeft,
   ChevronDown,
   ChevronRight,
   Menu,
@@ -21,6 +20,7 @@ import {
   GitBranch,
   Hash,
 } from "lucide-react";
+import { useSidebar } from "@/components/layout/sidebar-context";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
@@ -242,7 +242,7 @@ export function AdminSidebar({
   userName = "Admin",
   userEmail = "",
 }: AdminSidebarProps) {
-  const [collapsed, setCollapsed] = useState(false);
+  const { collapsed } = useSidebar();
   const pathname = usePathname();
   const [permissionsOpen, setPermissionsOpen] = useState(() =>
     pathname.startsWith("/admin/permissions") ||
@@ -361,12 +361,9 @@ export function AdminSidebar({
         {/* Header */}
         {collapsed ? (
           <div className="flex h-16 items-center justify-center border-b px-2">
-            <button
-              onClick={() => setCollapsed(false)}
-              className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-            >
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
               <Shield className="h-4 w-4" />
-            </button>
+            </div>
           </div>
         ) : (
           <div className="flex h-16 items-center gap-3 border-b px-4">
@@ -379,14 +376,6 @@ export function AdminSidebar({
                 Identity Management
               </span>
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setCollapsed(true)}
-              className="ml-auto h-7 w-7"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
           </div>
         )}
 
