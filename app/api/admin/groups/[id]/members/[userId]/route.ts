@@ -6,6 +6,7 @@ import {
   invalidateUserCache,
 } from "@/lib/services/permission.service";
 import { removeUserFromGroup } from "@/lib/services/group.service";
+import { backgroundSyncGroupRoomLeave } from "@/lib/services/matrix-provision.service";
 
 /**
  * DELETE /api/admin/groups/[id]/members/[userId]
@@ -33,6 +34,7 @@ export async function DELETE(
     }
     await removeUserFromGroup(groupId, userId, adminId);
     invalidateUserCache(userId);
+    backgroundSyncGroupRoomLeave(groupId, userId);
 
     return NextResponse.json({ success: true });
   } catch (error) {

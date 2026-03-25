@@ -6,6 +6,7 @@ import {
   invalidateUserCache,
 } from "@/lib/services/permission.service";
 import { getGroupMembers, addUserToGroup } from "@/lib/services/group.service";
+import { backgroundSyncGroupRoomJoin } from "@/lib/services/matrix-provision.service";
 import { getIdentity } from "@/lib/services/kratos.service";
 
 /**
@@ -85,7 +86,7 @@ export async function POST(
 
     const adminId = session.identity.id;
     const body = await request.json();
-    const { userId } = body;
+    const { userId, role = "member" } = body;
 
     if (!userId) {
       return NextResponse.json(
@@ -105,6 +106,7 @@ export async function POST(
     }
     await addUserToGroup(groupId, userId, adminId);
     invalidateUserCache(userId);
+    backgroundSyncGroupRoomJoin(groupId, userId, role);
 
     return NextResponse.json({ success: true });
   } catch (error) {

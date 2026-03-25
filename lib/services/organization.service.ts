@@ -11,6 +11,7 @@ import {
   listObjectPermissions,
 } from "./keto.service";
 import { getIdentity } from "./kratos.service";
+import { backgroundBootstrapMatrixOrg } from "./matrix-provision.service";
 
 export interface OrganizationMember {
   userId: string;
@@ -52,6 +53,8 @@ export async function createOrganization(
     relation: "owners",
     subject: creatorId,
   });
+
+  backgroundBootstrapMatrixOrg(org.id, org.name);
 
   return {
     id: org.id,

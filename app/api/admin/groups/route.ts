@@ -6,6 +6,7 @@ import {
   createGroup,
 } from "@/lib/services/group.service";
 import { getDefaultOrganizationId } from "@/lib/services/organization.service";
+import { backgroundBootstrapGroupRoom } from "@/lib/services/matrix-provision.service";
 
 /**
  * GET /api/admin/groups
@@ -73,6 +74,7 @@ export async function POST(request: NextRequest) {
       userId,
     );
 
+    backgroundBootstrapGroupRoom(group.id, group.name, group.organizationId);
     return NextResponse.json(group, { status: 201 });
   } catch (error) {
     console.error("Error creating group:", error);
