@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
+  type LucideIcon,
   Home,
   Users,
   UsersRound,
@@ -34,12 +35,43 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
-const navItems = [
-  { href: "/admin", label: "Dashboard", icon: Home },
-  { href: "/admin/identities", label: "Identities", icon: Users },
-  { href: "/admin/groups", label: "Groups", icon: UsersRound },
-  { href: "/admin/organization", label: "Organization", icon: Building2 },
-  { href: "/admin/client", label: "Client", icon: KeyRound },
+type NavItem = {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+};
+
+type PermissionsItem = {
+  type: "permissions";
+};
+
+type SectionItem = NavItem | PermissionsItem;
+
+type NavSection = {
+  label: string;
+  items: SectionItem[];
+};
+
+const sections: NavSection[] = [
+  {
+    label: "General",
+    items: [{ href: "/admin", label: "Dashboard", icon: Home }],
+  },
+  {
+    label: "Directory",
+    items: [
+      { href: "/admin/identities", label: "Identities", icon: Users },
+      { href: "/admin/groups", label: "Groups", icon: UsersRound },
+      { href: "/admin/organization", label: "Organization", icon: Building2 },
+    ],
+  },
+  {
+    label: "Access",
+    items: [
+      { href: "/admin/client", label: "Client", icon: KeyRound },
+      { type: "permissions" },
+    ],
+  },
 ];
 
 const permissionSubItems = [
@@ -262,32 +294,51 @@ export function AdminSidebar({
               </span>
             </div>
           </div>
-          <nav className="flex-1 overflow-y-auto p-3 space-y-1">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm ${
-                    isActive(item.href)
-                      ? "bg-primary text-primary-foreground"
-                      : "hover:bg-accent hover:text-accent-foreground"
+          <nav className="flex-1 overflow-y-auto p-3">
+            {sections.map((section, index) => (
+              <div key={section.label}>
+                <p
+                  className={`text-xs font-medium text-muted-foreground uppercase tracking-wider px-3 py-1${
+                    index > 0 ? " mt-2" : ""
                   }`}
                 >
-                  <Icon className="h-4 w-4 shrink-0" />
-                  <span>{item.label}</span>
-                </Link>
-              );
-            })}
-            <PermissionsNavItem
-              mobile
-              collapsed={collapsed}
-              permissionsOpen={permissionsOpen}
-              isPermissionsActive={isPermissionsActive}
-              onToggle={() => setPermissionsOpen((prev) => !prev)}
-              isActive={isActive}
-            />
+                  {section.label}
+                </p>
+                <div className="space-y-1">
+                  {section.items.map((item) =>
+                    "type" in item ? (
+                      <PermissionsNavItem
+                        key="permissions"
+                        mobile
+                        collapsed={false}
+                        permissionsOpen={permissionsOpen}
+                        isPermissionsActive={isPermissionsActive}
+                        onToggle={() => setPermissionsOpen((prev) => !prev)}
+                        isActive={isActive}
+                      />
+                    ) : (
+                      (() => {
+                        const Icon = item.icon;
+                        return (
+                          <Link
+                            key={item.href}
+                            href={item.href}
+                            className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm ${
+                              isActive(item.href)
+                                ? "bg-primary text-primary-foreground"
+                                : "hover:bg-accent hover:text-accent-foreground"
+                            }`}
+                          >
+                            <Icon className="h-4 w-4 shrink-0" />
+                            <span>{item.label}</span>
+                          </Link>
+                        );
+                      })()
+                    )
+                  )}
+                </div>
+              </div>
+            ))}
           </nav>
           <Separator />
           <div className="p-3">
@@ -340,37 +391,59 @@ export function AdminSidebar({
         )}
 
         {/* Nav */}
-        <nav className="flex-1 overflow-y-auto p-3 space-y-1">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const active = isActive(item.href);
-
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex items-center rounded-lg transition-colors ${
-                  collapsed
-                    ? "h-9 w-9 mx-auto justify-center"
-                    : "gap-3 px-3 py-2 text-sm"
-                } ${
-                  active
-                    ? "bg-primary text-primary-foreground"
-                    : "hover:bg-accent hover:text-accent-foreground"
-                }`}
-              >
-                <Icon className="h-4 w-4 shrink-0" />
-                {!collapsed && <span>{item.label}</span>}
-              </Link>
-            );
-          })}
-          <PermissionsNavItem
-            collapsed={collapsed}
-            permissionsOpen={permissionsOpen}
-            isPermissionsActive={isPermissionsActive}
-            onToggle={() => setPermissionsOpen((prev) => !prev)}
-            isActive={isActive}
-          />
+        <nav className="flex-1 overflow-y-auto p-3">
+          {sections.map((section, index) => (
+            <div key={section.label}>
+              {collapsed ? (
+                index > 0 && <Separator className="my-1" />
+              ) : (
+                <p
+                  className={`text-xs font-medium text-muted-foreground uppercase tracking-wider px-3 py-1${
+                    index > 0 ? " mt-2" : ""
+                  }`}
+                >
+                  {section.label}
+                </p>
+              )}
+              <div className="space-y-1">
+                {section.items.map((item) =>
+                  "type" in item ? (
+                    <PermissionsNavItem
+                      key="permissions"
+                      collapsed={collapsed}
+                      permissionsOpen={permissionsOpen}
+                      isPermissionsActive={isPermissionsActive}
+                      onToggle={() => setPermissionsOpen((prev) => !prev)}
+                      isActive={isActive}
+                    />
+                  ) : (
+                    (() => {
+                      const Icon = item.icon;
+                      const active = isActive(item.href);
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          className={`flex items-center rounded-lg transition-colors ${
+                            collapsed
+                              ? "h-9 w-9 mx-auto justify-center"
+                              : "gap-3 px-3 py-2 text-sm"
+                          } ${
+                            active
+                              ? "bg-primary text-primary-foreground"
+                              : "hover:bg-accent hover:text-accent-foreground"
+                          }`}
+                        >
+                          <Icon className="h-4 w-4 shrink-0" />
+                          {!collapsed && <span>{item.label}</span>}
+                        </Link>
+                      );
+                    })()
+                  )
+                )}
+              </div>
+            </div>
+          ))}
         </nav>
 
         <Separator />

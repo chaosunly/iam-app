@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
+  type LucideIcon,
   Home,
   UsersRound,
   FolderKanban,
@@ -34,10 +35,29 @@ interface UserSidebarProps {
   userEmail?: string;
 }
 
-const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: Home },
-  { href: "/dashboard/groups", label: "My Groups", icon: UsersRound },
-  { href: "/dashboard/projects", label: "My Projects", icon: FolderKanban },
+type NavItem = {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+};
+
+type NavSection = {
+  label: string;
+  items: NavItem[];
+};
+
+const sections: NavSection[] = [
+  {
+    label: "General",
+    items: [{ href: "/dashboard", label: "Dashboard", icon: Home }],
+  },
+  {
+    label: "Workspace",
+    items: [
+      { href: "/dashboard/groups", label: "My Groups", icon: UsersRound },
+      { href: "/dashboard/projects", label: "My Projects", icon: FolderKanban },
+    ],
+  },
 ];
 
 interface UserProfileDropdownProps {
@@ -180,24 +200,37 @@ export function UserSidebar({
               <span className="text-xs text-muted-foreground">User Portal</span>
             </div>
           </div>
-          <nav className="flex-1 overflow-y-auto p-3 space-y-1">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm ${
-                    isActive(item.href)
-                      ? "bg-primary text-primary-foreground"
-                      : "hover:bg-accent hover:text-accent-foreground"
+          <nav className="flex-1 overflow-y-auto p-3">
+            {sections.map((section, index) => (
+              <div key={section.label}>
+                <p
+                  className={`text-xs font-medium text-muted-foreground uppercase tracking-wider px-3 py-1${
+                    index > 0 ? " mt-2" : ""
                   }`}
                 >
-                  <Icon className="h-4 w-4 shrink-0" />
-                  <span>{item.label}</span>
-                </Link>
-              );
-            })}
+                  {section.label}
+                </p>
+                <div className="space-y-1">
+                  {section.items.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-sm ${
+                          isActive(item.href)
+                            ? "bg-primary text-primary-foreground"
+                            : "hover:bg-accent hover:text-accent-foreground"
+                        }`}
+                      >
+                        <Icon className="h-4 w-4 shrink-0" />
+                        <span>{item.label}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </nav>
           <Separator />
           <div className="p-3">
@@ -249,30 +282,46 @@ export function UserSidebar({
         )}
 
         {/* Nav */}
-        <nav className="flex-1 overflow-y-auto p-3 space-y-1">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const active = isActive(item.href);
-
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex items-center rounded-lg transition-colors ${
-                  collapsed
-                    ? "h-9 w-9 mx-auto justify-center"
-                    : "gap-3 px-3 py-2 text-sm"
-                } ${
-                  active
-                    ? "bg-primary text-primary-foreground"
-                    : "hover:bg-accent hover:text-accent-foreground"
-                }`}
-              >
-                <Icon className="h-4 w-4 shrink-0" />
-                {!collapsed && <span>{item.label}</span>}
-              </Link>
-            );
-          })}
+        <nav className="flex-1 overflow-y-auto p-3">
+          {sections.map((section, index) => (
+            <div key={section.label}>
+              {collapsed ? (
+                index > 0 && <Separator className="my-1" />
+              ) : (
+                <p
+                  className={`text-xs font-medium text-muted-foreground uppercase tracking-wider px-3 py-1${
+                    index > 0 ? " mt-2" : ""
+                  }`}
+                >
+                  {section.label}
+                </p>
+              )}
+              <div className="space-y-1">
+                {section.items.map((item) => {
+                  const Icon = item.icon;
+                  const active = isActive(item.href);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={`flex items-center rounded-lg transition-colors ${
+                        collapsed
+                          ? "h-9 w-9 mx-auto justify-center"
+                          : "gap-3 px-3 py-2 text-sm"
+                      } ${
+                        active
+                          ? "bg-primary text-primary-foreground"
+                          : "hover:bg-accent hover:text-accent-foreground"
+                      }`}
+                    >
+                      <Icon className="h-4 w-4 shrink-0" />
+                      {!collapsed && <span>{item.label}</span>}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </nav>
 
         <Separator />
