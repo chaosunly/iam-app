@@ -27,6 +27,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface UserSidebarProps {
   isAdmin: boolean;
@@ -190,7 +196,7 @@ export function UserSidebar({
           </Button>
         </SheetTrigger>
         <SheetContent side="left" className="w-64 p-0 flex flex-col">
-          <div className="flex h-16 items-center gap-3 border-b px-4">
+          <div className="flex h-16 items-center gap-3 px-4">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
               <Home className="h-4 w-4" />
             </div>
@@ -245,86 +251,104 @@ export function UserSidebar({
       </Sheet>
 
       {/* Desktop Sidebar */}
-      <aside
-        className={`hidden md:flex flex-col border-r bg-background h-screen transition-all duration-300 ${
-          collapsed ? "w-18" : "w-64"
-        }`}
-      >
-        {/* Header */}
-        {collapsed ? (
-          <div className="flex h-16 items-center justify-center border-b px-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <Home className="h-4 w-4" />
-            </div>
-          </div>
-        ) : (
-          <div className="flex h-16 items-center gap-3 border-b px-4">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <Home className="h-4 w-4" />
-            </div>
-            <div className="flex flex-col leading-none">
-              <span className="text-sm font-semibold">IAM App</span>
-              <span className="text-xs text-muted-foreground">User Portal</span>
-            </div>
-          </div>
-        )}
-
-        {/* Nav */}
-        <nav className="flex-1 overflow-y-auto p-3">
-          {sections.map((section, index) => (
-            <div key={section.label}>
-              {collapsed ? (
-                index > 0 && <Separator className="my-1" />
-              ) : (
-                <p
-                  className={`text-xs font-medium text-muted-foreground uppercase tracking-wider px-3 py-1${
-                    index > 0 ? " mt-2" : ""
-                  }`}
-                >
-                  {section.label}
-                </p>
-              )}
-              <div className="space-y-1">
-                {section.items.map((item) => {
-                  const Icon = item.icon;
-                  const active = isActive(item.href);
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className={`flex items-center rounded-lg transition-colors ${
-                        collapsed
-                          ? "h-9 w-9 mx-auto justify-center"
-                          : "gap-3 px-3 py-2 text-sm"
-                      } ${
-                        active
-                          ? "bg-primary text-primary-foreground"
-                          : "hover:bg-accent hover:text-accent-foreground"
-                      }`}
-                    >
-                      <Icon className="h-4 w-4 shrink-0" />
-                      {!collapsed && <span>{item.label}</span>}
-                    </Link>
-                  );
-                })}
+      <TooltipProvider delayDuration={0}>
+        <aside
+          className={`hidden md:flex flex-col border-r bg-background h-screen overflow-hidden transition-all duration-300 ${
+            collapsed ? "w-18" : "w-64"
+          }`}
+        >
+          {/* Header */}
+          {collapsed ? (
+            <div className="flex h-16 items-center justify-center px-2">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                <Home className="h-4 w-4" />
               </div>
             </div>
-          ))}
-        </nav>
+          ) : (
+            <div className="flex h-16 items-center gap-3 px-4">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                <Home className="h-4 w-4" />
+              </div>
+              <div className="flex flex-col leading-none">
+                <span className="text-sm font-semibold">IAM App</span>
+                <span className="text-xs text-muted-foreground">
+                  User Portal
+                </span>
+              </div>
+            </div>
+          )}
 
-        <Separator />
+          {/* Nav */}
+          <nav className="flex-1 overflow-y-auto p-3">
+            {sections.map((section, index) => (
+              <div key={section.label}>
+                {collapsed ? (
+                  index > 0 && <Separator className="my-1" />
+                ) : (
+                  <p
+                    className={`text-xs font-medium text-muted-foreground uppercase tracking-wider px-3 py-1${
+                      index > 0 ? " mt-2" : ""
+                    }`}
+                  >
+                    {section.label}
+                  </p>
+                )}
+                <div className="space-y-1">
+                  {section.items.map((item) => {
+                    const Icon = item.icon;
+                    const active = isActive(item.href);
+                    const link = (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        className={`flex items-center gap-3 px-3 py-2 text-sm rounded-lg transition-colors ${
+                          active
+                            ? "bg-primary text-primary-foreground"
+                            : "hover:bg-accent hover:text-accent-foreground"
+                        }`}
+                      >
+                        <Icon className="h-4 w-4 shrink-0" />
+                        <span
+                          className={`overflow-hidden whitespace-nowrap transition-all duration-300 ${
+                            collapsed
+                              ? "max-w-0 opacity-0"
+                              : "max-w-50 opacity-100"
+                          }`}
+                        >
+                          {item.label}
+                        </span>
+                      </Link>
+                    );
+                    return collapsed ? (
+                      <Tooltip key={item.href}>
+                        <TooltipTrigger asChild>{link}</TooltipTrigger>
+                        <TooltipContent side="right">
+                          {item.label}
+                        </TooltipContent>
+                      </Tooltip>
+                    ) : (
+                      link
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </nav>
 
-        {/* User profile */}
-        <div className="p-3">
-          <UserProfileDropdown
-            isCollapsed={collapsed}
-            initials={initials}
-            userName={userName}
-            userEmail={userEmail}
-            isAdmin={isAdmin}
-          />
-        </div>
-      </aside>
+          <Separator />
+
+          {/* User profile */}
+          <div className="p-3">
+            <UserProfileDropdown
+              isCollapsed={collapsed}
+              initials={initials}
+              userName={userName}
+              userEmail={userEmail}
+              isAdmin={isAdmin}
+            />
+          </div>
+        </aside>
+      </TooltipProvider>
     </>
   );
 }
