@@ -8,6 +8,7 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Users, Sparkles, ChevronRight } from "lucide-react";
+import { AdminOverviewCharts } from "@/components/charts/admin-overview-charts";
 
 export default async function AdminPage() {
   // Verify the user is authenticated
@@ -89,6 +90,12 @@ export default async function AdminPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Charts */}
+        <AdminOverviewCharts
+          identities={identities.map((i) => ({ state: i.state }))}
+          groups={groups.map((g) => ({ name: g.name, memberCount: g.memberCount ?? 0 }))}
+        />
 
         {/* Groups Section */}
         <Card>

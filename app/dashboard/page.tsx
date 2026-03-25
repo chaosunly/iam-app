@@ -7,6 +7,7 @@ import { autoProvisionUser } from "@/lib/services/auto-provision.service";
 import { getUserGitlabRoles } from "@/lib/services/gitlab.service";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Check, Mail, Users, Settings, Lock, Info } from "lucide-react";
+import { UserOverviewCharts } from "@/components/charts/user-overview-charts";
 
 export default async function DashboardPage() {
   // Get Kratos session (includes OIDC provider logins like SimpleLogin)
@@ -91,6 +92,13 @@ export default async function DashboardPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Charts */}
+        <UserOverviewCharts
+          userGroups={userGroups.map((g) => ({ name: g.name, memberCount: g.memberCount ?? 0 }))}
+          gitlabRoles={gitlabRoles.map((r) => ({ role: r.role, resourceType: r.resourceType }))}
+          orgRole={orgRole ?? null}
+        />
 
         {/* Groups Section */}
         <Card className="mb-8">

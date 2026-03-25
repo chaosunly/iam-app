@@ -2,33 +2,56 @@
 
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Label } from "@/components/ui/label";
+import { AlertCircle, CheckCircle2 } from "lucide-react";
 
-interface GitlabGroup {
-  id: string;
-  name: string;
-}
+interface GitlabGroup   { id: string; name: string }
+interface GitlabProject { id: string; name: string }
+interface Identity      { id: string; traits: { email?: string; name?: string } }
 
-interface GitlabProject {
-  id: string;
-  name: string;
-}
+const GITLAB_ROLES = ["owner", "maintainer", "developer", "reporter", "guest"] as const;
 
-interface Identity {
-  id: string;
-  traits: { email?: string; name?: string };
-}
+const ROLE_BADGE_CLASSES: Record<string, string> = {
+  owner:       "bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-200",
+  maintainer:  "bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200",
+  developer:   "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200",
+  reporter:    "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200",
+  guest:       "bg-secondary text-secondary-foreground",
+};
 
-const GITLAB_ROLES = ["owner", "maintainer", "developer", "reporter", "guest"];
+const ROLE_DESCRIPTIONS: Record<string, string> = {
+  owner:      "Full control over resource",
+  maintainer: "Manage settings and members",
+  developer:  "Push code, merge, deploy",
+  reporter:   "Read repository and issues",
+  guest:      "Minimal read access",
+};
 
 export default function GitlabRolesPage() {
   const searchParams = useSearchParams();
   const [resourceType, setResourceType] = useState<"group" | "project">(
     (searchParams.get("resourceType") as "group" | "project") || "project",
   );
-  const [resourceId, setResourceId] = useState(
-    searchParams.get("resourceId") || "",
-  );
+  const [resourceId, setResourceId] = useState(searchParams.get("resourceId") || "");
   const [userId, setUserId] = useState("");
   const [role, setRole] = useState("developer");
 
@@ -48,89 +71,54 @@ export default function GitlabRolesPage() {
   }, []);
 
   useEffect(() => {
-    if (resourceId) {
-      fetchMembers();
-    }
+    if (resourceId) fetchMembers();
   }, [resourceType, resourceId]);
 
   async function fetchGroups() {
     try {
       const response = await fetch("/api/admin/gitlab/groups");
-      if (response.ok) {
-        const data = await response.json();
-        setGroups(data.groups || []);
-      }
-    } catch (err) {
-      console.error("Failed to fetch groups:", err);
-    }
+      if (response.ok) { const data = await response.json(); setGroups(data.groups || []); }
+    } catch (err) { console.error("Failed to fetch groups:", err); }
   }
 
   async function fetchProjects() {
     try {
       const response = await fetch("/api/admin/gitlab/projects");
-      if (response.ok) {
-        const data = await response.json();
-        setProjects(data.projects || []);
-      }
-    } catch (err) {
-      console.error("Failed to fetch projects:", err);
-    }
+      if (response.ok) { const data = await response.json(); setProjects(data.projects || []); }
+    } catch (err) { console.error("Failed to fetch projects:", err); }
   }
 
   async function fetchIdentities() {
     try {
       const response = await fetch("/api/admin/identities?per_page=250");
-      if (response.ok) {
-        const json = await response.json();
-        setIdentities(json.data || []);
-      }
-    } catch (err) {
-      console.error("Failed to fetch identities:", err);
-    }
+      if (response.ok) { const json = await response.json(); setIdentities(json.data || []); }
+    } catch (err) { console.error("Failed to fetch identities:", err); }
   }
 
   async function fetchMembers() {
     if (!resourceId) return;
-
     try {
       const response = await fetch(
         `/api/admin/gitlab/roles?resourceType=${resourceType}&resourceId=${resourceId}`,
       );
-
-      if (response.ok) {
-        const data = await response.json();
-        setMembers(data.members || []);
-      }
-    } catch (err) {
-      console.error("Failed to fetch members:", err);
-    }
+      if (response.ok) { const data = await response.json(); setMembers(data.members || []); }
+    } catch (err) { console.error("Failed to fetch members:", err); }
   }
 
   async function handleAssignRole(e: React.FormEvent) {
     e.preventDefault();
-    setError("");
-    setSuccess("");
-    setLoading(true);
+    setError(""); setSuccess(""); setLoading(true);
 
     try {
       const response = await fetch("/api/admin/gitlab/roles", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          userId,
-          resourceType,
-          resourceId,
-          role,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, resourceType, resourceId, role }),
       });
-
       if (!response.ok) {
         const data = await response.json();
         throw new Error(data.error || "Failed to assign role");
       }
-
       setSuccess("Role assigned successfully!");
       setUserId("");
       fetchMembers();
@@ -141,29 +129,19 @@ export default function GitlabRolesPage() {
     }
   }
 
-  async function handleRemoveRole(memberId: string, memberUserId: string) {
-    if (!confirm("Are you sure you want to remove this role assignment?")) {
-      return;
-    }
+  async function handleRemoveRole(_memberId: string, memberUserId: string) {
+    if (!confirm("Are you sure you want to remove this role assignment?")) return;
 
     try {
       const response = await fetch("/api/admin/gitlab/roles", {
         method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          userId: memberUserId,
-          resourceType,
-          resourceId,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: memberUserId, resourceType, resourceId }),
       });
-
       if (!response.ok) {
         const data = await response.json();
         throw new Error(data.error || "Failed to remove role");
       }
-
       fetchMembers();
     } catch (err: any) {
       alert(err.message || "Failed to remove role");
@@ -172,235 +150,184 @@ export default function GitlabRolesPage() {
 
   const resources = resourceType === "group" ? groups : projects;
 
+  function identityLabel(id: string): string {
+    const identity = identities.find((i) => i.id === id);
+    return identity?.traits?.email || identity?.traits?.name || id;
+  }
+
   return (
     <div className="space-y-6 p-6 md:p-8">
       <div>
-        <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50">
-          GitLab Role Assignments
-        </h1>
-        <p className="text-zinc-600 dark:text-zinc-400 mt-1">
-          Assign and manage GitLab roles for users
-        </p>
+        <h1 className="text-3xl font-bold">GitLab Role Assignments</h1>
+        <p className="text-muted-foreground mt-1">Assign and manage GitLab roles for users</p>
       </div>
 
       {/* Assign Role Form */}
-      <div className="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 p-6">
-        <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50 mb-4">
-          Assign Role
-        </h2>
+      <Card>
+        <CardHeader>
+          <CardTitle>Assign Role</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {error && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+          {success && (
+            <Alert className="mb-4 border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-200 [&>svg]:text-green-800 dark:[&>svg]:text-green-200">
+              <CheckCircle2 className="h-4 w-4" />
+              <AlertDescription>{success}</AlertDescription>
+            </Alert>
+          )}
 
-        {error && (
-          <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-800 dark:text-red-200">
-            {error}
-          </div>
-        )}
+          <form onSubmit={handleAssignRole} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Resource Type</Label>
+                <Select
+                  value={resourceType}
+                  onValueChange={(v) => setResourceType(v as "group" | "project")}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="project">Project</SelectItem>
+                    <SelectItem value="group">Group</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-        {success && (
-          <div className="mb-4 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg text-green-800 dark:text-green-200">
-            {success}
-          </div>
-        )}
-
-        <form onSubmit={handleAssignRole} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-zinc-900 dark:text-zinc-50 mb-2">
-                Resource Type
-              </label>
-              <select
-                value={resourceType}
-                onChange={(e) =>
-                  setResourceType(e.target.value as "group" | "project")
-                }
-                className="w-full px-4 py-2 border border-zinc-300 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-50 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="project">Project</option>
-                <option value="group">Group</option>
-              </select>
+              <div className="space-y-1.5">
+                <Label>Resource</Label>
+                <Select value={resourceId} onValueChange={setResourceId}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder={`Select a ${resourceType}`} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {resources.map((resource) => (
+                      <SelectItem key={resource.id} value={resource.id}>
+                        {resource.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-zinc-900 dark:text-zinc-50 mb-2">
-                Resource
-              </label>
-              <select
-                value={resourceId}
-                onChange={(e) => setResourceId(e.target.value)}
-                required
-                className="w-full px-4 py-2 border border-zinc-300 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-50 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="">Select a {resourceType}</option>
-                {resources.map((resource) => (
-                  <option key={resource.id} value={resource.id}>
-                    {resource.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>User</Label>
+                <Select value={userId} onValueChange={setUserId}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select a user" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {identities.map((identity) => (
+                      <SelectItem key={identity.id} value={identity.id}>
+                        {identity.traits?.email || identity.traits?.name || identity.id}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-zinc-900 dark:text-zinc-50 mb-2">
-                User
-              </label>
-              <select
-                value={userId}
-                onChange={(e) => setUserId(e.target.value)}
-                required
-                className="w-full px-4 py-2 border border-zinc-300 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-50 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="">Select a user</option>
-                {identities.map((identity) => (
-                  <option key={identity.id} value={identity.id}>
-                    {identity.traits?.email || identity.traits?.name || identity.id}
-                  </option>
-                ))}
-              </select>
+              <div className="space-y-1.5">
+                <Label>Role</Label>
+                <Select value={role} onValueChange={setRole}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {GITLAB_ROLES.map((r) => (
+                      <SelectItem key={r} value={r}>
+                        {r.charAt(0).toUpperCase() + r.slice(1)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-zinc-900 dark:text-zinc-50 mb-2">
-                Role
-              </label>
-              <select
-                value={role}
-                onChange={(e) => setRole(e.target.value)}
-                className="w-full px-4 py-2 border border-zinc-300 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-50 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                {GITLAB_ROLES.map((r) => (
-                  <option key={r} value={r}>
-                    {r}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {loading ? "Assigning..." : "Assign Role"}
-          </button>
-        </form>
-      </div>
+            <Button type="submit" disabled={loading}>
+              {loading ? "Assigning..." : "Assign Role"}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
 
       {/* Current Members */}
       {resourceId && (
-        <div className="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 p-6">
-          <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50 mb-4">
-            Current Members ({members.length})
-          </h2>
-
-          {members.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-zinc-200 dark:border-zinc-800">
-                    <th className="text-left py-3 px-4 text-sm font-medium text-zinc-600 dark:text-zinc-400">
-                      User ID
-                    </th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-zinc-600 dark:text-zinc-400">
-                      Role
-                    </th>
-                    <th className="text-left py-3 px-4 text-sm font-medium text-zinc-600 dark:text-zinc-400">
-                      Assigned
-                    </th>
-                    <th className="text-right py-3 px-4 text-sm font-medium text-zinc-600 dark:text-zinc-400">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
+        <Card>
+          <CardHeader>
+            <CardTitle>Current Members ({members.length})</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {members.length > 0 ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>User</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Assigned</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {members.map((member) => (
-                    <tr
-                      key={member.id}
-                      className="border-b border-zinc-200 dark:border-zinc-800 last:border-0"
-                    >
-                      <td className="py-3 px-4 text-sm font-mono text-zinc-900 dark:text-zinc-50">
-                        {member.userId}
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200">
-                          {member.role}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-sm text-zinc-600 dark:text-zinc-400">
+                    <TableRow key={member.id}>
+                      <TableCell>
+                        <p className="text-sm font-medium">{identityLabel(member.userId)}</p>
+                        <p className="text-xs text-muted-foreground font-mono">{member.userId}</p>
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={ROLE_BADGE_CLASSES[member.role] ?? ""}>{member.role}</Badge>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
                         {new Date(member.createdAt).toLocaleDateString()}
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        <button
-                          onClick={() =>
-                            handleRemoveRole(member.id, member.userId)
-                          }
-                          className="text-sm text-red-600 dark:text-red-400 hover:underline"
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => handleRemoveRole(member.id, member.userId)}
                         >
                           Remove
-                        </button>
-                      </td>
-                    </tr>
+                        </Button>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="text-center py-8 text-zinc-600 dark:text-zinc-400">
-              No role assignments yet.
-            </div>
-          )}
-        </div>
+                </TableBody>
+              </Table>
+            ) : (
+              <p className="text-center py-8 text-muted-foreground">No role assignments yet.</p>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {/* Role Reference */}
-      <div className="bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50 mb-3">
-          Role Descriptions
-        </h3>
-        <dl className="space-y-2 text-sm">
-          <div>
-            <dt className="font-medium text-zinc-900 dark:text-zinc-50">
-              Owner:
-            </dt>
-            <dd className="text-zinc-600 dark:text-zinc-400">
-              Full control over resource
-            </dd>
-          </div>
-          <div>
-            <dt className="font-medium text-zinc-900 dark:text-zinc-50">
-              Maintainer:
-            </dt>
-            <dd className="text-zinc-600 dark:text-zinc-400">
-              Manage settings and members
-            </dd>
-          </div>
-          <div>
-            <dt className="font-medium text-zinc-900 dark:text-zinc-50">
-              Developer:
-            </dt>
-            <dd className="text-zinc-600 dark:text-zinc-400">
-              Push code, merge, deploy
-            </dd>
-          </div>
-          <div>
-            <dt className="font-medium text-zinc-900 dark:text-zinc-50">
-              Reporter:
-            </dt>
-            <dd className="text-zinc-600 dark:text-zinc-400">
-              Read repository and issues
-            </dd>
-          </div>
-          <div>
-            <dt className="font-medium text-zinc-900 dark:text-zinc-50">
-              Guest:
-            </dt>
-            <dd className="text-zinc-600 dark:text-zinc-400">
-              Minimal read access
-            </dd>
-          </div>
-        </dl>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Role Descriptions</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <dl className="space-y-2.5 text-sm">
+            {GITLAB_ROLES.map((r) => (
+              <div key={r} className="flex gap-3 items-baseline">
+                <dt>
+                  <Badge className={ROLE_BADGE_CLASSES[r]}>
+                    {r.charAt(0).toUpperCase() + r.slice(1)}
+                  </Badge>
+                </dt>
+                <dd className="text-muted-foreground">{ROLE_DESCRIPTIONS[r]}</dd>
+              </div>
+            ))}
+          </dl>
+        </CardContent>
+      </Card>
     </div>
   );
 }

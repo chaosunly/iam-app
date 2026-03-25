@@ -3,6 +3,20 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { AlertCircle, Hash } from "lucide-react";
 
 interface MatrixSpace {
   id: string;
@@ -127,8 +141,8 @@ export default function MatrixRoomsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-zinc-600 dark:text-zinc-400">Loading rooms...</div>
+      <div className="flex items-center justify-center h-64 text-muted-foreground">
+        Loading rooms...
       </div>
     );
   }
@@ -137,177 +151,157 @@ export default function MatrixRoomsPage() {
     <div className="space-y-6 p-6 md:p-8">
       <div className="flex justify-between items-start">
         <div>
-          <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50">Matrix Rooms</h1>
-          <p className="text-zinc-600 dark:text-zinc-400 mt-1">
+          <h1 className="text-3xl font-bold">Matrix Rooms</h1>
+          <p className="text-muted-foreground mt-1">
             Manage individual Matrix rooms within spaces
           </p>
         </div>
-        <button
-          onClick={() => setShowCreate(true)}
-          className="px-4 py-2 bg-violet-600 text-white rounded-md hover:bg-violet-700 transition-colors"
-        >
-          Create Room
-        </button>
+        <Button onClick={() => setShowCreate(true)}>Create Room</Button>
       </div>
 
       {error && (
-        <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-800 dark:text-red-200">
-          {error}
-        </div>
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       )}
 
       {/* Filter by space */}
       <div className="flex items-center gap-3">
-        <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-          Filter by space:
-        </label>
-        <select
-          value={spaceFilter}
-          onChange={(e) => setSpaceFilter(e.target.value)}
-          className="px-3 py-1.5 border border-zinc-300 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-50 text-sm focus:ring-2 focus:ring-blue-500"
+        <Label>Filter by space:</Label>
+        <Select
+          value={spaceFilter || "__all__"}
+          onValueChange={(v) => setSpaceFilter(v === "__all__" ? "" : v)}
         >
-          <option value="">All spaces</option>
-          {spaces.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.org ? `${s.org.name} / ` : ""}
-              {s.name}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger className="w-60">
+            <SelectValue placeholder="All spaces" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">All spaces</SelectItem>
+            {spaces.map((s) => (
+              <SelectItem key={s.id} value={s.id}>
+                {s.org ? `${s.org.name} / ` : ""}
+                {s.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Inline create panel */}
       {showCreate && (
-        <div className="bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800 rounded-lg p-6">
-          <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50 mb-4">New Room</h2>
-          {createError && (
-            <div className="mb-3 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded text-red-800 dark:text-red-200 text-sm">
-              {createError}
-            </div>
-          )}
-          <form onSubmit={handleCreate} className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-zinc-900 dark:text-zinc-50 mb-1">
-                Space <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={newSpaceId}
-                onChange={(e) => setNewSpaceId(e.target.value)}
-                required
-                className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-50 text-sm focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Select space</option>
-                {spaces.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.org ? `${s.org.name} / ` : ""}
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-zinc-900 dark:text-zinc-50 mb-1">
-                Name <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                required
-                placeholder="general"
-                className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-50 text-sm focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-zinc-900 dark:text-zinc-50 mb-1">
-                Element Room ID
-              </label>
-              <input
-                type="text"
-                value={newMatrixId}
-                onChange={(e) => setNewMatrixId(e.target.value)}
-                placeholder="!xyz456:matrix.org"
-                className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-50 text-sm focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-zinc-900 dark:text-zinc-50 mb-1">
-                Description
-              </label>
-              <input
-                type="text"
-                value={newDescription}
-                onChange={(e) => setNewDescription(e.target.value)}
-                placeholder="Optional"
-                className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-700 rounded-md bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-50 text-sm focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div className="col-span-2 flex gap-3">
-              <button
-                type="submit"
-                disabled={creating}
-                className="px-5 py-2 bg-violet-600 text-white rounded-md hover:bg-violet-700 disabled:opacity-50 transition-colors text-sm"
-              >
-                {creating ? "Creating..." : "Create Room"}
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowCreate(false)}
-                className="px-5 py-2 border border-zinc-300 dark:border-zinc-700 rounded-md text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors text-sm"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>New Room</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {createError && (
+              <Alert variant="destructive" className="mb-4">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{createError}</AlertDescription>
+              </Alert>
+            )}
+            <form onSubmit={handleCreate} className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>
+                  Space <span className="text-destructive">*</span>
+                </Label>
+                <Select value={newSpaceId} onValueChange={setNewSpaceId}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select space" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {spaces.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.org ? `${s.org.name} / ` : ""}
+                        {s.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>
+                  Name <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  required
+                  placeholder="general"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Element Room ID</Label>
+                <Input
+                  value={newMatrixId}
+                  onChange={(e) => setNewMatrixId(e.target.value)}
+                  placeholder="!xyz456:matrix.org"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Description</Label>
+                <Input
+                  value={newDescription}
+                  onChange={(e) => setNewDescription(e.target.value)}
+                  placeholder="Optional"
+                />
+              </div>
+              <div className="col-span-2 flex gap-3">
+                <Button type="submit" disabled={creating}>
+                  {creating ? "Creating..." : "Create Room"}
+                </Button>
+                <Button type="button" variant="outline" onClick={() => setShowCreate(false)}>
+                  Cancel
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
       )}
 
-      <div className="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800">
+      <Card className="p-0 gap-0">
         {rooms.length > 0 ? (
-          <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
+          <div className="divide-y">
             {rooms.map((room) => (
-              <div
-                key={room.id}
-                className="p-5 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors"
-              >
+              <div key={room.id} className="p-5 hover:bg-muted/50 transition-colors">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <p className="text-base font-semibold text-zinc-900 dark:text-zinc-50">
-                      # {room.name}
-                    </p>
-                    <div className="flex items-center gap-2 mt-0.5">
+                    <p className="text-base font-semibold"># {room.name}</p>
+                    <div className="flex items-center gap-2 mt-1">
                       {room.space && (
-                        <span className="text-xs bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 px-2 py-0.5 rounded-full">
+                        <Badge variant="secondary">
                           {room.space.org?.name ? `${room.space.org.name} / ` : ""}
                           {room.space.name}
-                        </span>
+                        </Badge>
                       )}
                       {room.matrixId && (
-                        <span className="text-xs text-zinc-500 font-mono">{room.matrixId}</span>
+                        <span className="text-xs text-muted-foreground font-mono">
+                          {room.matrixId}
+                        </span>
                       )}
                     </div>
                     {room.description && (
-                      <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">
-                        {room.description}
-                      </p>
+                      <p className="text-sm text-muted-foreground mt-1">{room.description}</p>
                     )}
-                    <p className="text-xs text-zinc-500 mt-1">
+                    <p className="text-xs text-muted-foreground mt-1">
                       Created {new Date(room.createdAt).toLocaleDateString()}
                     </p>
                   </div>
-                  <div className="flex items-center gap-2 ml-4">
-                    <Link
-                      href={`/admin/matrix/roles?resourceType=room&resourceId=${room.id}`}
-                      className="px-3 py-1.5 text-sm text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded transition-colors"
-                    >
-                      Roles
-                    </Link>
-                    <button
+                  <div className="flex items-center gap-1 ml-4">
+                    <Button asChild variant="ghost" size="sm">
+                      <Link href={`/admin/matrix/roles?resourceType=room&resourceId=${room.id}`}>
+                        Roles
+                      </Link>
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
                       onClick={() => handleDelete(room.id, room.name)}
-                      className="px-3 py-1.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
                     >
                       Delete
-                    </button>
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -315,19 +309,17 @@ export default function MatrixRoomsPage() {
           </div>
         ) : (
           <div className="p-12 text-center">
-            <h3 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">No rooms yet</h3>
-            <p className="mt-2 text-zinc-600 dark:text-zinc-400 text-sm">
+            <Hash className="mx-auto h-12 w-12 text-muted-foreground/50 mb-4" />
+            <h3 className="text-lg font-medium">No rooms yet</h3>
+            <p className="mt-2 text-muted-foreground text-sm">
               {spaceFilter ? "No rooms in the selected space." : "Create a room to get started."}
             </p>
-            <button
-              onClick={() => setShowCreate(true)}
-              className="mt-6 inline-flex items-center px-4 py-2 bg-violet-600 text-white rounded-md hover:bg-violet-700 transition-colors"
-            >
+            <Button className="mt-6" onClick={() => setShowCreate(true)}>
               Create Room
-            </button>
+            </Button>
           </div>
         )}
-      </div>
+      </Card>
     </div>
   );
 }

@@ -58,10 +58,15 @@ export function PageHeader() {
   return (
     <TooltipProvider>
       <header className="flex h-14 shrink-0 items-center gap-2 border-b bg-background px-4 md:px-6">
-        <Button variant="ghost" size="icon" onClick={toggle} className="h-7 w-7">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={toggle}
+          className="h-7 w-7"
+        >
           <PanelLeft className="h-4 w-4" />
         </Button>
-        <Separator orientation="vertical" className="mx-1 h-4" />
+        <Separator orientation="vertical" className="mx-1 h-3! self-center" />
         <nav aria-label="Breadcrumb">
           <ol className="flex items-center gap-1.5 text-sm">
             {crumbs.map((crumb, i) => {

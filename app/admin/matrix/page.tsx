@@ -29,31 +29,29 @@ export default async function MatrixAccessPage() {
         </p>
       </div>
 
-      {/* Sync status banner */}
       {syncEnabled ? (
-        <div className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-800 dark:text-green-200 text-sm">
-          <Zap className="h-4 w-4 shrink-0" />
-          <span>
+        <Alert className="border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-200 [&>svg]:text-green-800 dark:[&>svg]:text-green-200">
+          <Zap className="h-4 w-4" />
+          <AlertDescription>
             <strong>Matrix sync is enabled.</strong> Role changes will be propagated to the
             Matrix homeserver automatically.
-          </span>
-        </div>
+          </AlertDescription>
+        </Alert>
       ) : (
-        <div className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 text-yellow-800 dark:text-yellow-200 text-sm">
-          <Zap className="h-4 w-4 shrink-0" />
-          <span>
+        <Alert className="border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-200 [&>svg]:text-yellow-800 dark:[&>svg]:text-yellow-200">
+          <Zap className="h-4 w-4" />
+          <AlertDescription>
             <strong>Matrix sync is disabled.</strong> IAM roles are stored and enforced here.
             Set{" "}
             <code className="font-mono text-xs bg-yellow-100 dark:bg-yellow-900/40 px-1 rounded">
               MATRIX_ROLE_SYNC_ENABLED=true
             </code>{" "}
             to push changes to the homeserver.
-          </span>
-        </div>
+          </AlertDescription>
+        </Alert>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Orgs */}
         <Link href="/admin/matrix/orgs">
           <Card className="hover:border-blue-500 transition-colors cursor-pointer">
             <CardContent className="p-5">
@@ -70,7 +68,6 @@ export default async function MatrixAccessPage() {
           </Card>
         </Link>
 
-        {/* Spaces */}
         <Link href="/admin/matrix/spaces">
           <Card className="hover:border-indigo-500 transition-colors cursor-pointer">
             <CardContent className="p-5">
@@ -87,7 +84,6 @@ export default async function MatrixAccessPage() {
           </Card>
         </Link>
 
-        {/* Rooms */}
         <Link href="/admin/matrix/rooms">
           <Card className="hover:border-violet-500 transition-colors cursor-pointer">
             <CardContent className="p-5">
@@ -104,7 +100,6 @@ export default async function MatrixAccessPage() {
           </Card>
         </Link>
 
-        {/* Role Assignments */}
         <Link href="/admin/matrix/roles">
           <Card className="hover:border-purple-500 transition-colors cursor-pointer">
             <CardContent className="p-5">
