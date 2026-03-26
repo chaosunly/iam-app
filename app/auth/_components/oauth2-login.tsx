@@ -1,53 +1,41 @@
 "use client";
 
 import { useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ShieldCheck, AlertCircle, Loader2 } from "lucide-react";
 
-// Get gateway URL dynamically at runtime
 const getGatewayUrl = () => {
-  if (typeof window !== "undefined") {
-    return window.location.origin;
-  }
+  if (typeof window !== "undefined") return window.location.origin;
   return process.env.NEXT_PUBLIC_GATEWAY_URL || "";
 };
 
-// Get OAuth2 client ID with fallback
-const getClientId = () => {
-  return process.env.NEXT_PUBLIC_OAUTH2_CLIENT_ID || "";
-};
+const getClientId = () => process.env.NEXT_PUBLIC_OAUTH2_CLIENT_ID || "";
 
 export function OAuth2LoginButton() {
   const handleLogin = () => {
     const gatewayUrl = getGatewayUrl();
     const clientId = getClientId();
-    
-    if (!clientId) {
-      console.error("OAuth2 Client ID not configured");
-      return;
-    }
-    
-    // Generate random state for CSRF protection
+    if (!clientId) return;
+
     const state = Math.random().toString(36).substring(7);
-    
-    // Build authorize URL
     const params = new URLSearchParams({
       client_id: clientId,
       response_type: "code",
       scope: "openid offline_access email profile",
       redirect_uri: `${gatewayUrl}/auth/callback`,
-      state: state,
+      state,
     });
 
-    // Redirect to Hydra
     window.location.href = `${gatewayUrl}/oauth2/auth?${params.toString()}`;
   };
 
   return (
-    <button
-      onClick={handleLogin}
-      className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
-    >
+    <Button onClick={handleLogin} className="w-full">
+      <ShieldCheck className="h-4 w-4 mr-2" />
       Login with OAuth2
-    </button>
+    </Button>
   );
 }
 
@@ -55,18 +43,9 @@ export function AutoOAuth2Login({ returnTo }: { returnTo?: string }) {
   useEffect(() => {
     const gatewayUrl = getGatewayUrl();
     const clientId = getClientId();
-    
-    console.log("[AutoOAuth2Login] Starting", { gatewayUrl, clientId, returnTo });
-    
-    if (!clientId) {
-      console.error("OAuth2 Client ID not configured");
-      return;
-    }
-    
-    // Generate random state
+    if (!clientId) return;
+
     const state = returnTo || "/dashboard";
-    
-    // Build authorize URL
     const params = new URLSearchParams({
       client_id: clientId,
       response_type: "code",
@@ -75,38 +54,52 @@ export function AutoOAuth2Login({ returnTo }: { returnTo?: string }) {
       state: encodeURIComponent(state),
     });
 
-    const authorizeUrl = `${gatewayUrl}/oauth2/auth?${params.toString()}`;
-    console.log("[AutoOAuth2Login] Redirecting to:", authorizeUrl);
-
-    // Auto-redirect to Hydra
-    window.location.href = authorizeUrl;
+    window.location.href = `${gatewayUrl}/oauth2/auth?${params.toString()}`;
   }, [returnTo]);
 
   const clientId = getClientId();
-  
+
   if (!clientId) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center max-w-md p-6 bg-red-50 rounded-lg border border-red-200">
-          <h2 className="text-lg font-semibold text-red-900 mb-2">Configuration Error</h2>
-          <p className="text-sm text-red-700">
-            OAuth2 Client ID is not configured. Please set NEXT_PUBLIC_OAUTH2_CLIENT_ID environment variable.
-          </p>
-          <div className="mt-4 text-xs text-red-600 font-mono">
-            current NEXT_PUBLIC_OAUTH2_CLIENT_ID: {process.env.NEXT_PUBLIC_OAUTH2_CLIENT_ID || "undefined"}
-          </div>
-        </div>
+      <div className="flex min-h-screen items-center justify-center bg-background px-4">
+        <Card className="w-full max-w-sm">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2 text-destructive">
+              <AlertCircle className="h-5 w-5" />
+              Configuration Error
+            </CardTitle>
+            <CardDescription>OAuth2 is not set up correctly</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                <code className="text-xs">NEXT_PUBLIC_OAUTH2_CLIENT_ID</code> is
+                not configured. Please set this environment variable.
+              </AlertDescription>
+            </Alert>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen">
-      <div className="text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-        <p className="text-gray-600">Redirecting to login...</p>
-        <p className="text-xs text-gray-400 mt-2">Starting OAuth2 flow...</p>
-      </div>
+    <div className="flex min-h-screen items-center justify-center bg-background">
+      <Card className="w-full max-w-xs text-center">
+        <CardHeader>
+          <div className="flex justify-center mb-2">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground mx-auto">
+              <ShieldCheck className="h-5 w-5" />
+            </div>
+          </div>
+          <CardTitle className="text-base">Redirecting to login</CardTitle>
+          <CardDescription>Starting secure authentication…</CardDescription>
+        </CardHeader>
+        <CardContent className="flex justify-center pb-6">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </CardContent>
+      </Card>
     </div>
   );
 }

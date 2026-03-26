@@ -139,7 +139,7 @@ function UserProfileDropdown({
             </DropdownMenuItem>
           )}
           <DropdownMenuItem asChild>
-            <Link href="/auth/settings" className="cursor-pointer">
+            <Link href="/dashboard/settings" className="cursor-pointer">
               <Settings className="h-4 w-4" />
               Account Settings
             </Link>

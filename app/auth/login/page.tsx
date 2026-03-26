@@ -24,7 +24,7 @@ export default async function LoginPage(props: OryPageParams) {
     
     if (flow) {
       console.log("[LoginPage] Showing Kratos login form");
-      return <LoginClient flow={flow} config={config} />;
+      return <LoginClient flow={flow} />;
     }
     console.log("[LoginPage] Failed to get Kratos flow");
   }

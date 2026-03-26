@@ -29,5 +29,5 @@ export default async function RecoveryPage(props: OryPageParams) {
     );
   }
 
-  return <RecoveryClient flow={flow} config={config} />;
+  return <RecoveryClient flow={flow} />;
 }

@@ -1,9 +1,8 @@
-import type { OryClientConfiguration } from "@ory/elements-react";
-
-const config: OryClientConfiguration = {
+// Config type matching what @ory/nextjs getXxxFlow helpers require.
+// project and all UI URL fields must be required strings.
+const config = {
   sdk: {
     // Always use the public app URL - middleware will proxy to Kratos
-    // This ensures all generated URLs (including footer links) point to the app domain
     url: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
   },
   project: {
@@ -17,10 +16,10 @@ const config: OryClientConfiguration = {
     verification_ui_url: "/auth/verification",
     recovery_ui_url: "/auth/recovery",
     login_ui_url: "/auth/login",
-    settings_ui_url: "/auth/settings",
+    settings_ui_url: "/dashboard/settings",
     default_locale: "en",
-    locale_behavior: "respect_accept_language",
+    locale_behavior: "respect_accept_language" as const,
   },
-};
+} as const;
 
 export default config;

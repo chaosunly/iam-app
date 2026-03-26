@@ -1,38 +1,142 @@
 "use client";
 
-import { Recovery } from "@ory/elements-react/theme";
-import { OryClientConfiguration } from "@ory/elements-react";
 import { RecoveryFlow } from "@ory/client-fetch";
-import { useEffect } from "react";
+import { KratosForm } from "@/components/auth/kratos-form";
+import { getNodeByName } from "@/lib/auth/ory-flow-utils";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { ShieldCheck } from "lucide-react";
+import Link from "next/link";
 
 interface RecoveryClientProps {
   flow: RecoveryFlow;
-  config: OryClientConfiguration;
 }
 
-export function RecoveryClient({ flow, config }: RecoveryClientProps) {
-  // Ensure SDK URL uses current origin for proper proxying
-  const clientConfig: OryClientConfiguration = {
-    ...config,
-    sdk: {
-      url:
-        typeof window !== "undefined"
-          ? window.location.origin
-          : config.sdk?.url || "",
-      options: config.sdk?.options || {},
-    },
-  };
+export function RecoveryClient({ flow }: RecoveryClientProps) {
+  const emailNode = getNodeByName(flow.ui.nodes, "email");
+  const codeNode = getNodeByName(flow.ui.nodes, "code");
 
-  // Debug: Log the flow action URL to help troubleshoot
-  useEffect(() => {
-    console.log("Recovery flow action:", flow?.ui?.action);
-    console.log("SDK URL:", clientConfig.sdk?.url);
-    console.log("Flow ID:", flow?.id);
-  }, [flow, clientConfig.sdk?.url]);
+  // Determine what stage we're at
+  const isCodeStage = !!codeNode;
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-zinc-50 dark:bg-black">
-      <Recovery flow={flow} config={clientConfig} />
+    <div className="flex min-h-screen items-center justify-center bg-background px-4">
+      <div className="w-full max-w-sm space-y-6">
+        <div className="flex flex-col items-center gap-2 text-center">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+            <ShieldCheck className="h-5 w-5" />
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight">Reset password</h1>
+          <p className="text-sm text-muted-foreground">
+            {isCodeStage
+              ? "Enter the code we sent to your email"
+              : "Enter your email and we'll send you a recovery link"}
+          </p>
+        </div>
+
+        <Card>
+          <CardHeader className="pb-4">
+            <CardTitle className="text-base">
+              {isCodeStage ? "Enter recovery code" : "Account recovery"}
+            </CardTitle>
+            <CardDescription>
+              {isCodeStage
+                ? "Check your inbox for the 6-digit code"
+                : "We'll email you a recovery link or code"}
+            </CardDescription>
+          </CardHeader>
+
+          <KratosForm
+            action={flow.ui.action}
+            nodes={flow.ui.nodes}
+            messages={flow.ui.messages}
+          >
+            <CardContent className="space-y-4">
+              {/* Email stage */}
+              {emailNode && (
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email address</Label>
+                  <Input
+                    id="email"
+                    name="email"
+                    type="email"
+                    autoComplete="email"
+                    autoFocus
+                    defaultValue={emailNode.value}
+                    placeholder="you@example.com"
+                  />
+                  {emailNode.messages.map((msg, i) => (
+                    <p key={i} className="text-xs text-destructive">{msg}</p>
+                  ))}
+                </div>
+              )}
+
+              {/* Code stage */}
+              {codeNode && (
+                <div className="space-y-2">
+                  <Label htmlFor="code">Recovery code</Label>
+                  <Input
+                    id="code"
+                    name="code"
+                    type="text"
+                    autoComplete="one-time-code"
+                    autoFocus
+                    defaultValue={codeNode.value}
+                    placeholder="000000"
+                    maxLength={6}
+                    className="tracking-widest text-center text-lg font-mono"
+                  />
+                  {codeNode.messages.map((msg, i) => (
+                    <p key={i} className="text-xs text-destructive">{msg}</p>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+
+            <CardFooter className="flex flex-col gap-3 pt-2">
+              {!isCodeStage && (
+                <Button
+                  type="submit"
+                  name="method"
+                  value="code"
+                  className="w-full"
+                >
+                  Send recovery email
+                </Button>
+              )}
+              {isCodeStage && (
+                <Button
+                  type="submit"
+                  name="method"
+                  value="code"
+                  className="w-full"
+                >
+                  Verify code
+                </Button>
+              )}
+            </CardFooter>
+          </KratosForm>
+        </Card>
+
+        <p className="text-center text-sm text-muted-foreground">
+          Remember your password?{" "}
+          <Link
+            href="/auth/login"
+            className="font-medium text-primary hover:underline"
+          >
+            Back to sign in
+          </Link>
+        </p>
+      </div>
     </div>
   );
 }

@@ -29,5 +29,5 @@ export default async function VerificationPage(props: OryPageParams) {
     );
   }
 
-  return <VerificationClient flow={flow} config={config} />;
+  return <VerificationClient flow={flow} />;
 }

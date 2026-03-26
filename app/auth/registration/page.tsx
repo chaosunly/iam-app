@@ -29,5 +29,5 @@ export default async function RegistrationPage(props: OryPageParams) {
     );
   }
 
-  return <RegistrationClient flow={flow} config={config} />;
+  return <RegistrationClient flow={flow} />;
 }
