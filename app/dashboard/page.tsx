@@ -9,10 +9,20 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Check, Mail, Users, Settings, Lock, Info } from "lucide-react";
 
 export default async function DashboardPage() {
-  const elementServiceUrl =
+  const elementBaseUrl =
     process.env.NEXT_PUBLIC_ELEMENT_URL ||
     process.env.ELEMENT_URL ||
     "https://nginx-sengly-branch.up.railway.app/";
+
+  const normalizedElementBaseUrl = elementBaseUrl.endsWith("/")
+    ? elementBaseUrl
+    : `${elementBaseUrl}/`;
+
+  const elementSsoUrl =
+    process.env.NEXT_PUBLIC_ELEMENT_SSO_URL ||
+    `${normalizedElementBaseUrl}_matrix/client/v3/login/sso/redirect?redirectUrl=${encodeURIComponent(
+      normalizedElementBaseUrl,
+    )}`;
 
   // Get Kratos session (includes OIDC provider logins like SimpleLogin)
   const session = await getServerSession();
@@ -263,7 +273,7 @@ export default async function DashboardPage() {
 
               {/* Element */}
               <a
-                href={elementServiceUrl}
+                href={elementSsoUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex flex-col items-center gap-3 p-4 rounded-lg border hover:bg-accent transition-colors group"
