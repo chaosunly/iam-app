@@ -8,7 +8,10 @@ export const dynamic = "force-dynamic";
 
 export default async function ConnectedAppsSettingsPage(props: OryPageParams) {
   const searchParams = await props.searchParams;
-  const flow = await getSettingsFlow(config, searchParams);
+  const params = searchParams.flow
+    ? searchParams
+    : { ...searchParams, return_to: "/dashboard/settings/connected-apps" };
+  const flow = await getSettingsFlow(config, params);
 
   if (!flow) {
     redirect("/dashboard/settings/connected-apps");

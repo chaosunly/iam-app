@@ -2,9 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { ShieldCheck, AlertCircle, Loader2 } from "lucide-react";
+import { ShieldCheck, AlertCircle, ArrowRight } from "lucide-react";
 
 const getGatewayUrl = () => {
   if (typeof window !== "undefined") return window.location.origin;
@@ -41,6 +40,7 @@ export function OAuth2LoginButton() {
 
 export function AutoOAuth2Login({ returnTo }: { returnTo?: string }) {
   const [showFallback, setShowFallback] = useState(false);
+  const [dots, setDots] = useState(1);
 
   useEffect(() => {
     const gatewayUrl = getGatewayUrl();
@@ -58,9 +58,22 @@ export function AutoOAuth2Login({ returnTo }: { returnTo?: string }) {
 
     window.location.href = `${gatewayUrl}/oauth2/auth?${params.toString()}`;
 
-    // Show a manual button after 3 s in case the redirect stalls
-    const timer = setTimeout(() => setShowFallback(true), 3000);
-    return () => clearTimeout(timer);
+    // Animate dots
+    const dotsInterval = setInterval(
+      () => setDots((d) => (d % 3) + 1),
+      500,
+    );
+
+    // Show manual button after 3 s in case the redirect stalls
+    const timer = setTimeout(() => {
+      setShowFallback(true);
+      clearInterval(dotsInterval);
+    }, 3000);
+
+    return () => {
+      clearTimeout(timer);
+      clearInterval(dotsInterval);
+    };
   }, [returnTo]);
 
   const clientId = getClientId();
@@ -68,24 +81,24 @@ export function AutoOAuth2Login({ returnTo }: { returnTo?: string }) {
   if (!clientId) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background px-4">
-        <Card className="w-full max-w-sm">
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2 text-destructive">
-              <AlertCircle className="h-5 w-5" />
-              Configuration Error
-            </CardTitle>
-            <CardDescription>OAuth2 is not set up correctly</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                <code className="text-xs">NEXT_PUBLIC_OAUTH2_CLIENT_ID</code> is
-                not configured. Please set this environment variable.
-              </AlertDescription>
-            </Alert>
-          </CardContent>
-        </Card>
+        <div className="w-full max-w-sm rounded-2xl border bg-card p-8 shadow-sm space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-destructive/10">
+              <AlertCircle className="h-5 w-5 text-destructive" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold">Configuration Error</p>
+              <p className="text-xs text-muted-foreground">OAuth2 is not set up correctly</p>
+            </div>
+          </div>
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              <code className="text-xs">NEXT_PUBLIC_OAUTH2_CLIENT_ID</code> is
+              not configured. Please set this environment variable.
+            </AlertDescription>
+          </Alert>
+        </div>
       </div>
     );
   }
@@ -106,27 +119,63 @@ export function AutoOAuth2Login({ returnTo }: { returnTo?: string }) {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <Card className="w-full max-w-xs text-center">
-        <CardHeader>
-          <div className="flex justify-center mb-2">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground mx-auto">
-              <ShieldCheck className="h-5 w-5" />
+    <div className="flex min-h-screen items-center justify-center bg-linear-to-b from-background to-muted/30 px-4">
+      <div className="w-full max-w-xs space-y-6 text-center">
+        {/* Animated shield icon */}
+        <div className="flex justify-center">
+          <div className="relative">
+            {/* Outer pulse ring */}
+            {!showFallback && (
+              <span className="absolute inset-0 rounded-2xl bg-primary/20 animate-ping" />
+            )}
+            <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg">
+              <ShieldCheck className="h-8 w-8" />
             </div>
           </div>
-          <CardTitle className="text-base">Redirecting to login</CardTitle>
-          <CardDescription>Starting secure authentication…</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col items-center gap-4 pb-6">
-          {showFallback ? (
-            <Button onClick={handleManualRedirect} className="w-full">
-              Continue to sign in
-            </Button>
-          ) : (
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          )}
-        </CardContent>
-      </Card>
+        </div>
+
+        {/* Text */}
+        <div className="space-y-2">
+          <h1 className="text-xl font-semibold tracking-tight">
+            {showFallback ? "Ready to sign in" : "Redirecting to login"}
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            {showFallback
+              ? "Click below to continue to secure authentication"
+              : `Starting secure authentication${".".repeat(dots)}`}
+          </p>
+        </div>
+
+        {/* Progress / Action */}
+        {showFallback ? (
+          <Button
+            onClick={handleManualRedirect}
+            className="w-full gap-2"
+            size="lg"
+          >
+            Continue to sign in
+            <ArrowRight className="h-4 w-4" />
+          </Button>
+        ) : (
+          <div className="flex justify-center gap-1.5">
+            {[0, 1, 2].map((i) => (
+              <span
+                key={i}
+                className="h-2 w-2 rounded-full bg-primary transition-all duration-300"
+                style={{
+                  opacity: dots > i ? 1 : 0.25,
+                  transform: dots > i ? "scale(1.2)" : "scale(1)",
+                }}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Footer note */}
+        <p className="text-xs text-muted-foreground/60">
+          Secured with end-to-end encryption
+        </p>
+      </div>
     </div>
   );
 }

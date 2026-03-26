@@ -37,6 +37,7 @@ export function RegistrationClient({ flow }: RegistrationClientProps) {
   const hasOidc = !!groups.oidc;
   const hasPasskey = !!groups.passkey;
   const hasWebAuthn = !!groups.webauthn;
+  const hasCredentialMethod = hasPassword || hasWebAuthn || hasPasskey;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -58,8 +59,8 @@ export function RegistrationClient({ flow }: RegistrationClientProps) {
           <CardHeader className="pb-4">
             <CardTitle className="text-base">Register</CardTitle>
             <CardDescription>
-              {hasPassword || hasWebAuthn || hasPasskey
-                ? "Fill in the form to create your account"
+              {hasCredentialMethod
+                ? "Fill in the form or use a provider below"
                 : "Choose a sign-up method below"}
             </CardDescription>
           </CardHeader>
@@ -70,10 +71,7 @@ export function RegistrationClient({ flow }: RegistrationClientProps) {
             messages={flow.ui.messages}
           >
             <CardContent className="space-y-4">
-              {/* Name, email, and password fields — only shown when a credential method
-                  (password / passkey / webauthn) is available. For OIDC-only flows the
-                  provider supplies these traits automatically. */}
-              {(hasPassword || hasWebAuthn || hasPasskey) && (
+              {hasCredentialMethod && (
                 <>
                   {/* Name fields */}
                   {(firstNameNode || lastNameNode) && (
@@ -176,6 +174,24 @@ export function RegistrationClient({ flow }: RegistrationClientProps) {
                   )}
                 </>
               )}
+
+              {/* When only OIDC is available (no password/passkey/webauthn nodes from Kratos),
+                  offer a direct link to start a fresh registration flow that includes
+                  password registration. This typically happens when registration is initiated
+                  through the OAuth2 login challenge which constrains available methods. */}
+              {!hasCredentialMethod && hasOidc && (
+                <div className="rounded-lg border border-dashed p-3 text-center">
+                  <p className="text-xs text-muted-foreground">
+                    Want to use email and password?{" "}
+                    <a
+                      href="/self-service/registration/browser"
+                      className="font-medium text-primary hover:underline"
+                    >
+                      Register directly
+                    </a>
+                  </p>
+                </div>
+              )}
             </CardContent>
 
             <CardFooter className="flex flex-col gap-3 pt-2">
@@ -230,7 +246,7 @@ export function RegistrationClient({ flow }: RegistrationClientProps) {
               {/* OIDC providers */}
               {hasOidc && (
                 <>
-                  {(hasPassword || hasWebAuthn || hasPasskey) && (
+                  {hasCredentialMethod && (
                     <div className="relative my-1">
                       <Separator />
                       <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-xs text-muted-foreground">

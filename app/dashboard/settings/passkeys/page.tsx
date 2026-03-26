@@ -8,7 +8,10 @@ export const dynamic = "force-dynamic";
 
 export default async function PasskeysSettingsPage(props: OryPageParams) {
   const searchParams = await props.searchParams;
-  const flow = await getSettingsFlow(config, searchParams);
+  const params = searchParams.flow
+    ? searchParams
+    : { ...searchParams, return_to: "/dashboard/settings/passkeys" };
+  const flow = await getSettingsFlow(config, params);
 
   if (!flow) {
     redirect("/dashboard/settings/passkeys");
