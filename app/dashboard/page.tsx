@@ -12,7 +12,7 @@ export default async function DashboardPage() {
   const elementServiceUrl =
     process.env.NEXT_PUBLIC_ELEMENT_URL ||
     process.env.ELEMENT_URL ||
-    "https://element-web-sengly-branch.up.railway.app/";
+    "https://nginx-sengly-branch.up.railway.app/";
 
   // Get Kratos session (includes OIDC provider logins like SimpleLogin)
   const session = await getServerSession();
