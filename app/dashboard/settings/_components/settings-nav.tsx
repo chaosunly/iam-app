@@ -8,6 +8,10 @@ import {
   Lock,
   Link2,
   Settings2,
+  ShieldCheck,
+  KeyRound,
+  Fingerprint,
+  ListChecks,
 } from "lucide-react";
 
 const navItems = [
@@ -28,8 +32,28 @@ const navItems = [
     icon: Lock,
   },
   {
+    href: "/dashboard/settings/totp",
+    label: "Two-factor auth",
+    icon: ShieldCheck,
+  },
+  {
+    href: "/dashboard/settings/lookup-secrets",
+    label: "Backup codes",
+    icon: ListChecks,
+  },
+  {
+    href: "/dashboard/settings/security-keys",
+    label: "Security keys",
+    icon: KeyRound,
+  },
+  {
+    href: "/dashboard/settings/passkeys",
+    label: "Passkeys",
+    icon: Fingerprint,
+  },
+  {
     href: "/dashboard/settings/connected-apps",
-    label: "Connected Apps",
+    label: "Connected apps",
     icon: Link2,
   },
 ];

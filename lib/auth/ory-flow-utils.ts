@@ -78,3 +78,27 @@ export function getVisibleFields(nodes: UiNode[]): FlowField[] {
 export function getFlowMessages(messages?: UiText[]): UiText[] {
   return messages ?? [];
 }
+
+/** Group all UI nodes by their Kratos `group` attribute (e.g. "password", "oidc", "webauthn"). */
+export function getNodesByGroup(nodes: UiNode[]): Record<string, UiNode[]> {
+  return nodes.reduce<Record<string, UiNode[]>>((acc, node) => {
+    const group = node.group ?? "default";
+    (acc[group] ??= []).push(node);
+    return acc;
+  }, {});
+}
+
+/** Get nodes whose type is "script" (used by WebAuthn/Passkey). */
+export function getScriptNodes(nodes: UiNode[]): UiNode[] {
+  return nodes.filter((n) => n.type === "script");
+}
+
+/** Get nodes whose type is "img" (used by TOTP QR code). */
+export function getImageNodes(nodes: UiNode[]): UiNode[] {
+  return nodes.filter((n) => n.type === "img");
+}
+
+/** Get nodes whose type is "text" (used by lookup_secret codes display). */
+export function getTextNodes(nodes: UiNode[]): UiNode[] {
+  return nodes.filter((n) => n.type === "text");
+}
