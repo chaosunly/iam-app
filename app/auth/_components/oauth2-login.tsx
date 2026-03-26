@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -40,6 +40,8 @@ export function OAuth2LoginButton() {
 }
 
 export function AutoOAuth2Login({ returnTo }: { returnTo?: string }) {
+  const [showFallback, setShowFallback] = useState(false);
+
   useEffect(() => {
     const gatewayUrl = getGatewayUrl();
     const clientId = getClientId();
@@ -55,6 +57,10 @@ export function AutoOAuth2Login({ returnTo }: { returnTo?: string }) {
     });
 
     window.location.href = `${gatewayUrl}/oauth2/auth?${params.toString()}`;
+
+    // Show a manual button after 3 s in case the redirect stalls
+    const timer = setTimeout(() => setShowFallback(true), 3000);
+    return () => clearTimeout(timer);
   }, [returnTo]);
 
   const clientId = getClientId();
@@ -84,6 +90,21 @@ export function AutoOAuth2Login({ returnTo }: { returnTo?: string }) {
     );
   }
 
+  const handleManualRedirect = () => {
+    const gatewayUrl = getGatewayUrl();
+    const cId = getClientId();
+    if (!cId) return;
+    const state = returnTo || "/dashboard";
+    const params = new URLSearchParams({
+      client_id: cId,
+      response_type: "code",
+      scope: "openid offline_access email profile",
+      redirect_uri: `${gatewayUrl}/auth/callback`,
+      state: encodeURIComponent(state),
+    });
+    window.location.href = `${gatewayUrl}/oauth2/auth?${params.toString()}`;
+  };
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-background">
       <Card className="w-full max-w-xs text-center">
@@ -96,8 +117,14 @@ export function AutoOAuth2Login({ returnTo }: { returnTo?: string }) {
           <CardTitle className="text-base">Redirecting to login</CardTitle>
           <CardDescription>Starting secure authentication…</CardDescription>
         </CardHeader>
-        <CardContent className="flex justify-center pb-6">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <CardContent className="flex flex-col items-center gap-4 pb-6">
+          {showFallback ? (
+            <Button onClick={handleManualRedirect} className="w-full">
+              Continue to sign in
+            </Button>
+          ) : (
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          )}
         </CardContent>
       </Card>
     </div>
