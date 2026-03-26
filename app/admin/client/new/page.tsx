@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,9 +24,7 @@ export default function AdminClientCreatePage() {
   const [clientId, setClientId] = useState("iam-app");
   const [clientName, setClientName] = useState("IAM UI App");
   const [clientSecret, setClientSecret] = useState("");
-  const [redirectUris, setRedirectUris] = useState(
-    "https://gateway-sengly-branch.up.railway.app/auth/callback",
-  );
+  const [redirectUris, setRedirectUris] = useState("");
   const [scope, setScope] = useState("openid offline_access email profile");
   const [skipConsent, setSkipConsent] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -35,6 +33,22 @@ export default function AdminClientCreatePage() {
   const [result, setResult] = useState<CreateClientResponse | null>(null);
 
   const maskedSecret = "●●●●●●●●●●●●";
+
+  useEffect(() => {
+    const baseUrl =
+      process.env.NEXT_PUBLIC_APP_URL ||
+      (typeof window !== "undefined" ? window.location.origin : "");
+
+    if (!baseUrl) {
+      return;
+    }
+
+    const normalizedBaseUrl = baseUrl.endsWith("/")
+      ? baseUrl.slice(0, -1)
+      : baseUrl;
+
+    setRedirectUris(`${normalizedBaseUrl}/auth/callback`);
+  }, []);
 
   const authUrl = useMemo(() => {
     const firstRedirect = redirectUris
@@ -177,7 +191,7 @@ export default function AdminClientCreatePage() {
                 value={redirectUris}
                 onChange={(e) => setRedirectUris(e.target.value)}
                 className="w-full min-h-28 rounded-md border bg-background px-3 py-2 text-sm"
-                placeholder="https://gateway.example.com/auth/callback"
+                placeholder="https://your-domain.com/auth/callback"
               />
             </div>
 
