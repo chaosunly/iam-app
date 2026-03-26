@@ -6,6 +6,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
+function getAppBaseUrl(request: NextRequest) {
+  const configuredBaseUrl = (
+    process.env.AUTH_PUBLIC_URL ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.ORY_SDK_URL ||
+    ""
+  ).replace(/\/$/, "");
+
+  if (configuredBaseUrl) {
+    return configuredBaseUrl;
+  }
+
+  return `${request.nextUrl.protocol}//${request.nextUrl.host}`;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
@@ -13,15 +28,10 @@ export async function GET(request: NextRequest) {
     const state = searchParams.get("state");
     const error = searchParams.get("error");
 
-    // Get the gateway URL from headers (set by nginx)
-    const forwardedHost = request.headers.get("x-forwarded-host");
-    const forwardedProto = request.headers.get("x-forwarded-proto") || "https";
-    const gatewayUrl = forwardedHost
-      ? `${forwardedProto}://${forwardedHost}`
-      : `${request.nextUrl.protocol}//${request.nextUrl.host}`;
-    
-    const HYDRA_TOKEN_URL = `${gatewayUrl}/oauth2/token`;
-    const OAUTH2_REDIRECT_URI = `${gatewayUrl}/auth/callback`;
+    const appBaseUrl = getAppBaseUrl(request);
+
+    const HYDRA_TOKEN_URL = `${appBaseUrl}/oauth2/token`;
+    const OAUTH2_REDIRECT_URI = `${appBaseUrl}/auth/callback`;
     
     // Get OAuth2 credentials from environment
     const OAUTH2_CLIENT_ID = process.env.OAUTH2_CLIENT_ID;
@@ -29,18 +39,18 @@ export async function GET(request: NextRequest) {
 
     if (!OAUTH2_CLIENT_ID || !OAUTH2_CLIENT_SECRET) {
       console.error("OAuth2 credentials not configured");
-      return NextResponse.redirect(`${gatewayUrl}/auth/login?error=oauth_not_configured`);
+      return NextResponse.redirect(`${appBaseUrl}/auth/login?error=oauth_not_configured`);
     }
 
     // Check for OAuth errors
     if (error) {
       console.error("OAuth error:", error);
-      return NextResponse.redirect(`${gatewayUrl}/auth/login?error=${error}`);
+      return NextResponse.redirect(`${appBaseUrl}/auth/login?error=${error}`);
     }
 
     // Check for authorization code
     if (!code) {
-      return NextResponse.redirect(`${gatewayUrl}/auth/login?error=no_code`);
+      return NextResponse.redirect(`${appBaseUrl}/auth/login?error=no_code`);
     }
 
     // Exchange authorization code for tokens
@@ -62,7 +72,7 @@ export async function GET(request: NextRequest) {
       const errorText = await tokenResponse.text();
       console.error("Token exchange failed:", errorText);
       return NextResponse.redirect(
-        `${gatewayUrl}/auth/login?error=token_exchange_failed`
+        `${appBaseUrl}/auth/login?error=token_exchange_failed`
       );
     }
 
@@ -101,15 +111,10 @@ export async function GET(request: NextRequest) {
 
     // Redirect to the state parameter (return URL) or dashboard
     const redirectUrl = state ? decodeURIComponent(state) : "/dashboard";
-    return NextResponse.redirect(`${gatewayUrl}${redirectUrl}`);
+    return NextResponse.redirect(`${appBaseUrl}${redirectUrl}`);
   } catch (error) {
     console.error("OAuth callback error:", error);
-    // Get gateway URL for error redirect
-    const forwardedHost = request.headers.get("x-forwarded-host");
-    const forwardedProto = request.headers.get("x-forwarded-proto") || "https";
-    const gatewayUrl = forwardedHost
-      ? `${forwardedProto}://${forwardedHost}`
-      : `${request.nextUrl.protocol}//${request.nextUrl.host}`;
-    return NextResponse.redirect(`${gatewayUrl}/auth/login?error=callback_failed`);
+    const appBaseUrl = getAppBaseUrl(request);
+    return NextResponse.redirect(`${appBaseUrl}/auth/login?error=callback_failed`);
   }
 }

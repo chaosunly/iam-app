@@ -2,12 +2,24 @@
 
 import { useEffect } from "react";
 
-// Get gateway URL dynamically at runtime
-const getGatewayUrl = () => {
-  if (typeof window !== "undefined") {
-    return window.location.origin;
+const normalizeBaseUrl = (url: string) => url.replace(/\/$/, "");
+
+// Use configured auth base URL first to avoid domain drift in mixed proxy setups.
+const getAuthBaseUrl = () => {
+  const configuredUrl =
+    process.env.NEXT_PUBLIC_AUTH_BASE_URL ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.NEXT_PUBLIC_GATEWAY_URL;
+
+  if (configuredUrl) {
+    return normalizeBaseUrl(configuredUrl);
   }
-  return process.env.NEXT_PUBLIC_GATEWAY_URL || "";
+
+  if (typeof window !== "undefined") {
+    return normalizeBaseUrl(window.location.origin);
+  }
+
+  return "";
 };
 
 // Get OAuth2 client ID with fallback
@@ -17,7 +29,7 @@ const getClientId = () => {
 
 export function OAuth2LoginButton() {
   const handleLogin = () => {
-    const gatewayUrl = getGatewayUrl();
+    const authBaseUrl = getAuthBaseUrl();
     const clientId = getClientId();
     
     if (!clientId) {
@@ -33,12 +45,12 @@ export function OAuth2LoginButton() {
       client_id: clientId,
       response_type: "code",
       scope: "openid offline_access email profile",
-      redirect_uri: `${gatewayUrl}/auth/callback`,
+      redirect_uri: `${authBaseUrl}/auth/callback`,
       state: state,
     });
 
     // Redirect to Hydra
-    window.location.href = `${gatewayUrl}/oauth2/auth?${params.toString()}`;
+    window.location.href = `${authBaseUrl}/oauth2/auth?${params.toString()}`;
   };
 
   return (
@@ -53,10 +65,10 @@ export function OAuth2LoginButton() {
 
 export function AutoOAuth2Login({ returnTo }: { returnTo?: string }) {
   useEffect(() => {
-    const gatewayUrl = getGatewayUrl();
+    const authBaseUrl = getAuthBaseUrl();
     const clientId = getClientId();
     
-    console.log("[AutoOAuth2Login] Starting", { gatewayUrl, clientId, returnTo });
+    console.log("[AutoOAuth2Login] Starting", { authBaseUrl, clientId, returnTo });
     
     if (!clientId) {
       console.error("OAuth2 Client ID not configured");
@@ -71,11 +83,11 @@ export function AutoOAuth2Login({ returnTo }: { returnTo?: string }) {
       client_id: clientId,
       response_type: "code",
       scope: "openid offline_access email profile",
-      redirect_uri: `${gatewayUrl}/auth/callback`,
-      state: encodeURIComponent(state),
+      redirect_uri: `${authBaseUrl}/auth/callback`,
+      state,
     });
 
-    const authorizeUrl = `${gatewayUrl}/oauth2/auth?${params.toString()}`;
+    const authorizeUrl = `${authBaseUrl}/oauth2/auth?${params.toString()}`;
     console.log("[AutoOAuth2Login] Redirecting to:", authorizeUrl);
 
     // Auto-redirect to Hydra
