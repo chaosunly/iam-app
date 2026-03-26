@@ -2,6 +2,7 @@ import { getServerSession } from "@ory/nextjs/app";
 import { redirect } from "next/navigation";
 import { ReactNode } from "react";
 import { UserSidebar } from "@/components/layout/user-sidebar";
+import { AdminSidebar } from "@/components/layout/admin-sidebar";
 import { isGlobalAdmin } from "@/lib/services/permission.service";
 import { PageHeader } from "@/components/layout/page-header";
 import { SidebarProvider } from "@/components/layout/sidebar-context";
@@ -33,11 +34,15 @@ export default async function DashboardLayout({
   return (
     <SidebarProvider>
       <div className="flex h-screen overflow-hidden">
-        <UserSidebar
-          isAdmin={hasAdminAccess}
-          userName={userName}
-          userEmail={userEmail}
-        />
+        {hasAdminAccess ? (
+          <AdminSidebar userName={userName} userEmail={userEmail} />
+        ) : (
+          <UserSidebar
+            isAdmin={false}
+            userName={userName}
+            userEmail={userEmail}
+          />
+        )}
         <main className="flex-1 flex flex-col overflow-hidden">
           <PageHeader />
           <div className="flex-1 overflow-auto">{children}</div>

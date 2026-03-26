@@ -27,7 +27,6 @@ import { Separator } from "@/components/ui/separator";
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -61,7 +60,10 @@ type NavSection = {
 const sections: NavSection[] = [
   {
     label: "General",
-    items: [{ href: "/admin", label: "Dashboard", icon: Home }],
+    items: [
+      { href: "/admin", label: "Dashboard", icon: Home },
+      { href: "/dashboard/settings", label: "Account Settings", icon: Settings },
+    ],
   },
   {
     label: "Directory",
@@ -152,14 +154,6 @@ function UserProfileDropdown({
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuGroup>
-          <DropdownMenuItem asChild>
-            <Link href="/auth/settings" className="cursor-pointer">
-              <Settings className="h-4 w-4" />
-              Account Settings
-            </Link>
-          </DropdownMenuItem>
-        </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
           <Link
@@ -273,9 +267,7 @@ export function AdminSidebar({
   );
 
   const isActive = (href: string) => {
-    if (href === "/admin") {
-      return pathname === "/admin";
-    }
+    if (href === "/admin") return pathname === "/admin";
     return pathname.startsWith(href);
   };
 
