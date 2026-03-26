@@ -5,6 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "@ory/nextjs/app";
 
 const HYDRA_ADMIN_URL = process.env.HYDRA_ADMIN_URL || "http://hydra.railway.internal:4445";
 
@@ -36,6 +37,36 @@ export async function GET(request: NextRequest) {
 
     const consentRequest = await consentResponse.json();
 
+    const session = await getServerSession();
+    const identity = session?.identity as
+      | {
+          traits?: {
+            email?: string;
+            username?: string;
+            name?: {
+              first?: string;
+              last?: string;
+            };
+          };
+        }
+      | undefined;
+
+    const email = identity?.traits?.email;
+    const username =
+      identity?.traits?.username ||
+      identity?.traits?.name?.first ||
+      (email ? email.split("@")[0] : undefined);
+
+    const idTokenClaims: Record<string, unknown> = {};
+    if (email) {
+      idTokenClaims.email = email;
+      idTokenClaims.email_verified = true;
+    }
+    if (username) {
+      idTokenClaims.username = username;
+      idTokenClaims.preferred_username = username;
+    }
+
     // Auto-accept consent with requested scopes
     const acceptResponse = await fetch(
       `${HYDRA_ADMIN_URL}/admin/oauth2/auth/requests/consent/accept?consent_challenge=${consent_challenge}`,
@@ -50,7 +81,7 @@ export async function GET(request: NextRequest) {
           remember: true,
           remember_for: 3600,
           session: {
-            id_token: consentRequest.subject ? {} : undefined,
+            id_token: consentRequest.subject ? idTokenClaims : undefined,
           },
         }),
       }

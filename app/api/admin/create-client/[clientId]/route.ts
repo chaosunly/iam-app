@@ -149,6 +149,7 @@ export async function PUT(
     const { clientId } = await params;
     const decodedClientId = decodeURIComponent(clientId);
     const body = (await request.json()) as UpdateClientPayload;
+    const rotatedSecret = body.client_secret?.trim();
 
     const hydraAdminUrl = getHydraAdminUrl();
 
@@ -163,6 +164,7 @@ export async function PUT(
       scope: (body.scope || "openid offline_access email profile").trim(),
       token_endpoint_auth_method: body.token_endpoint_auth_method || "client_secret_post",
       skip_consent: body.skip_consent ?? true,
+      ...(rotatedSecret ? { client_secret: rotatedSecret } : {}),
     };
 
     const hydraResponse = await fetch(
@@ -192,38 +194,6 @@ export async function PUT(
         },
         { status: hydraResponse.status },
       );
-    }
-
-    const rotatedSecret = body.client_secret?.trim();
-    if (rotatedSecret) {
-      const rotateResponse = await fetch(
-        `${hydraAdminUrl}/admin/clients/${encodeURIComponent(decodedClientId)}/rotate-secret`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ client_secret: rotatedSecret }),
-        },
-      );
-
-      if (!rotateResponse.ok) {
-        const rotateText = await rotateResponse.text();
-        let rotateJson: unknown = null;
-        try {
-          rotateJson = rotateText ? JSON.parse(rotateText) : null;
-        } catch {
-          rotateJson = { raw: rotateText };
-        }
-
-        return NextResponse.json(
-          {
-            error: "Client updated but failed to rotate secret",
-            details: rotateJson,
-          },
-          { status: rotateResponse.status },
-        );
-      }
     }
 
     return NextResponse.json({
