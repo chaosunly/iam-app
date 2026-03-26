@@ -9,6 +9,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Check, Mail, Users, Settings, Lock, Info } from "lucide-react";
 
 export default async function DashboardPage() {
+  const elementServiceUrl =
+    process.env.NEXT_PUBLIC_ELEMENT_URL ||
+    process.env.ELEMENT_URL ||
+    "https://element-web-sengly-branch.up.railway.app/";
+
   // Get Kratos session (includes OIDC provider logins like SimpleLogin)
   const session = await getServerSession();
 
@@ -258,7 +263,7 @@ export default async function DashboardPage() {
 
               {/* Element */}
               <a
-                href="https://app.element.io"
+                href={elementServiceUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex flex-col items-center gap-3 p-4 rounded-lg border hover:bg-accent transition-colors group"
