@@ -8,6 +8,7 @@ import { getServerSession } from "@ory/nextjs/app";
 const HYDRA_ADMIN_URL = process.env.HYDRA_ADMIN_URL || "http://hydra.railway.internal:4445";
 const NGINX_URL = process.env.NGINX_URL || "https://nginx-sengly-branch.up.railway.app";
 const ELEMENT_PUBLIC_URL = process.env.NEXT_PUBLIC_ELEMENT_URL || "";
+const DEFAULT_NGINX_HOST = "nginx-sengly-branch.up.railway.app";
 const MAS_CLIENT_IDS = (process.env.MAS_CLIENT_IDS || "mas-client")
   .split(",")
   .map((id) => id.trim())
@@ -30,10 +31,10 @@ function getMasRedirectBase(currentHost: string): string {
 
   // Last-resort safety valve for environments where only gateway host is known.
   if (currentHost.includes("gateway")) {
-    return `https://${currentHost.replace("gateway", "nginx")}`;
+    return `https://${DEFAULT_NGINX_HOST}`;
   }
 
-  return "https://nginx-sengly-branch.up.railway.app";
+  return `https://${DEFAULT_NGINX_HOST}`;
 }
 
 export async function GET(request: NextRequest) {
@@ -92,6 +93,28 @@ export async function GET(request: NextRequest) {
 
     if (MAS_CLIENT_IDS.includes(clientId) && !isNginxHost) {
       const masRedirectBase = getMasRedirectBase(currentHost);
+      const masRedirectHost = (() => {
+        try {
+          return new URL(masRedirectBase).hostname;
+        } catch {
+          return "";
+        }
+      })();
+
+      // Absolute safety: never redirect /login on gateway back to gateway host.
+      if (!masRedirectHost || masRedirectHost === currentHost) {
+        const forced = `https://${DEFAULT_NGINX_HOST}`;
+        console.warn("/api/oauth2/login forcing nginx redirect host", {
+          clientId,
+          currentHost,
+          masRedirectBase,
+          forced,
+        });
+        return NextResponse.redirect(
+          `${forced}/login?login_challenge=${login_challenge}`
+        );
+      }
+
       console.info("/api/oauth2/login → MAS redirect", { 
         clientId,
         currentHost,
