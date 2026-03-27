@@ -62,8 +62,19 @@ export async function GET(request: NextRequest) {
     console.info("/api/oauth2/login client check", { clientId, MAS_CLIENT_IDS });
 
     // If this is a MAS client login → redirect to MAS/nginx to handle it
-    if (MAS_CLIENT_IDS.includes(clientId)) {
-      console.info("/api/oauth2/login redirecting to MAS", { clientId });
+    // BUT: check if we're already coming from nginx to prevent redirect loops
+    const referrer = request.headers.get("referer") || "";
+    const xForwardedHost = request.headers.get("x-forwarded-host") || "";
+    const isFromNginx = referrer.includes("nginx") || 
+                        xForwardedHost.includes("nginx") ||
+                        request.nextUrl.hostname?.includes("nginx");
+    
+    if (MAS_CLIENT_IDS.includes(clientId) && !isFromNginx) {
+      console.info("/api/oauth2/login → MAS redirect", { 
+        clientId,
+        referrer,
+        redirectTo: `${NGINX_URL}/login`,
+      });
       return NextResponse.redirect(
         `${NGINX_URL}/login?login_challenge=${login_challenge}`
       );
