@@ -2,11 +2,12 @@
  * OAuth2 Login Handler
  * Hydra redirects here when user needs to authenticate.
  */
-
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "@ory/nextjs/app";
 
 const HYDRA_ADMIN_URL = process.env.HYDRA_ADMIN_URL || "http://hydra.railway.internal:4445";
+const NGINX_URL = process.env.NGINX_URL || "https://nginx-sengly-branch.up.railway.app";
+const MAS_CLIENT_IDS = (process.env.MAS_CLIENT_IDS || "mas-client").split(",");
 
 export async function GET(request: NextRequest) {
   try {
@@ -39,6 +40,35 @@ export async function GET(request: NextRequest) {
       return res;
     }
 
+    // -------------------------------------------------------
+    // Check which client initiated this login request
+    // -------------------------------------------------------
+    const loginRequestRes = await fetch(
+      `${HYDRA_ADMIN_URL}/admin/oauth2/auth/requests/login?login_challenge=${login_challenge}`
+    );
+
+    if (!loginRequestRes.ok) {
+      const errorText = await loginRequestRes.text();
+      console.error("Failed to fetch login request:", errorText);
+      return NextResponse.json({ error: "Failed to fetch login request" }, { status: 500 });
+    }
+
+    const loginRequest = await loginRequestRes.json();
+    const clientId = loginRequest.client?.client_id;
+
+    console.info("/api/oauth2/login client check", { clientId, MAS_CLIENT_IDS });
+
+    // If this is a MAS client login → redirect to MAS/nginx to handle it
+    if (MAS_CLIENT_IDS.includes(clientId)) {
+      console.info("/api/oauth2/login redirecting to MAS", { clientId });
+      return NextResponse.redirect(
+        `${NGINX_URL}/login?login_challenge=${login_challenge}`
+      );
+    }
+
+    // -------------------------------------------------------
+    // IAM app flow — handle with Kratos session as normal
+    // -------------------------------------------------------
     const session = await getServerSession();
 
     if (session?.identity) {
@@ -68,10 +98,7 @@ export async function GET(request: NextRequest) {
       return response;
     }
 
-    // No Kratos session: store challenge and send to Kratos login.
-    // Use NEXT_PUBLIC_APP_URL so the return_to always uses the correct public HTTPS URL.
-    // Reconstructing from x-forwarded-proto is unreliable because Oathkeeper proxies
-    // to the UI over HTTP internally, which can cause the header to arrive as "http".
+    // No Kratos session: store challenge and send to Kratos login
     const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/$/, "");
     const returnToUrl = `${appUrl}/api/oauth2/login?login_challenge=${login_challenge}`;
 
@@ -80,14 +107,12 @@ export async function GET(request: NextRequest) {
     const response = NextResponse.redirect(
       `${appUrl}/.ory/self-service/login/browser?return_to=${encodeURIComponent(returnToUrl)}`
     );
-
     response.cookies.set("oauth2_login_challenge", login_challenge, {
       httpOnly: true,
       secure: true,
-      sameSite: "none", // allow cross-site redirects back from SimpleLogin
+      sameSite: "none",
       maxAge: 600,
       path: "/",
-      // No explicit domain to stick to current host; avoids mismatch
     });
 
     console.info("/api/oauth2/login set cookie", {
@@ -102,3 +127,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
+```
+
+## What changed
+
+Just one block added after the `login_challenge` check — it fetches the login request from Hydra to check `client_id`, then if it's a MAS client it redirects to `nginx/login` instead of going through Kratos.
+
+## Add these env vars to your gateway Railway service
+```
+NGINX_URL=https://nginx-sengly-branch.up.railway.app
+MAS_CLIENT_IDS=mas-client
