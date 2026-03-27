@@ -1,23 +1,27 @@
 /**
  * Matrix Provision Service
  *
- * Orchestrates eager Matrix provisioning triggered by IAM events:
+ * Two-phase provisioning:
  *
- *   IAM Event                        → Action
+ *   Phase 1 — DB provisioning (always runs, no Synapse needed):
+ *     Creates MatrixOrg, MatrixSpace, MatrixRoom, MatrixAccount records
+ *     with matrixId = null. Triggered by IAM events.
+ *
+ *   Phase 2 — Homeserver sync (runs when Synapse is configured):
+ *     Reads from Matrix DB tables, creates actual rooms/spaces/accounts
+ *     on Synapse, and backfills the matrixId fields.
+ *
+ *   IAM Event                        → Phase 1 Action
  *   ──────────────────────────────────────────────────────────
- *   Identity first login / provision → provisionMatrixAccount
- *   Org created                      → bootstrapMatrixOrg
- *   Group created                    → bootstrapGroupRoom
- *   Member added to group            → syncGroupRoomJoin
- *   Member removed from group        → syncGroupRoomLeave
+ *   Identity first login / provision → provisionMatrixAccountDb
+ *   Org created                      → bootstrapMatrixOrgDb
+ *   Group created                    → bootstrapGroupRoomDb
+ *   Member added to group            → syncGroupRoomJoin (Phase 2 only)
+ *   Member removed from group        → syncGroupRoomLeave (Phase 2 only)
  *
- * All public functions have a `background*` fire-and-forget variant that
- * catches + logs errors and never throws. Use those from API route handlers.
- *
- * Feature flag: MATRIX_PROVISION_ENABLED=true
- * Required env vars (when enabled):
- *   MATRIX_HOMESERVER_URL, MATRIX_ADMIN_TOKEN, MATRIX_SERVER_NAME,
- *   MATRIX_DEFAULT_PASSWORD
+ * Feature flag: MATRIX_PROVISION_ENABLED=true (enables DB provisioning)
+ * Homeserver sync requires: MATRIX_HOMESERVER_URL, MATRIX_ADMIN_TOKEN,
+ *   MATRIX_SERVER_NAME, MATRIX_DEFAULT_PASSWORD
  */
 
 import { prisma } from "@/lib/db";
@@ -25,7 +29,7 @@ import { logAudit } from "./audit.service";
 import {
   registerMatrixUser,
   toMatrixUserId,
-  createMatrixRoom,
+  createMatrixRoom as createMatrixRoomOnHomeserver,
   addRoomToSpace,
   adminJoinRoom,
   kickFromRoom,
@@ -34,10 +38,18 @@ import {
 import { grantPermission } from "./keto.service";
 import { assignMatrixRole } from "./matrix.service";
 
-// ── Feature flag ──────────────────────────────────────────────────────────────
+// ── Feature flags ────────────────────────────────────────────────────────────
 
 function isEnabled(): boolean {
   return process.env.MATRIX_PROVISION_ENABLED === "true";
+}
+
+function isHomeserverConfigured(): boolean {
+  return !!(
+    process.env.MATRIX_HOMESERVER_URL &&
+    process.env.MATRIX_ADMIN_TOKEN &&
+    process.env.MATRIX_SERVER_NAME
+  );
 }
 
 function serverName(): string {
@@ -60,61 +72,44 @@ const ROLE_TO_POWER_LEVEL: Record<string, number> = {
   viewer: 0,
 };
 
-// ── Account provisioning ──────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+// Phase 1 — DB provisioning (no Synapse needed)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ── Account DB provisioning ──────────────────────────────────────────────────
 
 /**
- * Creates a Matrix account for an IAM identity if one does not already exist.
- * Idempotent — safe to call multiple times for the same user.
+ * Creates a MatrixAccount DB record for an IAM identity (matrixUserId left
+ * as a placeholder). Idempotent.
  */
-export async function provisionMatrixAccount(
+export async function provisionMatrixAccountDb(
   iamUserId: string,
-  displayName: string,
-): Promise<{ matrixUserId: string }> {
+): Promise<void> {
   const existing = await prisma.matrixAccount.findUnique({
     where: { iamUserId },
   });
-  if (existing) return { matrixUserId: existing.matrixUserId };
+  if (existing) return;
 
-  const matrixUserId = toMatrixUserId(iamUserId, serverName());
-
-  await registerMatrixUser(iamUserId, displayName, defaultPassword());
+  // Use a placeholder matrixUserId — backfilled when homeserver syncs
+  const placeholderMatrixUserId = `@iam-${iamUserId}:pending`;
 
   await prisma.matrixAccount.create({
-    data: { iamUserId, matrixUserId, homeserver: serverName() },
-  });
-
-  await logAudit({
-    userId: "system",
-    action: "matrix_account_created",
-    resource: `MatrixAccount:${iamUserId}`,
-    result: "granted",
-    metadata: { matrixUserId },
-  });
-
-  return { matrixUserId };
-}
-
-export function backgroundProvisionMatrixAccount(
-  iamUserId: string,
-  displayName: string,
-): void {
-  if (!isEnabled()) return;
-  provisionMatrixAccount(iamUserId, displayName).catch((err) => {
-    console.error("[MatrixProvision] Account provision failed:", iamUserId, err);
+    data: {
+      iamUserId,
+      matrixUserId: placeholderMatrixUserId,
+      homeserver: "pending",
+    },
   });
 }
 
-// ── Org bootstrap ─────────────────────────────────────────────────────────────
+// ── Org DB bootstrap ─────────────────────────────────────────────────────────
 
 /**
- * When an IAM Org is created, bootstraps:
- *   1. A MatrixOrg record linked to the IAM org
- *   2. A default "General" MatrixSpace on the homeserver
- *   3. A #general MatrixRoom inside that space
- *
- * Idempotent — checks for an existing MatrixOrg with iamOrgId before creating.
+ * Creates MatrixOrg + default MatrixSpace + #general MatrixRoom DB records.
+ * No homeserver calls — matrixId fields are null.
+ * Idempotent — checks for existing MatrixOrg with iamOrgId.
  */
-export async function bootstrapMatrixOrg(
+export async function bootstrapMatrixOrgDb(
   iamOrgId: string,
   orgName: string,
 ): Promise<void> {
@@ -126,24 +121,15 @@ export async function bootstrapMatrixOrg(
     data: {
       name: orgName,
       description: `Matrix org for IAM org: ${orgName}`,
-      homeserver: serverName(),
       iamOrgId,
     },
   });
 
-  // 2. Create the default space on the homeserver
-  const spaceMatrixId = await createMatrixRoom({
-    name: orgName,
-    topic: `Main space for ${orgName}`,
-    isSpace: true,
-  });
-
-  // 3. Create space record
+  // 2. Create default space record (matrixId = null)
   const matrixSpace = await prisma.matrixSpace.create({
     data: {
       name: "General",
       description: `Default space for ${orgName}`,
-      matrixId: spaceMatrixId,
       orgId: matrixOrg.id,
     },
   });
@@ -156,21 +142,11 @@ export async function bootstrapMatrixOrg(
     subject: `MatrixOrg:${matrixOrg.id}`,
   });
 
-  // 4. Create #general room on the homeserver
-  const roomMatrixId = await createMatrixRoom({
-    name: `${orgName} — General`,
-    topic: `General discussion for all ${orgName} members`,
-  });
-
-  // Add room to space on the homeserver
-  await addRoomToSpace(spaceMatrixId, roomMatrixId);
-
-  // 5. Create room record
+  // 3. Create #general room record (matrixId = null)
   const matrixRoom = await prisma.matrixRoom.create({
     data: {
       name: "general",
       description: `General discussion for ${orgName}`,
-      matrixId: roomMatrixId,
       roomType: "general",
       spaceId: matrixSpace.id,
     },
@@ -186,32 +162,21 @@ export async function bootstrapMatrixOrg(
 
   await logAudit({
     userId: "system",
-    action: "matrix_org_bootstrapped",
+    action: "matrix_org_db_provisioned",
     resource: `MatrixOrg:${matrixOrg.id}`,
     result: "granted",
-    metadata: { iamOrgId, spaceMatrixId, roomMatrixId },
+    metadata: { iamOrgId },
   });
 }
 
-export function backgroundBootstrapMatrixOrg(
-  iamOrgId: string,
-  orgName: string,
-): void {
-  if (!isEnabled()) return;
-  bootstrapMatrixOrg(iamOrgId, orgName).catch((err) => {
-    console.error("[MatrixProvision] Org bootstrap failed:", iamOrgId, err);
-  });
-}
-
-// ── Group room provisioning ───────────────────────────────────────────────────
+// ── Group room DB provisioning ───────────────────────────────────────────────
 
 /**
- * When an IAM Group is created, creates a corresponding MatrixRoom in the
- * org's default (earliest) space and links it via iamGroupId.
- *
+ * Creates a MatrixRoom DB record linked to an IAM group.
+ * No homeserver calls — matrixId is null.
  * Idempotent — no-ops if a room linked to iamGroupId already exists.
  */
-export async function bootstrapGroupRoom(
+export async function bootstrapGroupRoomDb(
   iamGroupId: string,
   groupName: string,
   iamOrgId: string,
@@ -219,11 +184,11 @@ export async function bootstrapGroupRoom(
   const existing = await prisma.matrixRoom.findFirst({ where: { iamGroupId } });
   if (existing) return;
 
-  // Find the org's default space (earliest created)
+  // Find the org's default space
   const matrixOrg = await prisma.matrixOrg.findFirst({ where: { iamOrgId } });
   if (!matrixOrg) {
     console.warn(
-      `[MatrixProvision] No MatrixOrg for iamOrgId=${iamOrgId} — skipping group room bootstrap`,
+      `[MatrixProvision] No MatrixOrg for iamOrgId=${iamOrgId} — skipping group room DB bootstrap`,
     );
     return;
   }
@@ -234,25 +199,16 @@ export async function bootstrapGroupRoom(
   });
   if (!space) {
     console.warn(
-      `[MatrixProvision] No MatrixSpace for org ${matrixOrg.id} — skipping group room bootstrap`,
+      `[MatrixProvision] No MatrixSpace for org ${matrixOrg.id} — skipping group room DB bootstrap`,
     );
     return;
   }
 
-  // Create room on homeserver
-  const roomMatrixId = await createMatrixRoom({ name: groupName });
-
-  // Add to space on homeserver (best-effort — space may not have matrixId yet)
-  if (space.matrixId) {
-    await addRoomToSpace(space.matrixId, roomMatrixId);
-  }
-
-  // Create room record
+  // Create room record (matrixId = null)
   const matrixRoom = await prisma.matrixRoom.create({
     data: {
       name: groupName,
       description: `Chat room for ${groupName} group`,
-      matrixId: roomMatrixId,
       roomType: "group",
       iamGroupId,
       spaceId: space.id,
@@ -268,29 +224,228 @@ export async function bootstrapGroupRoom(
   });
 }
 
+// ── Background wrappers (fire-and-forget from route handlers) ────────────────
+
+export function backgroundBootstrapMatrixOrg(
+  iamOrgId: string,
+  orgName: string,
+): void {
+  if (!isEnabled()) return;
+  bootstrapMatrixOrgDb(iamOrgId, orgName).catch((err) => {
+    console.error("[MatrixProvision] Org DB bootstrap failed:", iamOrgId, err);
+  });
+}
+
 export function backgroundBootstrapGroupRoom(
   iamGroupId: string,
   groupName: string,
   iamOrgId: string,
 ): void {
   if (!isEnabled()) return;
-  bootstrapGroupRoom(iamGroupId, groupName, iamOrgId).catch((err) => {
-    console.error("[MatrixProvision] Group room bootstrap failed:", iamGroupId, err);
+  bootstrapGroupRoomDb(iamGroupId, groupName, iamOrgId).catch((err) => {
+    console.error("[MatrixProvision] Group room DB bootstrap failed:", iamGroupId, err);
   });
 }
 
-// ── Group membership sync ─────────────────────────────────────────────────────
+export function backgroundProvisionMatrixAccount(
+  iamUserId: string,
+  _displayName: string,
+): void {
+  if (!isEnabled()) return;
+  provisionMatrixAccountDb(iamUserId).catch((err) => {
+    console.error("[MatrixProvision] Account DB provision failed:", iamUserId, err);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Phase 2 — Homeserver sync (reads from Matrix tables, needs Synapse)
+// ═══════════════════════════════════════════════════════════════════════════════
 
 /**
- * Joins a user to the Matrix room for an IAM group and sets their power level.
- * Called after a member is added to an IAM Group.
+ * Syncs all Matrix DB records that have matrixId = null to the Synapse
+ * homeserver, then backfills the matrixId.
+ *
+ * Processes: MatrixOrg spaces, MatrixRooms, MatrixAccounts.
+ * Requires MATRIX_HOMESERVER_URL, MATRIX_ADMIN_TOKEN, MATRIX_SERVER_NAME.
  */
+export async function syncToHomeserver(): Promise<{
+  spaces: { synced: number; skipped: number; failed: string[] };
+  rooms: { synced: number; skipped: number; failed: string[] };
+  accounts: { synced: number; skipped: number; failed: string[] };
+}> {
+  const result = {
+    spaces: { synced: 0, skipped: 0, failed: [] as string[] },
+    rooms: { synced: 0, skipped: 0, failed: [] as string[] },
+    accounts: { synced: 0, skipped: 0, failed: [] as string[] },
+  };
+
+  // ── 1. Sync spaces (matrixId = null) ───────────────────────────────────────
+
+  const pendingSpaces = await prisma.matrixSpace.findMany({
+    where: { matrixId: null },
+    include: { org: true },
+  });
+
+  for (const space of pendingSpaces) {
+    try {
+      const orgName = space.org?.name ?? space.name;
+      const spaceMatrixId = await createMatrixRoomOnHomeserver({
+        name: orgName,
+        topic: `Main space for ${orgName}`,
+        isSpace: true,
+      });
+
+      await prisma.matrixSpace.update({
+        where: { id: space.id },
+        data: { matrixId: spaceMatrixId },
+      });
+
+      // Backfill homeserver on the org if missing
+      if (space.org && !space.org.homeserver) {
+        await prisma.matrixOrg.update({
+          where: { id: space.org.id },
+          data: { homeserver: serverName() },
+        });
+      }
+
+      result.spaces.synced++;
+    } catch (err) {
+      console.error(`[MatrixSync] Space homeserver sync failed: ${space.id}`, err);
+      result.spaces.failed.push(space.id);
+    }
+  }
+
+  // ── 2. Sync rooms (matrixId = null) ────────────────────────────────────────
+
+  const pendingRooms = await prisma.matrixRoom.findMany({
+    where: { matrixId: null },
+    include: { space: true },
+  });
+
+  for (const room of pendingRooms) {
+    try {
+      const roomMatrixId = await createMatrixRoomOnHomeserver({
+        name: room.name,
+        topic: room.description ?? undefined,
+      });
+
+      // Add to space on homeserver if space has a matrixId
+      if (room.space?.matrixId) {
+        await addRoomToSpace(room.space.matrixId, roomMatrixId).catch((err) => {
+          console.warn(`[MatrixSync] addRoomToSpace best-effort failed for room ${room.id}:`, err);
+        });
+      }
+
+      await prisma.matrixRoom.update({
+        where: { id: room.id },
+        data: { matrixId: roomMatrixId },
+      });
+
+      result.rooms.synced++;
+    } catch (err) {
+      console.error(`[MatrixSync] Room homeserver sync failed: ${room.id}`, err);
+      result.rooms.failed.push(room.id);
+    }
+  }
+
+  // ── 3. Sync accounts (homeserver = "pending") ─────────────────────────────
+
+  const pendingAccounts = await prisma.matrixAccount.findMany({
+    where: { homeserver: "pending" },
+  });
+
+  for (const account of pendingAccounts) {
+    try {
+      const matrixUserId = toMatrixUserId(account.iamUserId, serverName());
+
+      await registerMatrixUser(account.iamUserId, account.iamUserId, defaultPassword());
+
+      await prisma.matrixAccount.update({
+        where: { id: account.id },
+        data: { matrixUserId, homeserver: serverName() },
+      });
+
+      result.accounts.synced++;
+    } catch (err) {
+      console.error(`[MatrixSync] Account homeserver sync failed: ${account.iamUserId}`, err);
+      result.accounts.failed.push(account.iamUserId);
+    }
+  }
+
+  return result;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Legacy exports — kept for callers that need the combined flow
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Full bootstrap: DB + homeserver (only when Synapse is configured).
+ * Used by the sync route when homeserver is available.
+ */
+export async function bootstrapMatrixOrg(
+  iamOrgId: string,
+  orgName: string,
+): Promise<void> {
+  await bootstrapMatrixOrgDb(iamOrgId, orgName);
+  if (isHomeserverConfigured()) {
+    await syncToHomeserver();
+  }
+}
+
+export async function bootstrapGroupRoom(
+  iamGroupId: string,
+  groupName: string,
+  iamOrgId: string,
+): Promise<void> {
+  await bootstrapGroupRoomDb(iamGroupId, groupName, iamOrgId);
+  if (isHomeserverConfigured()) {
+    await syncToHomeserver();
+  }
+}
+
+export async function provisionMatrixAccount(
+  iamUserId: string,
+  displayName: string,
+): Promise<{ matrixUserId: string }> {
+  const existing = await prisma.matrixAccount.findUnique({
+    where: { iamUserId },
+  });
+  if (existing && existing.homeserver !== "pending") {
+    return { matrixUserId: existing.matrixUserId };
+  }
+
+  await provisionMatrixAccountDb(iamUserId);
+
+  if (isHomeserverConfigured()) {
+    const matrixUserId = toMatrixUserId(iamUserId, serverName());
+    await registerMatrixUser(iamUserId, displayName, defaultPassword());
+    await prisma.matrixAccount.update({
+      where: { iamUserId },
+      data: { matrixUserId, homeserver: serverName() },
+    });
+
+    await logAudit({
+      userId: "system",
+      action: "matrix_account_created",
+      resource: `MatrixAccount:${iamUserId}`,
+      result: "granted",
+      metadata: { matrixUserId },
+    });
+
+    return { matrixUserId };
+  }
+
+  return { matrixUserId: `@iam-${iamUserId}:pending` };
+}
+
+// ── Group membership sync (Phase 2 only — needs homeserver) ──────────────────
+
 export async function syncGroupRoomJoin(
   iamGroupId: string,
   iamUserId: string,
   role: "member" | "moderator" | "matrix_admin" = "member",
 ): Promise<void> {
-  // Use findFirst — iamGroupId is nullable in schema, findUnique rejects undefined
   const [room, account] = await Promise.all([
     prisma.matrixRoom.findFirst({ where: { iamGroupId } }),
     prisma.matrixAccount.findUnique({ where: { iamUserId } }),
@@ -302,9 +457,9 @@ export async function syncGroupRoomJoin(
     );
     return;
   }
-  if (!account) {
+  if (!account || account.homeserver === "pending") {
     console.warn(
-      `[MatrixProvision] No MatrixAccount for user ${iamUserId} — skipping join`,
+      `[MatrixProvision] No synced MatrixAccount for user ${iamUserId} — skipping join`,
     );
     return;
   }
@@ -316,7 +471,6 @@ export async function syncGroupRoomJoin(
     ROLE_TO_POWER_LEVEL[role] ?? 0,
   );
 
-  // Sync Keto role — ignore ConflictError if already assigned
   await assignMatrixRole({
     userId: iamUserId,
     resourceType: "room",
@@ -336,10 +490,6 @@ export function backgroundSyncGroupRoomJoin(
   });
 }
 
-/**
- * Kicks a user from the Matrix room for an IAM group.
- * Called after a member is removed from an IAM Group.
- */
 export async function syncGroupRoomLeave(
   iamGroupId: string,
   iamUserId: string,
@@ -349,7 +499,7 @@ export async function syncGroupRoomLeave(
     prisma.matrixAccount.findUnique({ where: { iamUserId } }),
   ]);
 
-  if (!room?.matrixId || !account) return;
+  if (!room?.matrixId || !account || account.homeserver === "pending") return;
 
   await kickFromRoom(room.matrixId, account.matrixUserId);
 }
