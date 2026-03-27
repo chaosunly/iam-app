@@ -7,7 +7,10 @@ import { getServerSession } from "@ory/nextjs/app";
 
 const HYDRA_ADMIN_URL = process.env.HYDRA_ADMIN_URL || "http://hydra.railway.internal:4445";
 const NGINX_URL = process.env.NGINX_URL || "https://nginx-sengly-branch.up.railway.app";
-const MAS_CLIENT_IDS = (process.env.MAS_CLIENT_IDS || "mas-client").split(",");
+const MAS_CLIENT_IDS = (process.env.MAS_CLIENT_IDS || "mas-client")
+  .split(",")
+  .map((id) => id.trim())
+  .filter(Boolean);
 
 export async function GET(request: NextRequest) {
   try {
@@ -99,7 +102,10 @@ export async function GET(request: NextRequest) {
     }
 
     // No Kratos session: store challenge and send to Kratos login
-    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/$/, "");
+    const configuredAppUrl = (
+      process.env.AUTH_PUBLIC_URL || process.env.NEXT_PUBLIC_APP_URL || ""
+    ).replace(/\/$/, "");
+    const appUrl = configuredAppUrl || request.nextUrl.origin;
     const returnToUrl = `${appUrl}/api/oauth2/login?login_challenge=${login_challenge}`;
 
     console.info("/api/oauth2/login redirecting to Kratos", { appUrl, returnToUrl });
