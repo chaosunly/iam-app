@@ -127,13 +127,3 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
-```
-
-## What changed
-
-Just one block added after the `login_challenge` check — it fetches the login request from Hydra to check `client_id`, then if it's a MAS client it redirects to `nginx/login` instead of going through Kratos.
-
-## Add these env vars to your gateway Railway service
-```
-NGINX_URL=https://nginx-sengly-branch.up.railway.app
-MAS_CLIENT_IDS=mas-client
