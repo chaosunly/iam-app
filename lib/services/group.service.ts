@@ -329,6 +329,18 @@ export async function getGroupMembers(groupId: string): Promise<string[]> {
   }
 }
 
+export async function getGroupAdmins(groupId: string): Promise<string[]> {
+  try {
+    const relationships = await listObjectPermissions("Group", groupId);
+    return relationships
+      .filter((rel) => rel.relation === "admins")
+      .map((rel) => rel.subject);
+  } catch (error) {
+    console.error("Error fetching group admins:", error);
+    return [];
+  }
+}
+
 /**
  * Get all groups a user belongs to
  */

@@ -4,7 +4,7 @@ import { isGlobalAdmin } from "@/lib/services/permission.service";
 import { logAudit } from "@/lib/services/audit.service";
 import { prisma } from "@/lib/db";
 import { getDefaultOrganizationId } from "@/lib/services/organization.service";
-import { getGroupMembers } from "@/lib/services/group.service";
+import { getGroupMembers, getGroupAdmins } from "@/lib/services/group.service";
 import {
   bootstrapMatrixOrgDb,
   bootstrapGroupRoomDb,
@@ -107,15 +107,25 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // 1c. Sync group members → MatrixAccount (DB only)
+      // 1c. Sync group members + admins → MatrixAccount (DB only)
       const allMemberIds = new Set<string>();
-      const groupMemberships: { groupId: string; memberIds: string[] }[] = [];
+      const groupMemberships: {
+        groupId: string;
+        members: { userId: string; role: "member" | "moderator" }[];
+      }[] = [];
 
       for (const group of groups) {
         try {
-          const memberIds = await getGroupMembers(group.id);
-          groupMemberships.push({ groupId: group.id, memberIds });
-          for (const id of memberIds) allMemberIds.add(id);
+          const [memberIds, adminIds] = await Promise.all([
+            getGroupMembers(group.id),
+            getGroupAdmins(group.id),
+          ]);
+          const members = [
+            ...memberIds.map((userId) => ({ userId, role: "member" as const })),
+            ...adminIds.map((userId) => ({ userId, role: "moderator" as const })),
+          ];
+          groupMemberships.push({ groupId: group.id, members });
+          for (const { userId } of members) allMemberIds.add(userId);
         } catch (err) {
           console.error(`[MatrixSync] Failed to list members for group ${group.id}`, err);
         }
@@ -140,7 +150,6 @@ export async function POST(request: NextRequest) {
 
       response.db = dbResult;
 
-      // Store groupMemberships for phase=all membership sync
       if (phase === "all") {
         (response as any)._groupMemberships = groupMemberships;
       }
@@ -167,12 +176,12 @@ export async function POST(request: NextRequest) {
         if (phase === "all") {
           const memberships = { synced: 0, skipped: 0, failed: [] as string[] };
           const groupMemberships = (response as any)._groupMemberships as
-            | { groupId: string; memberIds: string[] }[]
+            | { groupId: string; members: { userId: string; role: "member" | "moderator" }[] }[]
             | undefined;
 
           if (groupMemberships) {
-            for (const { groupId, memberIds } of groupMemberships) {
-              for (const userId of memberIds) {
+            for (const { groupId, members } of groupMemberships) {
+              for (const { userId, role } of members) {
                 try {
                   const [room, account] = await Promise.all([
                     prisma.matrixRoom.findFirst({ where: { iamGroupId: groupId } }),
@@ -184,7 +193,7 @@ export async function POST(request: NextRequest) {
                     continue;
                   }
 
-                  await syncGroupRoomJoin(groupId, userId, "member");
+                  await syncGroupRoomJoin(groupId, userId, role);
                   memberships.synced++;
                 } catch (err) {
                   console.error(`[MatrixSync] Membership failed: ${groupId}/${userId}`, err);
