@@ -5,6 +5,7 @@ import { logAudit } from "@/lib/services/audit.service";
 import { prisma } from "@/lib/db";
 import { getDefaultOrganizationId } from "@/lib/services/organization.service";
 import { getGroupMembers, getGroupAdmins } from "@/lib/services/group.service";
+import { listIdentities } from "@/lib/services/kratos.service";
 import {
   bootstrapMatrixOrgDb,
   bootstrapGroupRoomDb,
@@ -107,8 +108,32 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // 1c. Sync group members + admins → MatrixAccount (DB only)
-      const allMemberIds = new Set<string>();
+      // 1c. Provision MatrixAccount for every Kratos identity
+      let allIdentities: { id: string }[] = [];
+      try {
+        allIdentities = await listIdentities(0, 1000);
+      } catch (err) {
+        console.error("[MatrixSync] Failed to list Kratos identities", err);
+      }
+
+      for (const identity of allIdentities) {
+        try {
+          const existing = await prisma.matrixAccount.findUnique({
+            where: { iamUserId: identity.id },
+          });
+          if (existing) {
+            dbResult.accounts.skipped++;
+            continue;
+          }
+          await provisionMatrixAccountDb(identity.id);
+          dbResult.accounts.synced++;
+        } catch (err) {
+          console.error(`[MatrixSync] Account DB failed: ${identity.id}`, err);
+          dbResult.accounts.failed.push(identity.id);
+        }
+      }
+
+      // 1d. Collect group members + admins for membership sync (phase=all)
       const groupMemberships: {
         groupId: string;
         members: { userId: string; role: "member" | "moderator" }[];
@@ -125,26 +150,8 @@ export async function POST(request: NextRequest) {
             ...adminIds.map((userId) => ({ userId, role: "moderator" as const })),
           ];
           groupMemberships.push({ groupId: group.id, members });
-          for (const { userId } of members) allMemberIds.add(userId);
         } catch (err) {
           console.error(`[MatrixSync] Failed to list members for group ${group.id}`, err);
-        }
-      }
-
-      for (const userId of allMemberIds) {
-        try {
-          const existing = await prisma.matrixAccount.findUnique({
-            where: { iamUserId: userId },
-          });
-          if (existing) {
-            dbResult.accounts.skipped++;
-            continue;
-          }
-          await provisionMatrixAccountDb(userId);
-          dbResult.accounts.synced++;
-        } catch (err) {
-          console.error(`[MatrixSync] Account DB failed: ${userId}`, err);
-          dbResult.accounts.failed.push(userId);
         }
       }
 
