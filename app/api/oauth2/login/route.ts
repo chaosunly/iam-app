@@ -7,10 +7,34 @@ import { getServerSession } from "@ory/nextjs/app";
 
 const HYDRA_ADMIN_URL = process.env.HYDRA_ADMIN_URL || "http://hydra.railway.internal:4445";
 const NGINX_URL = process.env.NGINX_URL || "https://nginx-sengly-branch.up.railway.app";
+const ELEMENT_PUBLIC_URL = process.env.NEXT_PUBLIC_ELEMENT_URL || "";
 const MAS_CLIENT_IDS = (process.env.MAS_CLIENT_IDS || "mas-client")
   .split(",")
   .map((id) => id.trim())
   .filter(Boolean);
+
+function getMasRedirectBase(currentHost: string): string {
+  const normalize = (value: string) => value.replace(/\/$/, "").trim();
+  const candidates = [normalize(NGINX_URL), normalize(ELEMENT_PUBLIC_URL)].filter(Boolean);
+
+  for (const candidate of candidates) {
+    try {
+      const candidateHost = new URL(candidate).hostname;
+      if (candidateHost && candidateHost !== currentHost) {
+        return candidate;
+      }
+    } catch {
+      // Ignore invalid URL candidate and continue.
+    }
+  }
+
+  // Last-resort safety valve for environments where only gateway host is known.
+  if (currentHost.includes("gateway")) {
+    return `https://${currentHost.replace("gateway", "nginx")}`;
+  }
+
+  return "https://nginx-sengly-branch.up.railway.app";
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -67,13 +91,14 @@ export async function GET(request: NextRequest) {
     const isNginxHost = currentHost.includes("nginx");
 
     if (MAS_CLIENT_IDS.includes(clientId) && !isNginxHost) {
+      const masRedirectBase = getMasRedirectBase(currentHost);
       console.info("/api/oauth2/login → MAS redirect", { 
         clientId,
         currentHost,
-        redirectTo: `${NGINX_URL}/login`,
+        redirectTo: `${masRedirectBase}/login`,
       });
       return NextResponse.redirect(
-        `${NGINX_URL}/login?login_challenge=${login_challenge}`
+        `${masRedirectBase}/login?login_challenge=${login_challenge}`
       );
     }
 
