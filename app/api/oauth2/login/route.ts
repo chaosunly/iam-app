@@ -86,16 +86,37 @@ export async function GET(request: NextRequest) {
     const session = await getServerSession();
 
     if (session?.identity) {
-      // Accept the login in Hydra using the Kratos identity id
+      // Extract user data from Kratos identity for Hydra id_token
+      const kratosIdentity = session.identity;
+      const userEmail = kratosIdentity.traits?.email || kratosIdentity.email_addresses?.[0]?.address || "";
+      const userName = kratosIdentity.traits?.username || kratosIdentity.traits?.preferred_username || kratosIdentity.id;
+      const userDisplayName = kratosIdentity.traits?.name || kratosIdentity.traits?.given_name || userName;
+
+      console.info("/api/oauth2/login accepting with identity data", {
+        userId: kratosIdentity.id,
+        email: userEmail,
+        username: userName,
+        displayName: userDisplayName,
+      });
+
+      // Accept the login in Hydra, passing identity context for id_token claims
       const acceptResponse = await fetch(
         `${HYDRA_ADMIN_URL}/admin/oauth2/auth/requests/login/accept?login_challenge=${login_challenge}`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            subject: session.identity.id,
+            subject: kratosIdentity.id,
             remember: true,
             remember_for: 3600,
+            // Pass Kratos identity data as context for Hydra to include in id_token
+            context: {
+              email: userEmail,
+              username: userName,
+              preferred_username: userName,
+              name: userDisplayName,
+            },
+            acr: "urn:mace:incommon:iap:silver", // Authentication context class reference
           }),
         }
       );
