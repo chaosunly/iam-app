@@ -51,11 +51,29 @@ export async function GET(request: NextRequest) {
         }
       | undefined;
 
-    const email = identity?.traits?.email;
+    const consentContext = (consentRequest.context ?? {}) as {
+      email?: string;
+      username?: string;
+      preferred_username?: string;
+      name?: string;
+    };
+
+    const displayNameFromTraits = [
+      identity?.traits?.name?.first,
+      identity?.traits?.name?.last,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .trim();
+
+    const email = identity?.traits?.email || consentContext.email;
     const username =
       identity?.traits?.username ||
+      consentContext.username ||
+      consentContext.preferred_username ||
       identity?.traits?.name?.first ||
       (email ? email.split("@")[0] : undefined);
+    const name = displayNameFromTraits || consentContext.name || username;
 
     const idTokenClaims: Record<string, unknown> = {};
     if (email) {
@@ -66,6 +84,16 @@ export async function GET(request: NextRequest) {
       idTokenClaims.username = username;
       idTokenClaims.preferred_username = username;
     }
+    if (name) {
+      idTokenClaims.name = name;
+    }
+
+    console.info("/api/oauth2/consent claim mapping", {
+      subject: consentRequest.subject,
+      hasSessionIdentity: Boolean(identity),
+      contextKeys: Object.keys(consentContext),
+      claimKeys: Object.keys(idTokenClaims),
+    });
 
     // Auto-accept consent with requested scopes
     const acceptResponse = await fetch(
@@ -81,7 +109,12 @@ export async function GET(request: NextRequest) {
           remember: true,
           remember_for: 3600,
           session: {
-            id_token: consentRequest.subject ? idTokenClaims : undefined,
+            id_token: consentRequest.subject
+              ? {
+                  ...idTokenClaims,
+                  sub: consentRequest.subject,
+                }
+              : undefined,
           },
         }),
       }
