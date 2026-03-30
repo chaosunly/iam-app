@@ -63,7 +63,27 @@ export async function GET(request: NextRequest) {
       }
 
       const acceptResult = await acceptResponse.json();
-      const response = NextResponse.redirect(acceptResult.redirect_to);
+
+      // Rewrite Hydra's public-domain redirect_to through nginx so the CSRF cookie
+      // (set on nginx-sengly via proxy) is included in the return request to Hydra.
+      const NGINX_URL = (process.env.NGINX_URL || "").replace(/\/$/, "");
+      let redirectTo = acceptResult.redirect_to as string;
+      if (NGINX_URL && redirectTo) {
+        try {
+          const url = new URL(redirectTo);
+          const nginxUrl = new URL(NGINX_URL);
+          if (url.pathname.startsWith("/oauth2/") && url.hostname !== nginxUrl.hostname) {
+            url.hostname = nginxUrl.hostname;
+            url.protocol = nginxUrl.protocol;
+            url.port = nginxUrl.port;
+            redirectTo = url.toString();
+          }
+        } catch {
+          // keep original if URL parsing fails
+        }
+      }
+
+      const response = NextResponse.redirect(redirectTo);
       response.cookies.delete("oauth2_login_challenge");
       return response;
     }

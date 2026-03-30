@@ -97,9 +97,27 @@ export async function GET(request: NextRequest) {
     }
 
     const acceptResult = await acceptResponse.json();
-    
-    // Redirect user back to Hydra
-    return NextResponse.redirect(acceptResult.redirect_to);
+
+    // Rewrite Hydra's public-domain redirect_to through nginx (same reason as login handler)
+    const NGINX_URL = (process.env.NGINX_URL || "").replace(/\/$/, "");
+    let redirectTo = acceptResult.redirect_to as string;
+    if (NGINX_URL && redirectTo) {
+      try {
+        const url = new URL(redirectTo);
+        const nginxUrl = new URL(NGINX_URL);
+        if (url.pathname.startsWith("/oauth2/") && url.hostname !== nginxUrl.hostname) {
+          url.hostname = nginxUrl.hostname;
+          url.protocol = nginxUrl.protocol;
+          url.port = nginxUrl.port;
+          redirectTo = url.toString();
+        }
+      } catch {
+        // keep original if URL parsing fails
+      }
+    }
+
+    // Redirect user back to Hydra (via nginx proxy)
+    return NextResponse.redirect(redirectTo);
   } catch (error) {
     console.error("OAuth2 consent error:", error);
     return NextResponse.json(
