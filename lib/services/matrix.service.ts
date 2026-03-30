@@ -79,6 +79,11 @@ export interface CreateMatrixRoomInput {
   spaceId: string;
 }
 
+export interface UpdateMatrixRoomInput {
+  name?: string;
+  description?: string;
+}
+
 export interface AssignMatrixRoleInput {
   userId: string;
   resourceType: MatrixResourceType;
@@ -346,6 +351,28 @@ export async function deleteMatrixRoom(id: string): Promise<void> {
   });
 
   await prisma.matrixRoom.delete({ where: { id } });
+}
+
+export async function updateMatrixRoom(
+  id: string,
+  input: UpdateMatrixRoomInput,
+): Promise<MatrixRoom> {
+  if (input.name !== undefined && input.name.trim().length === 0) {
+    throw new BadRequestError("Room name cannot be empty");
+  }
+  const room = await prisma.matrixRoom.findUnique({ where: { id } });
+  if (!room) throw new NotFoundError(`Matrix room '${id}' not found`);
+
+  return prisma.matrixRoom.update({
+    where: { id },
+    data: {
+      ...(input.name !== undefined && { name: input.name.trim() }),
+      ...(input.description !== undefined && {
+        description: input.description.trim() || null,
+      }),
+    },
+    include: { space: { include: { org: true } } },
+  });
 }
 
 // ============================================================

@@ -4,6 +4,7 @@ import { isGlobalAdmin } from "@/lib/services/permission.service";
 import {
   getMatrixRoomById,
   deleteMatrixRoom,
+  updateMatrixRoom,
 } from "@/lib/services/matrix.service";
 import { logAdminAction } from "@/lib/services/audit.service";
 
@@ -63,6 +64,42 @@ export async function DELETE(
     );
 
     return NextResponse.json({ success: true });
+  } catch (error: any) {
+    return NextResponse.json(
+      { error: error.message || "Internal server error" },
+      { status: error.statusCode || 500 },
+    );
+  }
+}
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const session = await getServerSession();
+    if (!session?.identity) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const actorId = session.identity.id;
+    if (!(await isGlobalAdmin(actorId))) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const { id: roomId } = await params;
+    const body = await request.json();
+    const { name, description } = body;
+
+    const room = await updateMatrixRoom(roomId, { name, description });
+    await logAdminAction(
+      actorId,
+      "matrix_room_updated",
+      `MatrixRoom:${roomId}`,
+      true,
+      { name },
+    );
+
+    return NextResponse.json({ room });
   } catch (error: any) {
     return NextResponse.json(
       { error: error.message || "Internal server error" },
