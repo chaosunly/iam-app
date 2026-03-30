@@ -62,7 +62,6 @@ const sections: NavSection[] = [
     label: "General",
     items: [
       { href: "/admin", label: "Dashboard", icon: Home },
-      { href: "/dashboard/settings", label: "Account Settings", icon: Settings },
     ],
   },
   {
@@ -154,6 +153,12 @@ function UserProfileDropdown({
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link href="/dashboard/settings" className="cursor-pointer">
+            <Settings className="h-4 w-4" />
+            Account Settings
+          </Link>
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
           <Link
