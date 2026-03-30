@@ -6,36 +6,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "@ory/nextjs/app";
 
 const HYDRA_ADMIN_URL = process.env.HYDRA_ADMIN_URL || "http://hydra.railway.internal:4445";
-const NGINX_URL = process.env.NGINX_URL || "https://nginx-sengly-branch.up.railway.app";
-const ELEMENT_PUBLIC_URL = process.env.NEXT_PUBLIC_ELEMENT_URL || "";
-const DEFAULT_NGINX_HOST = "nginx-sengly-branch.up.railway.app";
-const MAS_CLIENT_IDS = (process.env.MAS_CLIENT_IDS || "mas-client")
-  .split(",")
-  .map((id) => id.trim())
-  .filter(Boolean);
-
-function getMasRedirectBase(currentHost: string): string {
-  const normalize = (value: string) => value.replace(/\/$/, "").trim();
-  const candidates = [normalize(NGINX_URL), normalize(ELEMENT_PUBLIC_URL)].filter(Boolean);
-
-  for (const candidate of candidates) {
-    try {
-      const candidateHost = new URL(candidate).hostname;
-      if (candidateHost && candidateHost !== currentHost) {
-        return candidate;
-      }
-    } catch {
-      // Ignore invalid URL candidate and continue.
-    }
-  }
-
-  // Last-resort safety valve for environments where only gateway host is known.
-  if (currentHost.includes("gateway")) {
-    return `https://${DEFAULT_NGINX_HOST}`;
-  }
-
-  return `https://${DEFAULT_NGINX_HOST}`;
-}
 
 export async function GET(request: NextRequest) {
   try {
@@ -84,50 +54,9 @@ export async function GET(request: NextRequest) {
     const loginRequest = await loginRequestRes.json();
     const clientId = loginRequest.client?.client_id;
 
-    console.info("/api/oauth2/login client check", { clientId, MAS_CLIENT_IDS });
+    console.info("/api/oauth2/login client check", { clientId });
 
-    // If this is a MAS client login, always hand off to nginx unless we're already on nginx host.
-    // Referer-based checks can incorrectly suppress this handoff and create auth loops.
-    const currentHost = request.nextUrl.hostname || "";
-    const isNginxHost = currentHost.includes("nginx");
-
-    if (MAS_CLIENT_IDS.includes(clientId) && !isNginxHost) {
-      const masRedirectBase = getMasRedirectBase(currentHost);
-      const masRedirectHost = (() => {
-        try {
-          return new URL(masRedirectBase).hostname;
-        } catch {
-          return "";
-        }
-      })();
-
-      // Absolute safety: never redirect /login on gateway back to gateway host.
-      if (!masRedirectHost || masRedirectHost === currentHost) {
-        const forced = `https://${DEFAULT_NGINX_HOST}`;
-        console.warn("/api/oauth2/login forcing nginx redirect host", {
-          clientId,
-          currentHost,
-          masRedirectBase,
-          forced,
-        });
-        return NextResponse.redirect(
-          `${forced}/login?login_challenge=${login_challenge}`
-        );
-      }
-
-      console.info("/api/oauth2/login → MAS redirect", { 
-        clientId,
-        currentHost,
-        redirectTo: `${masRedirectBase}/login`,
-      });
-      return NextResponse.redirect(
-        `${masRedirectBase}/login?login_challenge=${login_challenge}`
-      );
-    }
-
-    // -------------------------------------------------------
-    // IAM app flow — handle with Kratos session as normal
-    // -------------------------------------------------------
+    // Handle all clients the same way: check for Kratos session, accept login or redirect to Kratos
     const session = await getServerSession();
 
     if (session?.identity) {
