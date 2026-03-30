@@ -20,7 +20,7 @@ export default async function DashboardPage() {
 
   const elementSsoUrl =
     process.env.NEXT_PUBLIC_ELEMENT_SSO_URL ||
-    `${normalizedElementBaseUrl}upstream/authorize?provider=01JQ2Y5YJ7K4C8R9N6T3V1W2XA`;
+    `${normalizedElementBaseUrl}upstream/authorize?provider_id=01JQ2Y5YJ7K4C8R9N6T3V1W2XA`;
 
   // Get Kratos session (includes OIDC provider logins like SimpleLogin)
   const session = await getServerSession();
