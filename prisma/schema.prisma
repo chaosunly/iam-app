@@ -134,6 +134,18 @@ model MatrixRoleAssignment {
   @@map("matrix_role_assignments")
 }
 
+model MatrixDirectMessage {
+  id           String   @id @default(cuid())
+  initiatorId  String   @map("initiator_id")
+  recipientId  String   @map("recipient_id")
+  matrixRoomId String?  @map("matrix_room_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@unique([initiatorId, recipientId])
+  @@index([initiatorId])
+  @@map("matrix_direct_messages")
+}
+
 /// Links a Kratos identity (IAM userId) to its Matrix account.
 /// Created eagerly when a user is first provisioned.
 model MatrixAccount {
