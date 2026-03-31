@@ -10,16 +10,6 @@ import { Check, Mail, Users, Settings, Lock, Info } from "lucide-react";
 import { UserOverviewCharts } from "@/components/charts/user-overview-charts";
 
 export default async function DashboardPage() {
-  // Native OIDC (MSC3861): link to /#/login — Element auto-detects the single provider
-  // and starts the PKCE flow immediately without showing a login button.
-  // Nginx injects prompt=login on /authorize so MAS always re-checks Hydra
-  // (current IAM session) instead of showing a cached wrong account.
-  const elementBaseUrl = (
-    process.env.NEXT_PUBLIC_ELEMENT_URL ||
-    process.env.ELEMENT_URL ||
-    ""
-  ).replace(/\/$/, "");
-  const elementSsoUrl = `${elementBaseUrl}/#/login`;
 
   // Get Kratos session (includes OIDC provider logins like SimpleLogin)
   const session = await getServerSession();
@@ -277,7 +267,9 @@ export default async function DashboardPage() {
 
               {/* Element */}
               <a
-                href={elementSsoUrl}
+                href="/api/matrix/launch"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="flex flex-col items-center gap-3 p-4 rounded-lg border hover:bg-accent transition-colors group"
               >
                 <div className="w-12 h-12 bg-green-100 dark:bg-green-900/20 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
