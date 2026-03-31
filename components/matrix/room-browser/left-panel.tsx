@@ -1,6 +1,7 @@
 "use client";
 
-import { Lock } from "lucide-react";
+import { Lock, Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -8,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { OrgSwitcher } from "./org-switcher";
 import { RoomListItem } from "./room-list-item";
 import { CreateRoomSheet } from "./create-room-sheet";
+import { CreateSpaceSheet } from "./create-space-sheet";
 import type { RoomItem, RoomOrg, RoomSpace } from "./types";
 
 interface LeftPanelProps {
@@ -19,9 +21,12 @@ interface LeftPanelProps {
   searchQuery: string;
   memberCount: number | undefined;
   onOrgChange: (org: RoomOrg) => void;
+  onOrgCreated: (org: RoomOrg) => void;
   onRoomSelect: (id: string) => void;
   onSearchChange: (q: string) => void;
   onRoomCreated: (room: RoomItem) => void;
+  onSpaceCreated: (space: RoomSpace) => void;
+  onQuickAddRoom: (spaceId: string) => void;
 }
 
 export function LeftPanel({
@@ -33,9 +38,12 @@ export function LeftPanel({
   searchQuery,
   memberCount,
   onOrgChange,
+  onOrgCreated,
   onRoomSelect,
   onSearchChange,
   onRoomCreated,
+  onSpaceCreated,
+  onQuickAddRoom,
 }: LeftPanelProps) {
   const filtered = searchQuery
     ? rooms.filter((r) =>
@@ -43,13 +51,15 @@ export function LeftPanel({
       )
     : rooms;
 
-  // Group filtered rooms by space name
-  const groupedRooms = filtered.reduce<Record<string, RoomItem[]>>((acc, room) => {
-    const spaceName = room.space?.name ?? "Unknown Space";
-    if (!acc[spaceName]) acc[spaceName] = [];
-    acc[spaceName].push(room);
-    return acc;
-  }, {});
+  const groupedRooms = filtered.reduce<Record<string, RoomItem[]>>(
+    (acc, room) => {
+      const spaceName = room.space?.name ?? "Unknown Space";
+      if (!acc[spaceName]) acc[spaceName] = [];
+      acc[spaceName].push(room);
+      return acc;
+    },
+    {},
+  );
 
   return (
     <div className="flex w-64 shrink-0 flex-col border-r">
@@ -59,6 +69,7 @@ export function LeftPanel({
           orgs={orgs}
           activeOrg={activeOrg}
           onOrgChange={onOrgChange}
+          onOrgCreated={onOrgCreated}
         />
       </div>
 
@@ -90,7 +101,6 @@ export function LeftPanel({
           />
         </div>
 
-        {/* All + Rooms tab share the same room list */}
         <TabsContent value="all" className="flex-1 overflow-hidden mt-0">
           <RoomList
             groupedRooms={groupedRooms}
@@ -98,6 +108,7 @@ export function LeftPanel({
             memberCount={memberCount}
             onRoomSelect={onRoomSelect}
             showDmPlaceholder
+            onQuickAddRoom={onQuickAddRoom}
           />
         </TabsContent>
 
@@ -108,6 +119,7 @@ export function LeftPanel({
             memberCount={memberCount}
             onRoomSelect={onRoomSelect}
             showDmPlaceholder={false}
+            onQuickAddRoom={onQuickAddRoom}
           />
         </TabsContent>
 
@@ -118,12 +130,26 @@ export function LeftPanel({
         </TabsContent>
       </Tabs>
 
-      {/* Create Room */}
-      <div className="border-t p-3">
-        <CreateRoomSheet
-          spaces={spaces}
-          onCreated={onRoomCreated}
-        />
+      {/* Footer: New Space + Create Room */}
+      <div className="border-t p-3 flex flex-col gap-2">
+        {activeOrg ? (
+          <CreateSpaceSheet
+            orgId={activeOrg.id}
+            orgName={activeOrg.name}
+            onCreated={onSpaceCreated}
+          />
+        ) : (
+          <Button
+            size="sm"
+            variant="outline"
+            disabled
+            className="w-full gap-1.5 border-dashed"
+          >
+            <Plus className="size-4" />
+            New Space
+          </Button>
+        )}
+        <CreateRoomSheet spaces={spaces} onCreated={onRoomCreated} />
       </div>
     </div>
   );
@@ -137,6 +163,7 @@ interface RoomListProps {
   memberCount: number | undefined;
   onRoomSelect: (id: string) => void;
   showDmPlaceholder: boolean;
+  onQuickAddRoom: (spaceId: string) => void;
 }
 
 function RoomList({
@@ -145,6 +172,7 @@ function RoomList({
   memberCount,
   onRoomSelect,
   showDmPlaceholder,
+  onQuickAddRoom,
 }: RoomListProps) {
   const spaceNames = Object.keys(groupedRooms).sort();
 
@@ -158,15 +186,30 @@ function RoomList({
         )}
         {spaceNames.map((spaceName) => (
           <div key={spaceName}>
-            <p className="px-2 py-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              {spaceName}
-            </p>
+            <div className="flex items-center justify-between px-2 py-1">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {spaceName}
+              </p>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-4 w-4"
+                onClick={() =>
+                  onQuickAddRoom(groupedRooms[spaceName][0].spaceId)
+                }
+                title="Add room to this space"
+              >
+                <Plus className="size-3" />
+              </Button>
+            </div>
             {groupedRooms[spaceName].map((room) => (
               <RoomListItem
                 key={room.id}
                 room={room}
                 isSelected={room.id === selectedRoomId}
-                memberCount={room.id === selectedRoomId ? memberCount : undefined}
+                memberCount={
+                  room.id === selectedRoomId ? memberCount : undefined
+                }
                 onClick={() => onRoomSelect(room.id)}
               />
             ))}
@@ -190,7 +233,9 @@ function DmPlaceholder() {
         <Lock className="size-4 shrink-0" />
         <div>
           <p className="text-xs font-medium">Coming soon</p>
-          <p className="text-xs opacity-70">Direct Message rooms will appear here</p>
+          <p className="text-xs opacity-70">
+            Direct Message rooms will appear here
+          </p>
         </div>
       </div>
     </div>

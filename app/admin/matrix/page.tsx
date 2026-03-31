@@ -1,159 +1,182 @@
-import { getServerSession } from "@ory/nextjs/app";
-import { redirect } from "next/navigation";
-import { isGlobalAdmin } from "@/lib/services/permission.service";
-import Link from "next/link";
-import { Card, CardContent } from "@/components/ui/card";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Building2, Layers, Hash, Shield, Info, Zap } from "lucide-react";
+"use client";
 
-export default async function MatrixAccessPage() {
-  const session = await getServerSession();
+import { useState, useEffect, useCallback } from "react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
+import { LeftPanel } from "@/components/matrix/room-browser/left-panel";
+import { RightPanel } from "@/components/matrix/room-browser/right-panel";
+import { CreateRoomSheet } from "@/components/matrix/room-browser/create-room-sheet";
+import type {
+  RoomItem,
+  RoomOrg,
+  RoomSpace,
+  Identity,
+  MemberAssignment,
+} from "@/components/matrix/room-browser/types";
 
-  if (!session?.identity) {
-    redirect("/auth/login");
+export default function MatrixHubPage() {
+  const [orgs, setOrgs] = useState<RoomOrg[]>([]);
+  const [spaces, setSpaces] = useState<RoomSpace[]>([]);
+  const [rooms, setRooms] = useState<RoomItem[]>([]);
+  const [identities, setIdentities] = useState<Identity[]>([]);
+
+  const [activeOrg, setActiveOrg] = useState<RoomOrg | null>(null);
+  const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const [members, setMembers] = useState<MemberAssignment[]>([]);
+  const [membersLoading, setMembersLoading] = useState(false);
+
+  const [error, setError] = useState("");
+
+  // Controlled CreateRoomSheet for quick-add from space group "+" button
+  const [quickRoomSpaceId, setQuickRoomSpaceId] = useState<string | undefined>(
+    undefined,
+  );
+  const [quickRoomOpen, setQuickRoomOpen] = useState(false);
+
+  // ── Initial data fetch ────────────────────────────────────────────────────
+
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/admin/matrix/orgs").then((r) => r.json()),
+      fetch("/api/admin/matrix/spaces").then((r) => r.json()),
+      fetch("/api/admin/matrix/rooms").then((r) => r.json()),
+      fetch("/api/admin/identities?per_page=250").then((r) => r.json()),
+    ])
+      .then(([orgsData, spacesData, roomsData, identitiesData]) => {
+        const fetchedOrgs: RoomOrg[] = orgsData.orgs ?? [];
+        setOrgs(fetchedOrgs);
+        setActiveOrg(fetchedOrgs[0] ?? null);
+        setSpaces(spacesData.spaces ?? []);
+        setRooms(roomsData.rooms ?? []);
+        setIdentities(identitiesData.data ?? []);
+      })
+      .catch(() => setError("Failed to load Matrix data"));
+  }, []);
+
+  // ── Fetch members when room selection changes ─────────────────────────────
+
+  const fetchMembers = useCallback(async (roomId: string) => {
+    setMembersLoading(true);
+    try {
+      const res = await fetch(
+        `/api/admin/matrix/roles?resourceType=room&resourceId=${roomId}`,
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setMembers(data.members ?? []);
+      }
+    } finally {
+      setMembersLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (selectedRoomId) {
+      fetchMembers(selectedRoomId);
+    } else {
+      setMembers([]);
+    }
+  }, [selectedRoomId, fetchMembers]);
+
+  // ── Derived state ─────────────────────────────────────────────────────────
+
+  const visibleRooms = activeOrg
+    ? rooms.filter((r) => r.space?.org?.id === activeOrg.id)
+    : rooms;
+
+  const visibleSpaces = activeOrg
+    ? spaces.filter((s) => s.orgId === activeOrg.id)
+    : spaces;
+
+  const selectedRoom = rooms.find((r) => r.id === selectedRoomId) ?? null;
+
+  // ── Handlers ──────────────────────────────────────────────────────────────
+
+  function handleOrgChange(org: RoomOrg) {
+    setActiveOrg(org);
+    setSelectedRoomId(null);
+    setSearchQuery("");
   }
 
-  const userId = session.identity.id;
-  if (!(await isGlobalAdmin(userId))) {
-    redirect("/dashboard");
+  function handleOrgCreated(org: RoomOrg) {
+    setOrgs((prev) => [...prev, org]);
+    setActiveOrg(org);
   }
 
-  const syncEnabled = process.env.MATRIX_ROLE_SYNC_ENABLED === "true";
+  function handleSpaceCreated(space: RoomSpace) {
+    setSpaces((prev) => [...prev, space]);
+  }
+
+  function handleQuickAddRoom(spaceId: string) {
+    setQuickRoomSpaceId(spaceId);
+    setQuickRoomOpen(true);
+  }
+
+  function handleRoomCreated(room: RoomItem) {
+    setRooms((prev) => [...prev, room]);
+    setSelectedRoomId(room.id);
+  }
+
+  function handleRoomDeleted() {
+    setRooms((prev) => prev.filter((r) => r.id !== selectedRoomId));
+    setSelectedRoomId(null);
+  }
+
+  function handleRoomUpdated(updated: RoomItem) {
+    setRooms((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+  }
+
+  // ── Render ────────────────────────────────────────────────────────────────
+
+  if (error) {
+    return (
+      <div className="p-6">
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6 p-6 md:p-8">
-      <div>
-        <h1 className="text-3xl font-bold">Matrix Access Management</h1>
-        <p className="text-muted-foreground mt-1">
-          Manage Matrix orgs, spaces, rooms, and role assignments for Element staff
-        </p>
+    <>
+      <div className="flex h-[calc(100vh-4rem)] overflow-hidden">
+        <LeftPanel
+          orgs={orgs}
+          spaces={visibleSpaces}
+          rooms={visibleRooms}
+          activeOrg={activeOrg}
+          selectedRoomId={selectedRoomId}
+          searchQuery={searchQuery}
+          memberCount={members.length > 0 ? members.length : undefined}
+          onOrgChange={handleOrgChange}
+          onOrgCreated={handleOrgCreated}
+          onRoomSelect={setSelectedRoomId}
+          onSearchChange={setSearchQuery}
+          onRoomCreated={handleRoomCreated}
+          onSpaceCreated={handleSpaceCreated}
+          onQuickAddRoom={handleQuickAddRoom}
+        />
+        <RightPanel
+          room={selectedRoom}
+          members={members}
+          identities={identities}
+          membersLoading={membersLoading}
+          onMembersRefresh={() => selectedRoomId && fetchMembers(selectedRoomId)}
+          onRoomDeleted={handleRoomDeleted}
+          onRoomUpdated={handleRoomUpdated}
+        />
       </div>
-
-      {syncEnabled ? (
-        <Alert className="border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-200 [&>svg]:text-green-800 dark:[&>svg]:text-green-200">
-          <Zap className="h-4 w-4" />
-          <AlertDescription>
-            <strong>Matrix sync is enabled.</strong> Role changes will be propagated to the
-            Matrix homeserver automatically.
-          </AlertDescription>
-        </Alert>
-      ) : (
-        <Alert className="border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-200 [&>svg]:text-yellow-800 dark:[&>svg]:text-yellow-200">
-          <Zap className="h-4 w-4" />
-          <AlertDescription>
-            <strong>Matrix sync is disabled.</strong> IAM roles are stored and enforced here.
-            Set{" "}
-            <code className="font-mono text-xs bg-yellow-100 dark:bg-yellow-900/40 px-1 rounded">
-              MATRIX_ROLE_SYNC_ENABLED=true
-            </code>{" "}
-            to push changes to the homeserver.
-          </AlertDescription>
-        </Alert>
-      )}
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Link href="/admin/matrix/orgs">
-          <Card className="hover:border-blue-500 transition-colors cursor-pointer">
-            <CardContent className="p-5">
-              <div className="flex items-center gap-4">
-                <div className="p-2.5 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                  <Building2 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                </div>
-                <div>
-                  <h4 className="font-semibold">Orgs</h4>
-                  <p className="text-xs text-muted-foreground">Matrix organisations</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
-
-        <Link href="/admin/matrix/spaces">
-          <Card className="hover:border-indigo-500 transition-colors cursor-pointer">
-            <CardContent className="p-5">
-              <div className="flex items-center gap-4">
-                <div className="p-2.5 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg">
-                  <Layers className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-                </div>
-                <div>
-                  <h4 className="font-semibold">Spaces</h4>
-                  <p className="text-xs text-muted-foreground">Room collections</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
-
-        <Link href="/admin/matrix/rooms">
-          <Card className="hover:border-violet-500 transition-colors cursor-pointer">
-            <CardContent className="p-5">
-              <div className="flex items-center gap-4">
-                <div className="p-2.5 bg-violet-100 dark:bg-violet-900/30 rounded-lg">
-                  <Hash className="w-5 h-5 text-violet-600 dark:text-violet-400" />
-                </div>
-                <div>
-                  <h4 className="font-semibold">Rooms</h4>
-                  <p className="text-xs text-muted-foreground">Individual Matrix rooms</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
-
-        <Link href="/admin/matrix/roles">
-          <Card className="hover:border-purple-500 transition-colors cursor-pointer">
-            <CardContent className="p-5">
-              <div className="flex items-center gap-4">
-                <div className="p-2.5 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
-                  <Shield className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                </div>
-                <div>
-                  <h4 className="font-semibold">Role Assignments</h4>
-                  <p className="text-xs text-muted-foreground">Assign and manage roles</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
-      </div>
-
-      <Alert>
-        <Info className="h-4 w-4" />
-        <AlertTitle>About Matrix Access Management</AlertTitle>
-        <AlertDescription>
-          <div className="text-sm space-y-2 mt-1">
-            <p>
-              This module provides centralised RBAC for Element Matrix. Root Admin
-              can manage all Matrix staff without entering the Element UI.
-            </p>
-            <p className="font-medium mt-2">Role hierarchy (org → space → room):</p>
-            <ul className="list-disc list-inside space-y-1 ml-4">
-              <li>
-                <strong>Matrix Admin:</strong> Full control — manage users, roles, spaces, rooms,
-                view audit
-              </li>
-              <li>
-                <strong>Moderator:</strong> Manage rooms and users within their space/room
-              </li>
-              <li>
-                <strong>Support:</strong> Read-only access plus impersonation capability for
-                support sessions
-              </li>
-              <li>
-                <strong>Member:</strong> Regular participant
-              </li>
-              <li>
-                <strong>Viewer:</strong> Read-only presence
-              </li>
-            </ul>
-            <p className="mt-3">
-              Permissions are stored in Ory Keto (Zanzibar-style). Roles assigned at the
-              org level are inherited by spaces and rooms via{" "}
-              <code className="font-mono text-xs bg-muted px-1 rounded">#parent</code> relation tuples.
-            </p>
-          </div>
-        </AlertDescription>
-      </Alert>
-    </div>
+      <CreateRoomSheet
+        spaces={visibleSpaces}
+        defaultSpaceId={quickRoomSpaceId}
+        open={quickRoomOpen}
+        onOpenChange={setQuickRoomOpen}
+        onCreated={handleRoomCreated}
+      />
+    </>
   );
 }

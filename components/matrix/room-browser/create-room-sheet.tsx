@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -26,19 +26,42 @@ interface CreateRoomSheetProps {
   spaces: RoomSpace[];
   defaultSpaceId?: string;
   onCreated: (room: RoomItem) => void;
+  /** Controlled mode: provide both or neither */
+  open?: boolean;
+  onOpenChange?: (v: boolean) => void;
 }
 
 export function CreateRoomSheet({
   spaces,
   defaultSpaceId,
   onCreated,
+  open: controlledOpen,
+  onOpenChange: onControlledOpenChange,
 }: CreateRoomSheetProps) {
-  const [open, setOpen] = useState(false);
+  const isControlled = controlledOpen !== undefined;
+  const [internalOpen, setInternalOpen] = useState(false);
+  const sheetOpen = isControlled ? controlledOpen! : internalOpen;
+
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [matrixId, setMatrixId] = useState("");
   const [spaceId, setSpaceId] = useState(defaultSpaceId ?? "");
   const [creating, setCreating] = useState(false);
+
+  // When the controlled sheet opens, reset the form with the pre-filled spaceId
+  useEffect(() => {
+    if (isControlled && controlledOpen) {
+      setName("");
+      setDescription("");
+      setMatrixId("");
+      setSpaceId(defaultSpaceId ?? "");
+    }
+  }, [isControlled, controlledOpen, defaultSpaceId]);
+
+  function handleOpenChange(v: boolean) {
+    if (isControlled) onControlledOpenChange?.(v);
+    else setInternalOpen(v);
+  }
 
   async function handleCreate() {
     if (!name.trim() || !spaceId) return;
@@ -64,7 +87,7 @@ export function CreateRoomSheet({
       setDescription("");
       setMatrixId("");
       setSpaceId(defaultSpaceId ?? "");
-      setOpen(false);
+      handleOpenChange(false);
       onCreated(data.room);
     } finally {
       setCreating(false);
@@ -72,13 +95,15 @@ export function CreateRoomSheet({
   }
 
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger asChild>
-        <Button size="sm" className="w-full gap-1.5">
-          <Plus className="size-4" />
-          Create Room
-        </Button>
-      </SheetTrigger>
+    <Sheet open={sheetOpen} onOpenChange={handleOpenChange}>
+      {!isControlled && (
+        <SheetTrigger asChild>
+          <Button size="sm" className="w-full gap-1.5">
+            <Plus className="size-4" />
+            Create Room
+          </Button>
+        </SheetTrigger>
+      )}
       <SheetContent>
         <SheetHeader>
           <SheetTitle>New Room</SheetTitle>
