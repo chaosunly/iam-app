@@ -33,3 +33,10 @@ export interface MemberAssignment {
   role: string;
   createdAt: string;
 }
+
+export interface DmContact {
+  id: string;
+  recipientId: string;
+  matrixRoomId?: string | null;
+  matrixUserId?: string | null;
+}
