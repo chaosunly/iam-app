@@ -37,7 +37,7 @@ import {
 } from "@/components/ui/sheet";
 import { AssignRoleForm } from "./assign-role-form";
 import { RoleBadge } from "./role-badge";
-import type { RoomItem, Identity, MemberAssignment } from "./types";
+import type { RoomItem, Identity, MemberAssignment, DmContact } from "./types";
 
 interface RightPanelProps {
   room: RoomItem | null;
@@ -47,6 +47,8 @@ interface RightPanelProps {
   onMembersRefresh: () => void;
   onRoomDeleted: () => void;
   onRoomUpdated: (room: RoomItem) => void;
+  selectedDm: DmContact | null;
+  onDmRemoved: () => void;
 }
 
 export function RightPanel({
@@ -57,7 +59,19 @@ export function RightPanel({
   onMembersRefresh,
   onRoomDeleted,
   onRoomUpdated,
+  selectedDm,
+  onDmRemoved,
 }: RightPanelProps) {
+  if (selectedDm) {
+    return (
+      <DmContactPanel
+        dm={selectedDm}
+        identities={identities}
+        onRemoved={onDmRemoved}
+      />
+    );
+  }
+
   if (!room) {
     return (
       <div className="flex flex-1 items-center justify-center text-muted-foreground">
@@ -485,6 +499,129 @@ function RoomSettings({ room, onUpdated }: RoomSettingsProps) {
       <Button onClick={handleSave} disabled={saving || !name.trim()}>
         {saving ? "Saving..." : "Save changes"}
       </Button>
+    </div>
+  );
+}
+
+// ─── DM Contact Panel ─────────────────────────────────────────────────────────
+
+interface DmContactPanelProps {
+  dm: DmContact;
+  identities: Identity[];
+  onRemoved: () => void;
+}
+
+function DmContactPanel({ dm, identities, onRemoved }: DmContactPanelProps) {
+  const [removing, setRemoving] = useState(false);
+
+  const identity = identities.find((i) => i.id === dm.recipientId);
+  const label =
+    identity?.traits?.name || identity?.traits?.email || dm.recipientId;
+  const initial = label[0]?.toUpperCase() ?? "?";
+
+  const elementUrl = dm.matrixUserId
+    ? `https://matrix.to/#/${encodeURIComponent(dm.matrixUserId)}`
+    : null;
+
+  async function handleRemove() {
+    setRemoving(true);
+    try {
+      const res = await fetch(`/api/admin/matrix/dms/${dm.id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        toast.error(data.error || "Failed to remove contact");
+        return;
+      }
+      toast.success("DM contact removed");
+      onRemoved();
+    } finally {
+      setRemoving(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="flex items-center gap-3 border-b px-6 py-4">
+        <Avatar className="size-10">
+          <AvatarFallback>{initial}</AvatarFallback>
+        </Avatar>
+        <div>
+          <h2 className="text-xl font-semibold">{label}</h2>
+          <p className="text-xs text-muted-foreground">Direct Message</p>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-auto px-6 py-6">
+        <div className="max-w-sm space-y-4">
+          <div className="space-y-1.5">
+            <Label className="text-muted-foreground">Email</Label>
+            <p className="text-sm">{identity?.traits?.email ?? "—"}</p>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-muted-foreground">Matrix ID</Label>
+            {dm.matrixUserId ? (
+              <code className="block rounded bg-muted px-3 py-2 text-sm font-mono text-muted-foreground">
+                {dm.matrixUserId}
+              </code>
+            ) : (
+              <p className="text-sm text-muted-foreground">Not provisioned</p>
+            )}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-muted-foreground">Room</Label>
+            {dm.matrixRoomId ? (
+              <code className="block rounded bg-muted px-3 py-2 text-sm font-mono text-muted-foreground">
+                {dm.matrixRoomId}
+              </code>
+            ) : (
+              <p className="text-sm italic text-muted-foreground">
+                Not created yet
+              </p>
+            )}
+          </div>
+
+          <div className="flex gap-2 pt-2">
+            {elementUrl && (
+              <Button size="sm" asChild>
+                <a href={elementUrl} target="_blank" rel="noopener noreferrer">
+                  Open in Element ↗
+                </a>
+              </Button>
+            )}
+
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-destructive hover:text-destructive"
+                >
+                  Remove
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Remove DM contact?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This removes {label} from your DM list. It does not delete
+                    any Matrix room in Element.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleRemove} disabled={removing}>
+                    {removing ? "Removing…" : "Remove"}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

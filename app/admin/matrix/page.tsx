@@ -12,6 +12,7 @@ import type {
   RoomSpace,
   Identity,
   MemberAssignment,
+  DmContact,
 } from "@/components/matrix/room-browser/types";
 
 export default function MatrixHubPage() {
@@ -22,6 +23,8 @@ export default function MatrixHubPage() {
 
   const [activeOrg, setActiveOrg] = useState<RoomOrg | null>(null);
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
+  const [selectedDmId, setSelectedDmId] = useState<string | null>(null);
+  const [selectedDm, setSelectedDm] = useState<DmContact | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
   const [members, setMembers] = useState<MemberAssignment[]>([]);
@@ -128,6 +131,23 @@ export default function MatrixHubPage() {
     setRooms((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
   }
 
+  function handleRoomSelect(id: string) {
+    setSelectedRoomId(id);
+    setSelectedDmId(null);
+    setSelectedDm(null);
+  }
+
+  function handleDmSelect(dm: DmContact) {
+    setSelectedDm(dm);
+    setSelectedDmId(dm.id);
+    setSelectedRoomId(null);
+  }
+
+  function handleDmRemoved() {
+    setSelectedDm(null);
+    setSelectedDmId(null);
+  }
+
   // ── Render ────────────────────────────────────────────────────────────────
 
   if (error) {
@@ -152,13 +172,16 @@ export default function MatrixHubPage() {
           selectedRoomId={selectedRoomId}
           searchQuery={searchQuery}
           memberCount={members.length > 0 ? members.length : undefined}
+          identities={identities}
+          selectedDmId={selectedDmId}
           onOrgChange={handleOrgChange}
           onOrgCreated={handleOrgCreated}
-          onRoomSelect={setSelectedRoomId}
+          onRoomSelect={handleRoomSelect}
           onSearchChange={setSearchQuery}
           onRoomCreated={handleRoomCreated}
           onSpaceCreated={handleSpaceCreated}
           onQuickAddRoom={handleQuickAddRoom}
+          onDmSelect={handleDmSelect}
         />
         <RightPanel
           room={selectedRoom}
@@ -168,6 +191,8 @@ export default function MatrixHubPage() {
           onMembersRefresh={() => selectedRoomId && fetchMembers(selectedRoomId)}
           onRoomDeleted={handleRoomDeleted}
           onRoomUpdated={handleRoomUpdated}
+          selectedDm={selectedDm}
+          onDmRemoved={handleDmRemoved}
         />
       </div>
       <CreateRoomSheet
