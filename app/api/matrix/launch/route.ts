@@ -27,10 +27,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "@ory/nextjs/app";
 
-const MATRIX_BASE_URL = (process.env.MATRIX_BASE_URL || "").replace(/\/$/, "");
+// MATRIX_BASE_URL  — public base URL of the Matrix nginx (e.g. https://nginx-sengly-branch.up.railway.app)
+// Falls back to NGINX_URL which is already set in the IAM Railway service
+const MATRIX_BASE_URL = (
+  process.env.MATRIX_BASE_URL ||
+  process.env.NGINX_URL ||
+  ""
+).replace(/\/$/, "");
+
 const ELEMENT_URL = (
   process.env.NEXT_PUBLIC_ELEMENT_URL ||
   process.env.ELEMENT_URL ||
+  process.env.NGINX_URL ||
   ""
 ).replace(/\/$/, "");
 const MAS_INTERNAL_URL = (
@@ -97,6 +105,14 @@ async function ensureMasUser(localpart: string, email: string): Promise<void> {
 }
 
 export async function GET(request: NextRequest) {
+  console.info("[matrix/launch] env check", {
+    MATRIX_BASE_URL: process.env.MATRIX_BASE_URL,
+    NGINX_URL: process.env.NGINX_URL,
+    NEXT_PUBLIC_ELEMENT_URL: process.env.NEXT_PUBLIC_ELEMENT_URL,
+    resolved_MATRIX_BASE_URL: MATRIX_BASE_URL,
+    resolved_ELEMENT_URL: ELEMENT_URL,
+  });
+
   // 1. Verify Kratos session
   const session = await getServerSession();
 
