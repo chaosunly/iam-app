@@ -24,14 +24,14 @@ export default function Home() {
           </p>
         </div>
         <div className="flex flex-col gap-4 sm:flex-row">
-          <Button asChild size="lg" className="rounded-full min-w-[162px]">
+          <Button asChild size="lg" className="rounded-full min-w-40.5">
             <Link href="/auth/login">Sign In</Link>
           </Button>
           <Button
             asChild
             variant="outline"
             size="lg"
-            className="rounded-full min-w-[162px]"
+            className="rounded-full min-w-40.5"
           >
             <Link href="/auth/registration">Sign Up</Link>
           </Button>
