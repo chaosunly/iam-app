@@ -10,15 +10,17 @@ import { Check, Mail, Users, Settings, Lock, Info } from "lucide-react";
 import { UserOverviewCharts } from "@/components/charts/user-overview-charts";
 
 export default async function DashboardPage() {
-  // Link to /#/login so Element opens the login page directly instead of the welcome screen.
-  // With native OIDC (MSC3861) and a single provider, Element 1.12+ auto-redirects to MAS
-  // which then sees the existing Hydra session and returns without prompting for credentials.
+  // Use compat SSO redirect to achieve true one-click login from IAM:
+  // 1. This URL hits MAS's compat SSO handler (nginx routes /_matrix/client/.../login to MAS)
+  // 2. MAS redirects to Hydra, which sees the current IAM session and returns immediately
+  // 3. MAS issues a loginToken and redirects Element to /?loginToken=xxx
+  // 4. Element auto-processes the token — no extra clicks, no "Continue as" prompt
   const elementBaseUrl = (
     process.env.NEXT_PUBLIC_ELEMENT_URL ||
     process.env.ELEMENT_URL ||
     "https://nginx-sengly-branch.up.railway.app"
   ).replace(/\/$/, "");
-  const elementSsoUrl = `${elementBaseUrl}/#/login`;
+  const elementSsoUrl = `${elementBaseUrl}/_matrix/client/v3/login/sso/redirect?redirectUrl=${encodeURIComponent(elementBaseUrl + "/")}`;
 
   // Get Kratos session (includes OIDC provider logins like SimpleLogin)
   const session = await getServerSession();
