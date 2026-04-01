@@ -81,8 +81,8 @@ export async function GET(request: NextRequest) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             subject: kratosIdentity.id,
-            remember: true,
-            remember_for: 3600,
+            remember: false,
+            remember_for: 0,
             // Pass Kratos identity data as context for Hydra to include in id_token
             context: {
               email: userEmail,
