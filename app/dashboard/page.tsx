@@ -10,17 +10,16 @@ import { Check, Mail, Users, Settings, Lock, Info } from "lucide-react";
 import { UserOverviewCharts } from "@/components/charts/user-overview-charts";
 
 export default async function DashboardPage() {
-  // /element-launch is a nginx endpoint that:
-  // 1. Sets mx_web_sso_hs_url / mx_hs_url / mx_home_server in sessionStorage + localStorage
-  // 2. Then redirects to /_matrix/client/v3/login/sso/redirect (compat SSO via MAS → Hydra)
-  // The storage step is required — without it Element throws "browser has forgotten homeserver"
-  // when it receives the ?loginToken= callback.
+  // Native OIDC (MSC3861): link to /#/login — Element auto-detects the single provider
+  // and starts the PKCE flow immediately without showing a login button.
+  // Nginx injects prompt=login on /authorize so MAS always re-checks Hydra
+  // (current IAM session) instead of showing a cached wrong account.
   const elementBaseUrl = (
     process.env.NEXT_PUBLIC_ELEMENT_URL ||
     process.env.ELEMENT_URL ||
     "https://nginx-sengly-branch.up.railway.app"
   ).replace(/\/$/, "");
-  const elementSsoUrl = `${elementBaseUrl}/element-launch`;
+  const elementSsoUrl = `${elementBaseUrl}/#/login`;
 
   // Get Kratos session (includes OIDC provider logins like SimpleLogin)
   const session = await getServerSession();
