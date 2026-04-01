@@ -10,14 +10,15 @@ import { Check, Mail, Users, Settings, Lock, Info } from "lucide-react";
 import { UserOverviewCharts } from "@/components/charts/user-overview-charts";
 
 export default async function DashboardPage() {
-  // Synapse uses native MAS/OIDC (MSC3861). Element 1.11+ detects this and
-  // uses the native OIDC flow — NOT the compat-sso loginToken flow.
-  // Just link to the Element root; on first visit Element shows "Sign in with IAM"
-  // which auto-completes (Hydra already has the session from IAM login).
-  const elementSsoUrl =
+  // Link to /#/login so Element opens the login page directly instead of the welcome screen.
+  // With native OIDC (MSC3861) and a single provider, Element 1.12+ auto-redirects to MAS
+  // which then sees the existing Hydra session and returns without prompting for credentials.
+  const elementBaseUrl = (
     process.env.NEXT_PUBLIC_ELEMENT_URL ||
     process.env.ELEMENT_URL ||
-    "https://nginx-sengly-branch.up.railway.app/";
+    "https://nginx-sengly-branch.up.railway.app"
+  ).replace(/\/$/, "");
+  const elementSsoUrl = `${elementBaseUrl}/#/login`;
 
   // Get Kratos session (includes OIDC provider logins like SimpleLogin)
   const session = await getServerSession();
