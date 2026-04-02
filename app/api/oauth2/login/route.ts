@@ -54,14 +54,39 @@ export async function GET(request: NextRequest) {
     const loginRequest = await loginRequestRes.json();
     const clientId = loginRequest.client?.client_id;
 
-    console.info("/api/oauth2/login client check", { clientId });
+    console.info("/api/oauth2/login client check", { clientId, skip: loginRequest.skip, subject: loginRequest.subject });
 
     // Handle all clients the same way: check for Kratos session, accept login or redirect to Kratos
     const session = await getServerSession();
 
     if (session?.identity) {
-      // Extract user data from Kratos identity for Hydra id_token
       const kratosIdentity = session.identity;
+
+      // When Hydra says skip=true it has a cached login session for loginRequest.subject.
+      // If that cached subject doesn't match the current Kratos user (account switch),
+      // Hydra will IGNORE any new subject we send and return the cached user (e.g. penghout).
+      // Fix: revoke the stale Hydra session and restart the flow so Hydra issues a fresh
+      // login_challenge with skip=false, at which point we can accept with the correct user.
+      if (loginRequest.skip && loginRequest.subject && loginRequest.subject !== kratosIdentity.id) {
+        console.info("/api/oauth2/login: skip=true but subject mismatch — revoking stale Hydra session", {
+          cachedSubject: loginRequest.subject,
+          currentSubject: kratosIdentity.id,
+        });
+
+        // Revoke all Hydra login sessions for the stale cached user
+        await fetch(
+          `${HYDRA_ADMIN_URL}/admin/oauth2/auth/sessions/login?subject=${encodeURIComponent(loginRequest.subject)}`,
+          { method: "DELETE" }
+        ).catch((e) => console.warn("Failed to revoke stale login session:", e));
+
+        // Restart the authorization flow with prompt=login to get a fresh challenge
+        const restartUrl = new URL(loginRequest.request_url);
+        restartUrl.searchParams.set("prompt", "login");
+        console.info("/api/oauth2/login: redirecting to restart auth flow", { url: restartUrl.toString() });
+        return NextResponse.redirect(restartUrl.toString());
+      }
+
+      // Extract user data from Kratos identity for Hydra id_token
       const userEmail = kratosIdentity.traits?.email || "";
       const userName = kratosIdentity.traits?.username || kratosIdentity.traits?.preferred_username || kratosIdentity.id;
       const userDisplayName = kratosIdentity.traits?.name || kratosIdentity.traits?.given_name || userName;
