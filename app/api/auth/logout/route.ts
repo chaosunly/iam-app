@@ -100,17 +100,14 @@ export async function POST(request: NextRequest) {
     // Chain through MAS logout to clear Element/MAS session cookies on the nginx domain.
     // Return a 302 redirect directly (not JSON) so the browser navigates as a normal
     // page load — avoids any CORS/blocked-origin issues with window.location.href.
+    // Redirect through /element-logout on the nginx domain to clear Element's
+    // localStorage, then back to IAM login. MAS /logout requires id_token_hint
+    // which we don't have, so we skip it — the cookie-stripping on /authorize
+    // already prevents MAS from using a cached session on next login.
     const masUrl = (process.env.NEXT_PUBLIC_MAS_URL || process.env.MAS_URL || "").replace(/\/$/, "");
     const iamLoginUrl = `${baseUrl}/auth/login`;
-    const elementClientId = process.env.ELEMENT_WEB_CLIENT_ID || "00000000000000000000SEC0ND";
-    // Build the redirect chain:
-    // MAS /logout → /element-logout?next=<iam-login> → IAM login
-    // encodeURIComponent is applied once per level — no double-encoding.
-    const elementLogoutUrl = masUrl
-      ? `${masUrl}/element-logout?next=${iamLoginUrl}`
-      : iamLoginUrl;
     const finalRedirectUrl = masUrl
-      ? `${masUrl}/logout?client_id=${elementClientId}&post_logout_redirect_uri=${encodeURIComponent(elementLogoutUrl)}`
+      ? `${masUrl}/element-logout?next=${iamLoginUrl}`
       : iamLoginUrl;
 
     const response = NextResponse.json({ success: true, redirectUrl: finalRedirectUrl });
