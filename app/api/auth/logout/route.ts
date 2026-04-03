@@ -103,10 +103,11 @@ export async function POST(request: NextRequest) {
     const masUrl = (process.env.NEXT_PUBLIC_MAS_URL || process.env.MAS_URL || "").replace(/\/$/, "");
     const iamLoginUrl = `${baseUrl}/auth/login`;
     const elementClientId = process.env.ELEMENT_WEB_CLIENT_ID || "00000000000000000000SEC0ND";
-    // post_logout_redirect_uri → /element-logout?next=<iam-login>
-    // /element-logout clears Element localStorage then redirects to IAM login.
+    // Build the redirect chain:
+    // MAS /logout → /element-logout?next=<iam-login> → IAM login
+    // encodeURIComponent is applied once per level — no double-encoding.
     const elementLogoutUrl = masUrl
-      ? `${masUrl}/element-logout?next=${encodeURIComponent(iamLoginUrl)}`
+      ? `${masUrl}/element-logout?next=${iamLoginUrl}`
       : iamLoginUrl;
     const finalRedirectUrl = masUrl
       ? `${masUrl}/logout?client_id=${elementClientId}&post_logout_redirect_uri=${encodeURIComponent(elementLogoutUrl)}`

@@ -18,13 +18,14 @@ export function LogoutButton() {
 
       if (response.ok) {
         const data = await response.json();
-        window.location.href = data.redirectUrl || "/auth/login";
+        // Use replace so the logout page is not in browser history
+        window.location.replace(data.redirectUrl || "/auth/login");
       } else {
-        window.location.href = "/auth/login";
+        window.location.replace("/auth/login");
       }
     } catch (error) {
       console.error("Logout error:", error);
-      window.location.href = "/";
+      window.location.replace("/auth/login");
     }
   };
 
