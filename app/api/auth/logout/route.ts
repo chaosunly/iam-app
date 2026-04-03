@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
       ? `${masUrl}/logout?client_id=${elementClientId}&post_logout_redirect_uri=${encodeURIComponent(elementLogoutUrl)}`
       : iamLoginUrl;
 
-    const response = NextResponse.redirect(finalRedirectUrl, { status: 302 });
+    const response = NextResponse.json({ success: true, redirectUrl: finalRedirectUrl });
 
     // Clear all auth cookies. Each cookie is cleared twice:
     //   • without Domain — deletes host-only cookies
