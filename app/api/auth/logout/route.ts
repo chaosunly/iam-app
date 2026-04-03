@@ -103,8 +103,13 @@ export async function POST(request: NextRequest) {
     const masUrl = (process.env.NEXT_PUBLIC_MAS_URL || process.env.MAS_URL || "").replace(/\/$/, "");
     const iamLoginUrl = `${baseUrl}/auth/login`;
     const elementClientId = process.env.ELEMENT_WEB_CLIENT_ID || "00000000000000000000SEC0ND";
+    // post_logout_redirect_uri → /element-logout?next=<iam-login>
+    // /element-logout clears Element localStorage then redirects to IAM login.
+    const elementLogoutUrl = masUrl
+      ? `${masUrl}/element-logout?next=${encodeURIComponent(iamLoginUrl)}`
+      : iamLoginUrl;
     const finalRedirectUrl = masUrl
-      ? `${masUrl}/logout?client_id=${elementClientId}&post_logout_redirect_uri=${encodeURIComponent(iamLoginUrl)}`
+      ? `${masUrl}/logout?client_id=${elementClientId}&post_logout_redirect_uri=${encodeURIComponent(elementLogoutUrl)}`
       : iamLoginUrl;
 
     const response = NextResponse.redirect(finalRedirectUrl, { status: 302 });
