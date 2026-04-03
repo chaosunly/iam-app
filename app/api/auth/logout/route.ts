@@ -97,16 +97,17 @@ export async function POST(request: NextRequest) {
       ? `${forwardedProto}://${forwardedHost}`
       : request.nextUrl.origin;
 
-    // After clearing IAM cookies, chain through MAS logout so MAS clears its own
-    // session cookies on the nginx/Element domain, then redirects back to IAM login.
+    // Chain through MAS logout to clear Element/MAS session cookies on the nginx domain.
+    // Return a 302 redirect directly (not JSON) so the browser navigates as a normal
+    // page load — avoids any CORS/blocked-origin issues with window.location.href.
     const masUrl = (process.env.NEXT_PUBLIC_MAS_URL || process.env.MAS_URL || "").replace(/\/$/, "");
     const iamLoginUrl = `${baseUrl}/auth/login`;
     const elementClientId = process.env.ELEMENT_WEB_CLIENT_ID || "00000000000000000000SEC0ND";
-    const redirectUrl = masUrl
+    const finalRedirectUrl = masUrl
       ? `${masUrl}/logout?client_id=${elementClientId}&post_logout_redirect_uri=${encodeURIComponent(iamLoginUrl)}`
       : iamLoginUrl;
 
-    const response = NextResponse.json({ success: true, redirectUrl });
+    const response = NextResponse.redirect(finalRedirectUrl, { status: 302 });
 
     // Clear all auth cookies. Each cookie is cleared twice:
     //   • without Domain — deletes host-only cookies
