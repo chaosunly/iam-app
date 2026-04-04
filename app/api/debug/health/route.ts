@@ -1,14 +1,16 @@
 /**
- * Health check endpoint — tests each backing service individually.
+ * Health check endpoint — tests each backing service + auth pipeline individually.
  * Remove or restrict this endpoint after diagnosing production issues.
  */
 
 import { NextResponse } from "next/server";
+import { getServerSession } from "@ory/nextjs/app";
 
 const KETO_READ_URL =
   process.env.ORY_KETO_READ_URL || "http://localhost:4466";
 const KRATOS_ADMIN_URL =
   process.env.ORY_KRATOS_ADMIN_URL || "http://localhost:4434";
+const DEFAULT_ORG_ID = process.env.DEFAULT_ORG_ID || "default-org";
 
 async function checkKeto(namespace: string) {
   const params = new URLSearchParams({ namespace, page_size: "1" });
@@ -22,7 +24,7 @@ async function checkKeto(namespace: string) {
       status: res.status,
       ok: res.ok,
       latencyMs: Date.now() - start,
-      body: body.slice(0, 200),
+      body: body.slice(0, 300),
     };
   } catch (err) {
     return {
@@ -35,34 +37,36 @@ async function checkKeto(namespace: string) {
   }
 }
 
-async function checkKetoPermission() {
+async function checkKetoPermission(
+  namespace: string,
+  object: string,
+  relation: string,
+  subjectId: string,
+) {
   const url = `${KETO_READ_URL}/relation-tuples/check`;
   const start = Date.now();
   try {
-    // Deliberately check a non-existent tuple — Keto returns 403 {allowed:false}
     const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        namespace: "Organization",
-        object: "health-check",
-        relation: "members",
-        subject_id: "health-check",
-      }),
+      body: JSON.stringify({ namespace, object, relation, subject_id: subjectId }),
     });
     const body = await res.text();
+    let allowed: boolean | null = null;
+    try {
+      allowed = JSON.parse(body).allowed ?? null;
+    } catch {}
     return {
-      url,
+      check: `${namespace}:${object}#${relation}@${subjectId.slice(0, 8)}...`,
       status: res.status,
-      ok: res.status === 200 || res.status === 403,
+      allowed,
       latencyMs: Date.now() - start,
-      body: body.slice(0, 200),
     };
   } catch (err) {
     return {
-      url,
+      check: `${namespace}:${object}#${relation}@${subjectId.slice(0, 8)}...`,
       status: null,
-      ok: false,
+      allowed: null,
       latencyMs: Date.now() - start,
       error: err instanceof Error ? err.message : String(err),
     };
@@ -94,36 +98,63 @@ async function checkKratos() {
 }
 
 export async function GET() {
-  const [
-    ketoGlobalRole,
-    ketoOrganization,
-    ketoGroup,
-    ketoCheck,
-    kratosAdmin,
-  ] = await Promise.all([
+  // 1. Test session (same code path as requireAuth)
+  let sessionInfo: Record<string, unknown> = { ok: false };
+  let userId: string | null = null;
+  try {
+    const session = await getServerSession();
+    if (session?.identity?.id) {
+      userId = session.identity.id;
+      sessionInfo = {
+        ok: true,
+        userId,
+        email: (session.identity.traits as Record<string, unknown>)?.email ?? null,
+      };
+    } else {
+      sessionInfo = { ok: false, reason: "no session or identity" };
+    }
+  } catch (err) {
+    sessionInfo = {
+      ok: false,
+      error: err instanceof Error ? err.message : String(err),
+    };
+  }
+
+  // 2. Test Keto namespace availability
+  const [ketoGlobalRole, ketoOrganization, ketoGroup] = await Promise.all([
     checkKeto("GlobalRole"),
     checkKeto("Organization"),
     checkKeto("Group"),
-    checkKetoPermission(),
-    checkKratos(),
   ]);
+
+  // 3. Test Kratos admin API
+  const kratosAdmin = await checkKratos();
+
+  // 4. If we have a userId, check their org admin permissions
+  let permissionChecks: Record<string, unknown>[] = [];
+  if (userId) {
+    const [isGlobalAdmin, isOrgOwner, isOrgAdmin] = await Promise.all([
+      checkKetoPermission("GlobalRole", "admin", "is_admin", userId),
+      checkKetoPermission("Organization", DEFAULT_ORG_ID, "owners", userId),
+      checkKetoPermission("Organization", DEFAULT_ORG_ID, "admins", userId),
+    ]);
+    permissionChecks = [isGlobalAdmin, isOrgOwner, isOrgAdmin];
+  }
 
   return NextResponse.json({
     env: {
       ORY_KETO_READ_URL: KETO_READ_URL,
       ORY_KRATOS_ADMIN_URL: KRATOS_ADMIN_URL,
+      ORY_SDK_URL: process.env.ORY_SDK_URL || "NOT SET",
+      DEFAULT_ORG_ID,
+      NODE_ENV: process.env.NODE_ENV,
     },
+    session: sessionInfo,
     keto: {
-      namespaces: {
-        GlobalRole: ketoGlobalRole,
-        Organization: ketoOrganization,
-        Group: ketoGroup,
-      },
-      permissionCheck: ketoCheck,
+      namespaces: { GlobalRole: ketoGlobalRole, Organization: ketoOrganization, Group: ketoGroup },
     },
-    kratos: {
-      admin: kratosAdmin,
-    },
+    kratos: { admin: kratosAdmin },
+    permissionChecks,
     note: "Remove or secure this endpoint after diagnosis.",
   });
 }

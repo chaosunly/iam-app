@@ -120,7 +120,12 @@ export default function OrganizationPage() {
         const data = await membersRes.json();
         setMembers(data.members || []);
       } else {
-        setError("Failed to fetch organization members");
+        let detail = `HTTP ${membersRes.status}`;
+        try {
+          const body = await membersRes.json();
+          detail += `: ${body.error || body.message || JSON.stringify(body)}`;
+        } catch {}
+        setError(`Failed to fetch organization members — ${detail}`);
       }
       if (identitiesRes.ok) {
         const data = await identitiesRes.json();

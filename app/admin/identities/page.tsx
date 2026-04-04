@@ -49,7 +49,12 @@ export default function IdentitiesPage() {
       setLoading(true);
       const response = await fetch("/api/admin/identities");
       if (!response.ok) {
-        throw new Error("Failed to fetch identities");
+        let detail = `HTTP ${response.status}`;
+        try {
+          const body = await response.json();
+          detail += `: ${body.error || body.message || JSON.stringify(body)}`;
+        } catch {}
+        throw new Error(`Failed to fetch identities — ${detail}`);
       }
       const result = await response.json();
 
