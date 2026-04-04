@@ -119,12 +119,14 @@ export default function OrganizationPage() {
       if (membersRes.ok) {
         const data = await membersRes.json();
         setMembers(data.members || []);
+      } else {
+        setError("Failed to fetch organization members");
       }
       if (identitiesRes.ok) {
         const data = await identitiesRes.json();
         setAllIdentities(Array.isArray(data.data) ? data.data : []);
       }
-      setError(null);
+      if (membersRes.ok) setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {

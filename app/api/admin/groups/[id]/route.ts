@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "@ory/nextjs/app";
-import { isGlobalAdmin, isGroupAdmin } from "@/lib/services/permission.service";
+import { canAccessAdmin, isGroupAdmin } from "@/lib/services/permission.service";
 import {
   deleteGroup,
   getGroupById,
@@ -24,7 +24,7 @@ export async function GET(
     const userId = session.identity.id;
     const { id: groupId } = await params;
     const [globalAdmin, groupAdmin] = await Promise.all([
-      isGlobalAdmin(userId),
+      canAccessAdmin(userId),
       isGroupAdmin(userId, groupId),
     ]);
 
@@ -66,7 +66,7 @@ export async function DELETE(
     const userId = session.identity.id;
     const { id: groupId } = await params;
     const [globalAdmin, groupAdmin] = await Promise.all([
-      isGlobalAdmin(userId),
+      canAccessAdmin(userId),
       isGroupAdmin(userId, groupId),
     ]);
 
@@ -106,7 +106,7 @@ export async function PATCH(
     const userId = session.identity.id;
     const { id: groupId } = await params;
     const [globalAdmin, groupAdmin] = await Promise.all([
-      isGlobalAdmin(userId),
+      canAccessAdmin(userId),
       isGroupAdmin(userId, groupId),
     ]);
 

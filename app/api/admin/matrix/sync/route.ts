@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "@ory/nextjs/app";
-import { isGlobalAdmin } from "@/lib/services/permission.service";
+import { canAccessAdmin } from "@/lib/services/permission.service";
 import { logAudit } from "@/lib/services/audit.service";
 import { prisma } from "@/lib/db";
 import { getDefaultOrganizationId } from "@/lib/services/organization.service";
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     const actorId = session.identity.id;
-    if (!(await isGlobalAdmin(actorId))) {
+    if (!(await canAccessAdmin(actorId))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

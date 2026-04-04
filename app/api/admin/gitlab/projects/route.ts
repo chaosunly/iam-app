@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "@ory/nextjs/app";
-import { isGlobalAdmin } from "@/lib/services/permission.service";
+import { canAccessAdmin } from "@/lib/services/permission.service";
 import {
   getGitlabProjects,
   createGitlabProject,
@@ -18,7 +18,7 @@ export async function GET() {
     }
 
     const userId = session.identity.id;
-    const hasAdminAccess = await isGlobalAdmin(userId);
+    const hasAdminAccess = await canAccessAdmin(userId);
 
     if (!hasAdminAccess) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
     }
 
     const userId = session.identity.id;
-    const hasAdminAccess = await isGlobalAdmin(userId);
+    const hasAdminAccess = await canAccessAdmin(userId);
 
     if (!hasAdminAccess) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });

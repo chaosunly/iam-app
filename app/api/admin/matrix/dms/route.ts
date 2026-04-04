@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "@ory/nextjs/app";
-import { isGlobalAdmin } from "@/lib/services/permission.service";
+import { canAccessAdmin } from "@/lib/services/permission.service";
 import { listDms, createDm } from "@/lib/services/matrix-dm.service";
 import { createErrorResponse } from "@/lib/errors";
 
@@ -10,7 +10,7 @@ export async function GET() {
     if (!session?.identity) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    if (!(await isGlobalAdmin(session.identity.id))) {
+    if (!(await canAccessAdmin(session.identity.id))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     const dms = await listDms(session.identity.id);
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     if (!session?.identity) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    if (!(await isGlobalAdmin(session.identity.id))) {
+    if (!(await canAccessAdmin(session.identity.id))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     const { recipientId } = await request.json();

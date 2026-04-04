@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "@ory/nextjs/app";
 import { randomBytes } from "node:crypto";
-import { isGlobalAdmin } from "@/lib/services/permission.service";
+import { canAccessAdmin } from "@/lib/services/permission.service";
 
 type CreateClientPayload = {
   client_id?: string;
@@ -22,7 +22,7 @@ async function ensureAdmin() {
   }
 
   const userId = session.identity.id;
-  const hasAdminAccess = await isGlobalAdmin(userId);
+  const hasAdminAccess = await canAccessAdmin(userId);
   if (!hasAdminAccess) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "@ory/nextjs/app";
-import { isGlobalAdmin } from "@/lib/services/permission.service";
+import { canAccessAdmin } from "@/lib/services/permission.service";
 import {
   getMatrixSpaceById,
   deleteMatrixSpace,
@@ -16,7 +16,7 @@ export async function GET(
     if (!session?.identity) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    if (!(await isGlobalAdmin(session.identity.id))) {
+    if (!(await canAccessAdmin(session.identity.id))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -48,7 +48,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     const actorId = session.identity.id;
-    if (!(await isGlobalAdmin(actorId))) {
+    if (!(await canAccessAdmin(actorId))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

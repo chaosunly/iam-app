@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "@ory/nextjs/app";
 import {
-  isGlobalAdmin,
+  canAccessAdmin,
   invalidateUserCache,
 } from "@/lib/services/permission.service";
 import { getGroupById } from "@/lib/services/group.service";
@@ -27,7 +27,7 @@ export async function GET(
     }
 
     const userId = session.identity.id;
-    if (!(await isGlobalAdmin(userId))) {
+    if (!(await canAccessAdmin(userId))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -83,7 +83,7 @@ export async function POST(
     }
 
     const userId = session.identity.id;
-    if (!(await isGlobalAdmin(userId))) {
+    if (!(await canAccessAdmin(userId))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -141,7 +141,7 @@ export async function DELETE(
     }
 
     const userId = session.identity.id;
-    if (!(await isGlobalAdmin(userId))) {
+    if (!(await canAccessAdmin(userId))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

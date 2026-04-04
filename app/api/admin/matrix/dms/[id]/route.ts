@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "@ory/nextjs/app";
-import { isGlobalAdmin } from "@/lib/services/permission.service";
+import { canAccessAdmin } from "@/lib/services/permission.service";
 import { deleteDm } from "@/lib/services/matrix-dm.service";
 import { createErrorResponse } from "@/lib/errors";
 
@@ -13,7 +13,7 @@ export async function DELETE(
     if (!session?.identity) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    if (!(await isGlobalAdmin(session.identity.id))) {
+    if (!(await canAccessAdmin(session.identity.id))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     const { id } = await params;

@@ -1,6 +1,6 @@
 import { getServerSession } from "@ory/nextjs/app";
 import { redirect } from "next/navigation";
-import { isGlobalAdmin } from "@/lib/services/permission.service";
+import { canAccessAdmin } from "@/lib/services/permission.service";
 import { ClientList } from "./client-list";
 
 type OAuth2Client = {
@@ -35,7 +35,7 @@ export default async function AdminClientPage() {
     redirect("/auth/login");
   }
 
-  const hasAdminAccess = await isGlobalAdmin(session.identity.id);
+  const hasAdminAccess = await canAccessAdmin(session.identity.id);
   if (!hasAdminAccess) {
     redirect("/dashboard");
   }

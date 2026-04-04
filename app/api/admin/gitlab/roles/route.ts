@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "@ory/nextjs/app";
-import { isGlobalAdmin } from "@/lib/services/permission.service";
+import { canAccessAdmin } from "@/lib/services/permission.service";
 import {
   assignGitlabRole,
   updateGitlabRole,
@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     }
 
     const userId = session.identity.id;
-    const hasAdminAccess = await isGlobalAdmin(userId);
+    const hasAdminAccess = await canAccessAdmin(userId);
 
     if (!hasAdminAccess) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
     }
 
     const userId = session.identity.id;
-    const hasAdminAccess = await isGlobalAdmin(userId);
+    const hasAdminAccess = await canAccessAdmin(userId);
 
     if (!hasAdminAccess) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -113,7 +113,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const userId = session.identity.id;
-    const hasAdminAccess = await isGlobalAdmin(userId);
+    const hasAdminAccess = await canAccessAdmin(userId);
 
     if (!hasAdminAccess) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -158,7 +158,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     const userId = session.identity.id;
-    const hasAdminAccess = await isGlobalAdmin(userId);
+    const hasAdminAccess = await canAccessAdmin(userId);
 
     if (!hasAdminAccess) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });

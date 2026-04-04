@@ -1,6 +1,6 @@
 import { getServerSession } from "@ory/nextjs/app";
 import { redirect } from "next/navigation";
-import { isGlobalAdmin } from "@/lib/services/permission.service";
+import { canAccessAdmin } from "@/lib/services/permission.service";
 import { getOrganizationGroups } from "@/lib/services/group.service";
 import { getDefaultOrganizationId } from "@/lib/services/organization.service";
 import Link from "next/link";
@@ -16,7 +16,7 @@ export default async function AdminGroupsPage() {
   }
 
   const userId = session.identity.id;
-  const hasAdminAccess = await isGlobalAdmin(userId);
+  const hasAdminAccess = await canAccessAdmin(userId);
 
   if (!hasAdminAccess) {
     redirect("/dashboard");

@@ -1,6 +1,6 @@
 import { getServerSession } from "@ory/nextjs/app";
 import { redirect } from "next/navigation";
-import { isGlobalAdmin } from "@/lib/services/permission.service";
+import { canAccessAdmin } from "@/lib/services/permission.service";
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -14,7 +14,7 @@ export default async function GitlabAccessPage() {
   }
 
   const userId = session.identity.id;
-  const hasAdminAccess = await isGlobalAdmin(userId);
+  const hasAdminAccess = await canAccessAdmin(userId);
 
   if (!hasAdminAccess) {
     redirect("/dashboard");

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "@ory/nextjs/app";
 import {
-  isGlobalAdmin,
+  canAccessAdmin,
   isGroupAdmin,
   invalidateUserCache,
 } from "@/lib/services/permission.service";
@@ -25,7 +25,7 @@ export async function DELETE(
     const adminId = session.identity.id;
     const { id: groupId, userId } = await params;
     const [globalAdmin, groupAdmin] = await Promise.all([
-      isGlobalAdmin(adminId),
+      canAccessAdmin(adminId),
       isGroupAdmin(adminId, groupId),
     ]);
 

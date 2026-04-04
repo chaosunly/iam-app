@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "@ory/nextjs/app";
 import {
-  isGlobalAdmin,
+  canAccessAdmin,
   isGroupAdmin,
   invalidateUserCache,
 } from "@/lib/services/permission.service";
@@ -26,7 +26,7 @@ export async function GET(
     const userId = session.identity.id;
     const { id: groupId } = await params;
     const [globalAdmin, groupAdmin] = await Promise.all([
-      isGlobalAdmin(userId),
+      canAccessAdmin(userId),
       isGroupAdmin(userId, groupId),
     ]);
 
@@ -97,7 +97,7 @@ export async function POST(
 
     const { id: groupId } = await params;
     const [globalAdmin, groupAdmin] = await Promise.all([
-      isGlobalAdmin(adminId),
+      canAccessAdmin(adminId),
       isGroupAdmin(adminId, groupId),
     ]);
 

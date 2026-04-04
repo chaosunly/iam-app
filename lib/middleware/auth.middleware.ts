@@ -1,7 +1,7 @@
 import { getServerSession } from "@ory/nextjs/app";
 import { NextRequest } from "next/server";
 import { checkPermission } from "@/lib/services/keto.service";
-import { canAccessAdmin } from "@/lib/services/permission.service";
+import { isGlobalAdmin, isOrgOwnerOrAdmin } from "@/lib/services/permission.service";
 import { UserContext } from "@/lib/types";
 import { UnauthorizedError, ForbiddenError } from "@/lib/errors";
 
@@ -64,8 +64,13 @@ export async function requireAdmin(request: NextRequest): Promise<UserContext> {
   const userContext = await requireAuth(request);
 
   // Step 2: Authorize - allow global admins and org owners/admins
-  const hasAccess = await canAccessAdmin(userContext.userId);
-  if (!hasAccess) {
+  // Use direct checks to avoid assertRequiredKetoNamespaces dependency
+  const globalAdmin = await isGlobalAdmin(userContext.userId);
+  if (globalAdmin) return userContext;
+
+  const defaultOrgId = process.env.DEFAULT_ORG_ID || "default-org";
+  const orgAdmin = await isOrgOwnerOrAdmin(userContext.userId, defaultOrgId);
+  if (!orgAdmin) {
     throw new ForbiddenError("Admin access required");
   }
 

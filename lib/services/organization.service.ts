@@ -188,43 +188,38 @@ export async function getOrganizationMembers(
     { relation: "members", role: "member" as const },
   ];
 
-  try {
-    for (const { relation, role } of roles) {
-      const relationships = await listObjectPermissions(
-        "Organization",
-        organizationId,
-      );
+  for (const { relation, role } of roles) {
+    const relationships = await listObjectPermissions(
+      "Organization",
+      organizationId,
+    );
 
-      const roleMembers = relationships.filter(
-        (rel) => rel.relation === relation,
-      );
+    const roleMembers = relationships.filter(
+      (rel) => rel.relation === relation,
+    );
 
-      for (const rel of roleMembers) {
-        let email = "";
-        let name = "";
-        try {
-          const identity = await getIdentity(rel.subject);
-          email = identity.traits.email || "";
-          const first = identity.traits.name?.first || "";
-          const last = identity.traits.name?.last || "";
-          name = `${first} ${last}`.trim() || email;
-        } catch {
-          // identity not found — leave blank
-        }
-        members.push({
-          userId: rel.subject,
-          email,
-          name,
-          role,
-        });
+    for (const rel of roleMembers) {
+      let email = "";
+      let name = "";
+      try {
+        const identity = await getIdentity(rel.subject);
+        email = identity.traits.email || "";
+        const first = identity.traits.name?.first || "";
+        const last = identity.traits.name?.last || "";
+        name = `${first} ${last}`.trim() || email;
+      } catch {
+        // identity not found — leave blank
       }
+      members.push({
+        userId: rel.subject,
+        email,
+        name,
+        role,
+      });
     }
-
-    return members;
-  } catch (error) {
-    console.error("Error fetching organization members:", error);
-    return [];
   }
+
+  return members;
 }
 
 /**
