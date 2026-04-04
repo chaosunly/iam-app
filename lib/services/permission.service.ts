@@ -13,8 +13,10 @@ interface CacheEntry {
   timestamp: number;
 }
 
-// Cache for 5 minutes (300000ms)
+// Cache granted permissions for 5 minutes (300000ms)
+// Cache denied permissions for only 30 seconds to allow recovery from Keto startup issues
 const CACHE_TTL = 5 * 60 * 1000;
+const NEGATIVE_CACHE_TTL = 30 * 1000;
 const permissionCache = new Map<string, CacheEntry>();
 
 // Generate cache key from tuple
@@ -47,9 +49,12 @@ export async function checkPermissionCached(
   // Check cache first
   if (!skipCache) {
     const cached = permissionCache.get(cacheKey);
-    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-      console.log("[Permission] Cache hit:", cacheKey);
-      return cached.allowed;
+    if (cached) {
+      const ttl = cached.allowed ? CACHE_TTL : NEGATIVE_CACHE_TTL;
+      if (Date.now() - cached.timestamp < ttl) {
+        console.log("[Permission] Cache hit:", cacheKey);
+        return cached.allowed;
+      }
     }
   }
 
