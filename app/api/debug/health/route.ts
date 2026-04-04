@@ -3,7 +3,7 @@
  * Remove or restrict this endpoint after diagnosing production issues.
  */
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "@ory/nextjs/app";
 
 const KETO_READ_URL =
@@ -97,7 +97,7 @@ async function checkKratos() {
   }
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   // 1. Test session (same code path as requireAuth)
   let sessionInfo: Record<string, unknown> = { ok: false };
   let userId: string | null = null;
@@ -141,10 +141,36 @@ export async function GET() {
     permissionChecks = [isGlobalAdmin, isOrgOwner, isOrgAdmin];
   }
 
+  // 5. Probe /api/admin/identities end-to-end (same session cookie, internal request)
+  let identitiesProbe: Record<string, unknown> = { skipped: true };
+  try {
+    const origin = request.nextUrl.origin;
+    const cookie = request.headers.get("cookie") ?? "";
+    const start = Date.now();
+    const res = await fetch(`${origin}/api/admin/identities?per_page=1`, {
+      method: "GET",
+      headers: { cookie },
+    });
+    const body = await res.text();
+    identitiesProbe = {
+      status: res.status,
+      ok: res.ok,
+      latencyMs: Date.now() - start,
+      body: body.slice(0, 400),
+    };
+  } catch (err) {
+    identitiesProbe = {
+      ok: false,
+      error: err instanceof Error ? err.message : String(err),
+    };
+  }
+
   return NextResponse.json({
     env: {
       ORY_KETO_READ_URL: KETO_READ_URL,
       ORY_KRATOS_ADMIN_URL: KRATOS_ADMIN_URL,
+      // @ory/nextjs checks NEXT_PUBLIC_ORY_SDK_URL first, then ORY_SDK_URL
+      NEXT_PUBLIC_ORY_SDK_URL: process.env.NEXT_PUBLIC_ORY_SDK_URL || "NOT SET",
       ORY_SDK_URL: process.env.ORY_SDK_URL || "NOT SET",
       DEFAULT_ORG_ID,
       NODE_ENV: process.env.NODE_ENV,
@@ -155,6 +181,7 @@ export async function GET() {
     },
     kratos: { admin: kratosAdmin },
     permissionChecks,
+    identitiesProbe,
     note: "Remove or secure this endpoint after diagnosis.",
   });
 }
