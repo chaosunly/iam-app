@@ -13,6 +13,7 @@ import {
   createSuccessResponse,
   withErrorHandler,
 } from "@/lib/errors";
+import { assignDefaultPermissions } from "@/lib/services/user-setup.service";
 import { CreateIdentityRequest } from "@/lib/types";
 
 /**
@@ -52,6 +53,9 @@ export async function POST(request: NextRequest) {
 
     // Call service layer (BFF)
     const identity = await createIdentity(body);
+
+    // Auto-sync: add new identity to default org (mirrors registration hook behavior)
+    await assignDefaultPermissions(identity.id);
 
     return createSuccessResponse(identity, 201);
   });

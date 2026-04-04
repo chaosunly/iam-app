@@ -1,6 +1,6 @@
 import { getServerSession } from "@ory/nextjs/app";
 import { redirect } from "next/navigation";
-import { isGlobalAdmin } from "@/lib/services/permission.service";
+import { canAccessAdmin } from "@/lib/services/permission.service";
 import { listIdentities } from "@/lib/services/kratos.service";
 import { getOrganizationGroups } from "@/lib/services/group.service";
 import { getDefaultOrganizationId } from "@/lib/services/organization.service";
@@ -25,7 +25,7 @@ export default async function AdminPage() {
     "Admin";
 
   // Double-check admin permissions
-  const hasAdminAccess = await isGlobalAdmin(userId);
+  const hasAdminAccess = await canAccessAdmin(userId);
 
   if (!hasAdminAccess) {
     redirect("/dashboard");
@@ -42,7 +42,7 @@ export default async function AdminPage() {
         <div className="mb-8">
           <h2 className="text-3xl font-bold mb-2">Admin Dashboard</h2>
           <p className="text-muted-foreground">
-            Welcome {userName} - You have global administrator access
+            Welcome {userName} - You have administrator access
           </p>
         </div>
 
