@@ -188,13 +188,14 @@ export async function getOrganizationMembers(
     { relation: "members", role: "member" as const },
   ];
 
-  for (const { relation, role } of roles) {
-    const relationships = await listObjectPermissions(
-      "Organization",
-      organizationId,
-    );
+  // Fetch all relationships once, then partition by relation
+  const allRelationships = await listObjectPermissions(
+    "Organization",
+    organizationId,
+  );
 
-    const roleMembers = relationships.filter(
+  for (const { relation, role } of roles) {
+    const roleMembers = allRelationships.filter(
       (rel) => rel.relation === relation,
     );
 

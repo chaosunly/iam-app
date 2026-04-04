@@ -81,37 +81,18 @@ export async function middleware(request: NextRequest) {
 
     const userId = session.identity.id;
 
-    let requiredNamespaces: readonly string[] | null = null;
     if (PROTECTED_ROUTES.api.pattern.test(pathname)) {
-      requiredNamespaces = ["GlobalRole", "Organization", "Group"];
-    }
-
-    if (requiredNamespaces) {
-      try {
-        await assertRequiredKetoNamespaces(requiredNamespaces);
-      } catch (error) {
-        const message =
-          error instanceof Error
-            ? error.message
-            : "Keto namespaces unavailable";
-        console.error("[Middleware] Keto namespace check failed:", message);
-
-        if (pathname.startsWith("/api/")) {
-          return NextResponse.json(
-            {
-              error: "Authorization service misconfigured",
-              details: message,
-              status: 503,
-            },
-            { status: 503 },
-          );
-        }
-
-        const errorUrl = new URL("/error", request.url);
-        errorUrl.searchParams.set("error", "authorization_service_unavailable");
-        errorUrl.searchParams.set("error_description", message);
-        return NextResponse.redirect(errorUrl);
-      }
+      // Non-blocking namespace check: warn if namespaces are missing but do not
+      // return 503. Individual route handlers enforce their own auth checks via
+      // requireAdmin / canAccessAdmin, so a missing namespace only means those
+      // checks will fail-closed (return false) rather than crashing all routes.
+      assertRequiredKetoNamespaces(["GlobalRole", "Organization", "Group"]).catch(
+        (error) => {
+          const message =
+            error instanceof Error ? error.message : "Keto namespaces unavailable";
+          console.warn("[Middleware] Keto namespace check failed (non-blocking):", message);
+        },
+      );
     }
 
     // Check if trying to access admin panel
