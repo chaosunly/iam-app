@@ -123,7 +123,8 @@ export default function OrganizationPage() {
         let detail = `HTTP ${membersRes.status}`;
         try {
           const body = await membersRes.json();
-          detail += `: ${body.error || body.message || JSON.stringify(body)}`;
+          const errMsg = body.error ?? body.message;
+          detail += `: ${typeof errMsg === "string" ? errMsg : JSON.stringify(body)}`;
         } catch {}
         setError(`Failed to fetch organization members — ${detail}`);
       }

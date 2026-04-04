@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "@ory/nextjs/app";
+import { isGlobalAdmin, isOrgOwnerOrAdmin } from "@/lib/services/permission.service";
 
 const KETO_READ_URL =
   process.env.ORY_KETO_READ_URL || "http://localhost:4466";
@@ -109,6 +110,8 @@ export async function GET(request: NextRequest) {
         ok: true,
         userId,
         email: (session.identity.traits as Record<string, unknown>)?.email ?? null,
+        sessionId: session.id,
+        expiresAt: session.expires_at,
       };
     } else {
       sessionInfo = { ok: false, reason: "no session or identity" };
@@ -132,13 +135,35 @@ export async function GET(request: NextRequest) {
 
   // 4. If we have a userId, check their org admin permissions
   let permissionChecks: Record<string, unknown>[] = [];
+  let servicePermissionChecks: Record<string, unknown> = { skipped: true };
+
   if (userId) {
-    const [isGlobalAdmin, isOrgOwner, isOrgAdmin] = await Promise.all([
+    // 4a. Direct Keto HTTP checks (bypasses cache)
+    const [isGlobalAdminKeto, isOrgOwnerKeto, isOrgAdminKeto] = await Promise.all([
       checkKetoPermission("GlobalRole", "admin", "is_admin", userId),
       checkKetoPermission("Organization", DEFAULT_ORG_ID, "owners", userId),
       checkKetoPermission("Organization", DEFAULT_ORG_ID, "admins", userId),
     ]);
-    permissionChecks = [isGlobalAdmin, isOrgOwner, isOrgAdmin];
+    permissionChecks = [isGlobalAdminKeto, isOrgOwnerKeto, isOrgAdminKeto];
+
+    // 4b. Service-layer checks (uses in-memory cache — same path as requireAdmin)
+    try {
+      const [globalAdminService, orgAdminService] = await Promise.all([
+        isGlobalAdmin(userId),
+        isOrgOwnerOrAdmin(userId, DEFAULT_ORG_ID),
+      ]);
+      servicePermissionChecks = {
+        isGlobalAdmin: globalAdminService,
+        isOrgOwnerOrAdmin: orgAdminService,
+        wouldRequireAdminPass: globalAdminService || orgAdminService,
+        note: "These use the in-memory permission cache (same code path as API route handlers)",
+      };
+    } catch (err) {
+      servicePermissionChecks = {
+        error: err instanceof Error ? err.message : String(err),
+        note: "Service-layer permission check threw an error",
+      };
+    }
   }
 
   // 5. Probe /api/admin/identities end-to-end (same session cookie, internal request)
@@ -152,14 +177,43 @@ export async function GET(request: NextRequest) {
       headers: { cookie },
     });
     const body = await res.text();
+    let parsedBody: unknown = null;
+    try { parsedBody = JSON.parse(body); } catch {}
     identitiesProbe = {
       status: res.status,
       ok: res.ok,
       latencyMs: Date.now() - start,
-      body: body.slice(0, 400),
+      // Show full body so we can see actual error structure
+      body: parsedBody ?? body.slice(0, 1000),
     };
   } catch (err) {
     identitiesProbe = {
+      ok: false,
+      error: err instanceof Error ? err.message : String(err),
+    };
+  }
+
+  // 6. Probe /api/admin/organization/members
+  let membersProbe: Record<string, unknown> = { skipped: true };
+  try {
+    const origin = request.nextUrl.origin;
+    const cookie = request.headers.get("cookie") ?? "";
+    const start = Date.now();
+    const res = await fetch(`${origin}/api/admin/organization/members`, {
+      method: "GET",
+      headers: { cookie },
+    });
+    const body = await res.text();
+    let parsedBody: unknown = null;
+    try { parsedBody = JSON.parse(body); } catch {}
+    membersProbe = {
+      status: res.status,
+      ok: res.ok,
+      latencyMs: Date.now() - start,
+      body: parsedBody ?? body.slice(0, 500),
+    };
+  } catch (err) {
+    membersProbe = {
       ok: false,
       error: err instanceof Error ? err.message : String(err),
     };
@@ -169,9 +223,9 @@ export async function GET(request: NextRequest) {
     env: {
       ORY_KETO_READ_URL: KETO_READ_URL,
       ORY_KRATOS_ADMIN_URL: KRATOS_ADMIN_URL,
-      // @ory/nextjs checks NEXT_PUBLIC_ORY_SDK_URL first, then ORY_SDK_URL
       NEXT_PUBLIC_ORY_SDK_URL: process.env.NEXT_PUBLIC_ORY_SDK_URL || "NOT SET",
       ORY_SDK_URL: process.env.ORY_SDK_URL || "NOT SET",
+      NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || "NOT SET",
       DEFAULT_ORG_ID,
       NODE_ENV: process.env.NODE_ENV,
     },
@@ -181,7 +235,9 @@ export async function GET(request: NextRequest) {
     },
     kratos: { admin: kratosAdmin },
     permissionChecks,
+    servicePermissionChecks,
     identitiesProbe,
+    membersProbe,
     note: "Remove or secure this endpoint after diagnosis.",
   });
 }

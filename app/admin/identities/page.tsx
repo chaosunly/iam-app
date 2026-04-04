@@ -52,7 +52,8 @@ export default function IdentitiesPage() {
         let detail = `HTTP ${response.status}`;
         try {
           const body = await response.json();
-          detail += `: ${body.error || body.message || JSON.stringify(body)}`;
+          const errMsg = body.error ?? body.message;
+          detail += `: ${typeof errMsg === "string" ? errMsg : JSON.stringify(body)}`;
         } catch {}
         throw new Error(`Failed to fetch identities — ${detail}`);
       }
