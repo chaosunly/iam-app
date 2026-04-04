@@ -1,6 +1,7 @@
 import { getServerSession } from "@ory/nextjs/app";
 import { NextRequest } from "next/server";
 import { checkPermission } from "@/lib/services/keto.service";
+import { canAccessAdmin } from "@/lib/services/permission.service";
 import { UserContext } from "@/lib/types";
 import { UnauthorizedError, ForbiddenError } from "@/lib/errors";
 
@@ -62,12 +63,11 @@ export async function requireAdmin(request: NextRequest): Promise<UserContext> {
   // Step 1: Authenticate
   const userContext = await requireAuth(request);
 
-  // Step 2: Authorize
-  await requirePermission(userContext, {
-    namespace: "GlobalRole",
-    object: "admin",
-    relation: "is_admin",
-  });
+  // Step 2: Authorize - allow global admins and org owners/admins
+  const hasAccess = await canAccessAdmin(userContext.userId);
+  if (!hasAccess) {
+    throw new ForbiddenError("Admin access required");
+  }
 
   return userContext;
 }

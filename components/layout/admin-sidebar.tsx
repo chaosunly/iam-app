@@ -60,9 +60,7 @@ type NavSection = {
 const sections: NavSection[] = [
   {
     label: "General",
-    items: [
-      { href: "/admin", label: "Dashboard", icon: Home },
-    ],
+    items: [{ href: "/admin", label: "Dashboard", icon: Home }],
   },
   {
     label: "Directory",
@@ -391,7 +389,7 @@ export function AdminSidebar({
                 <Shield className="h-4 w-4" />
               </div>
               <div className="flex flex-col leading-none">
-                <span className="text-sm font-semibold">IAM Admin</span>
+                <span className="text-sm font-semibold">REXFORM IAM</span>
                 <span className="text-xs text-muted-foreground">
                   Identity Management
                 </span>

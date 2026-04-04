@@ -201,7 +201,7 @@ export function UserSidebar({
               <Home className="h-4 w-4" />
             </div>
             <div className="flex flex-col leading-none">
-              <span className="text-sm font-semibold">IAM App</span>
+              <span className="text-sm font-semibold">REXFORM IAM</span>
               <span className="text-xs text-muted-foreground">User Portal</span>
             </div>
           </div>

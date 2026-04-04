@@ -16,7 +16,7 @@ export default function Home() {
         />
         <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
           <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight">
-            Welcome to IAM App
+            Welcome to REXFORM IAM
           </h1>
           <p className="max-w-md text-lg leading-8 text-muted-foreground">
             A secure identity and access management application built with
@@ -24,15 +24,10 @@ export default function Home() {
           </p>
         </div>
         <div className="flex flex-col gap-4 sm:flex-row">
-          <Button asChild size="lg" className="rounded-full min-w-40.5">
+          <Button asChild size="lg" className="w-full">
             <Link href="/auth/login">Sign In</Link>
           </Button>
-          <Button
-            asChild
-            variant="outline"
-            size="lg"
-            className="rounded-full min-w-40.5"
-          >
+          <Button asChild variant="outline" size="lg" className="w-full">
             <Link href="/auth/registration">Sign Up</Link>
           </Button>
         </div>
