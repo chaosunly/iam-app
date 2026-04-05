@@ -2,187 +2,186 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+
+const identitySchema = z.object({
+  email: z.string().email("Enter a valid email address"),
+  firstName: z.string().optional(),
+  lastName: z.string().optional(),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+});
+
+type IdentityFormValues = z.infer<typeof identitySchema>;
 
 export default function NewIdentityPage() {
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
-    email: "",
-    firstName: "",
-    lastName: "",
-    password: "",
+  const [apiError, setApiError] = useState<string | null>(null);
+
+  const form = useForm<IdentityFormValues>({
+    resolver: zodResolver(identitySchema),
+    defaultValues: {
+      email: "",
+      firstName: "",
+      lastName: "",
+      password: "",
+    },
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
-
+  const onSubmit = async (values: IdentityFormValues) => {
+    setApiError(null);
     try {
       const response = await fetch("/api/admin/identities", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           schema_id: "default",
           traits: {
-            email: formData.email,
+            email: values.email,
             name: {
-              first: formData.firstName,
-              last: formData.lastName,
+              first: values.firstName,
+              last: values.lastName,
             },
           },
           credentials: {
             password: {
-              config: {
-                password: formData.password,
-              },
+              config: { password: values.password },
             },
           },
         }),
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to create identity");
+        const data = await response.json();
+        throw new Error(data.error || "Failed to create identity");
       }
 
       const result = await response.json();
-      // API wraps response in { data, status }
       const identity = result.data || result;
       router.push(`/admin/identities/${identity.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
-      setLoading(false);
+      setApiError(err instanceof Error ? err.message : "An error occurred");
     }
   };
 
   return (
     <div className="max-w-2xl p-6 md:p-8">
       <div className="mb-8">
-        <h2 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50 mb-2">
-          Create New Identity
-        </h2>
-        <p className="text-zinc-600 dark:text-zinc-400">
-          Add a new user to the system
-        </p>
+        <h2 className="text-3xl font-bold mb-2">Create New Identity</h2>
+        <p className="text-muted-foreground">Add a new user to the system</p>
       </div>
 
-      {error && (
-        <div className="mb-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-          <p className="text-red-800 dark:text-red-200">{error}</p>
-        </div>
-      )}
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          {apiError && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{apiError}</AlertDescription>
+            </Alert>
+          )}
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 p-6">
-          <div className="space-y-4">
-            <div>
-              <label
-                htmlFor="email"
-                className="block text-sm font-medium text-zinc-900 dark:text-zinc-50 mb-2"
-              >
-                Email <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="email"
-                id="email"
-                required
-                value={formData.email}
-                onChange={(e) =>
-                  setFormData({ ...formData, email: e.target.value })
-                }
-                className="w-full px-3 py-2 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-lg text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
-                placeholder="user@example.com"
-              />
-            </div>
+          <div className="rounded-lg border p-6 space-y-4">
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    Email <span className="text-destructive">*</span>
+                  </FormLabel>
+                  <FormControl>
+                    <Input
+                      type="email"
+                      placeholder="user@example.com"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label
-                  htmlFor="firstName"
-                  className="block text-sm font-medium text-zinc-900 dark:text-zinc-50 mb-2"
-                >
-                  First Name
-                </label>
-                <input
-                  type="text"
-                  id="firstName"
-                  value={formData.firstName}
-                  onChange={(e) =>
-                    setFormData({ ...formData, firstName: e.target.value })
-                  }
-                  className="w-full px-3 py-2 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-lg text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
-                  placeholder="John"
-                />
-              </div>
-
-              <div>
-                <label
-                  htmlFor="lastName"
-                  className="block text-sm font-medium text-zinc-900 dark:text-zinc-50 mb-2"
-                >
-                  Last Name
-                </label>
-                <input
-                  type="text"
-                  id="lastName"
-                  value={formData.lastName}
-                  onChange={(e) =>
-                    setFormData({ ...formData, lastName: e.target.value })
-                  }
-                  className="w-full px-3 py-2 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-lg text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
-                  placeholder="Doe"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label
-                htmlFor="password"
-                className="block text-sm font-medium text-zinc-900 dark:text-zinc-50 mb-2"
-              >
-                Password <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="password"
-                id="password"
-                required
-                minLength={8}
-                value={formData.password}
-                onChange={(e) =>
-                  setFormData({ ...formData, password: e.target.value })
-                }
-                className="w-full px-3 py-2 bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 rounded-lg text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-900 dark:focus:ring-zinc-100"
-                placeholder="Minimum 8 characters"
+              <FormField
+                control={form.control}
+                name="firstName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>First Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="John" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                The user will be able to login with this password and change it
-                later
-              </p>
+              <FormField
+                control={form.control}
+                name="lastName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Last Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Doe" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
-          </div>
-        </div>
 
-        <div className="flex items-center gap-4">
-          <button
-            type="submit"
-            disabled={loading}
-            className="px-6 py-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-lg hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? "Creating..." : "Create Identity"}
-          </button>
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="px-6 py-2 border border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
-          >
-            Cancel
-          </button>
-        </div>
-      </form>
+            <FormField
+              control={form.control}
+              name="password"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    Password <span className="text-destructive">*</span>
+                  </FormLabel>
+                  <FormControl>
+                    <Input
+                      type="password"
+                      placeholder="Minimum 8 characters"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    The user will be able to change this password later.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+
+          <div className="flex items-center gap-4">
+            <Button type="submit" disabled={form.formState.isSubmitting}>
+              {form.formState.isSubmitting ? "Creating..." : "Create Identity"}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => router.back()}
+            >
+              Cancel
+            </Button>
+          </div>
+        </form>
+      </Form>
     </div>
   );
 }
