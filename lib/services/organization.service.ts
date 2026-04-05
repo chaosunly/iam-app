@@ -71,20 +71,8 @@ export async function addOrganizationMember(
   organizationId: string,
   userId: string,
   role: "owner" | "admin" | "member",
-  inviterId: string,
+  _inviterId: string,
 ): Promise<void> {
-  // Check if inviter has permission
-  const canInvite = await checkPermission({
-    namespace: "Organization",
-    object: organizationId,
-    relation: "invite_member",
-    subject: inviterId,
-  });
-
-  if (!canInvite) {
-    throw new Error("Insufficient permissions to invite members");
-  }
-
   // Add user to organization with specified role
   await grantPermission({
     namespace: "Organization",
@@ -100,20 +88,8 @@ export async function addOrganizationMember(
 export async function removeOrganizationMember(
   organizationId: string,
   userId: string,
-  removerId: string,
+  _removerId: string,
 ): Promise<void> {
-  // Check if remover has permission
-  const canRemove = await checkPermission({
-    namespace: "Organization",
-    object: organizationId,
-    relation: "remove_member",
-    subject: removerId,
-  });
-
-  if (!canRemove) {
-    throw new Error("Insufficient permissions to remove members");
-  }
-
   // Remove all role relationships
   const roles = ["owners", "admins", "members"];
   for (const role of roles) {
@@ -137,20 +113,8 @@ export async function updateMemberRole(
   organizationId: string,
   userId: string,
   newRole: "owner" | "admin" | "member",
-  updaterId: string,
+  _updaterId: string,
 ): Promise<void> {
-  // Check permission
-  const canManage = await checkPermission({
-    namespace: "Organization",
-    object: organizationId,
-    relation: "manage_users",
-    subject: updaterId,
-  });
-
-  if (!canManage) {
-    throw new Error("Insufficient permissions to update member roles");
-  }
-
   // Remove old roles
   const roles = ["owners", "admins", "members"];
   for (const role of roles) {
