@@ -53,8 +53,8 @@ export default function NewIdentityPage() {
           traits: {
             email: values.email,
             name: {
-              first: values.firstName,
-              last: values.lastName,
+              first: values.firstName || undefined,
+              last: values.lastName || undefined,
             },
           },
           credentials: {
