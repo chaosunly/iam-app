@@ -5,7 +5,6 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Table,
   TableBody,
@@ -14,7 +13,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, AlertCircle } from "lucide-react";
+import { Plus } from "lucide-react";
+import { TableSkeleton } from "@/components/admin/table-skeleton";
+import { TableErrorState } from "@/components/admin/table-error-state";
+import { DeleteDialog } from "@/components/admin/delete-dialog";
 
 const PAGE_SIZE = 15;
 
@@ -39,6 +41,10 @@ export default function IdentitiesPage() {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [deleteTarget, setDeleteTarget] = useState<{
+    id: string;
+    email: string;
+  } | null>(null);
 
   useEffect(() => {
     fetchIdentities();
@@ -47,6 +53,7 @@ export default function IdentitiesPage() {
   const fetchIdentities = async () => {
     try {
       setLoading(true);
+      setError(null);
       const response = await fetch("/api/admin/identities");
       if (!response.ok) {
         let detail = `HTTP ${response.status}`;
@@ -58,51 +65,26 @@ export default function IdentitiesPage() {
         throw new Error(`Failed to fetch identities — ${detail}`);
       }
       const result = await response.json();
-
-      // Validate response structure
       if (!result || typeof result !== "object") {
-        console.error("Invalid API response:", result);
         throw new Error("Invalid response from server");
       }
-
-      // Ensure data is an array
       const identitiesData = result.data;
-      if (!Array.isArray(identitiesData)) {
-        console.error("API returned non-array data:", identitiesData);
-        setIdentities([]);
-      } else {
-        setIdentities(identitiesData);
-      }
-
-      setError(null);
+      setIdentities(Array.isArray(identitiesData) ? identitiesData : []);
     } catch (err) {
-      console.error("Error fetching identities:", err);
       setError(err instanceof Error ? err.message : "An error occurred");
-      setIdentities([]); // Ensure we always have an array
+      setIdentities([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const deleteIdentity = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this identity?")) {
-      return;
-    }
-
-    try {
-      const response = await fetch(`/api/admin/identities/${id}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to delete identity");
-      }
-
-      // Refresh the list
-      fetchIdentities();
-    } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to delete identity");
-    }
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return;
+    const response = await fetch(`/api/admin/identities/${deleteTarget.id}`, {
+      method: "DELETE",
+    });
+    if (!response.ok) throw new Error("Failed to delete identity");
+    await fetchIdentities();
   };
 
   const filteredIdentities = useMemo(() => {
@@ -123,32 +105,10 @@ export default function IdentitiesPage() {
   const totalPages = Math.max(1, Math.ceil(filteredIdentities.length / PAGE_SIZE));
   const safePage = Math.min(currentPage, totalPages);
   const startIndex = (safePage - 1) * PAGE_SIZE;
-  const paginatedIdentities = filteredIdentities.slice(startIndex, startIndex + PAGE_SIZE);
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-muted border-t-foreground rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading identities...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="p-6">
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-        <Button variant="link" onClick={fetchIdentities} className="mt-2 px-0">
-          Try again
-        </Button>
-      </div>
-    );
-  }
+  const paginatedIdentities = filteredIdentities.slice(
+    startIndex,
+    startIndex + PAGE_SIZE
+  );
 
   return (
     <div className="p-6 md:p-8">
@@ -172,7 +132,10 @@ export default function IdentitiesPage() {
           type="text"
           placeholder="Search by email, name, or ID..."
           value={searchTerm}
-          onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+          onChange={(e) => {
+            setSearchTerm(e.target.value);
+            setCurrentPage(1);
+          }}
         />
       </div>
 
@@ -190,7 +153,15 @@ export default function IdentitiesPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {paginatedIdentities.length === 0 ? (
+              {loading ? (
+                <TableSkeleton columns={5} />
+              ) : error ? (
+                <TableErrorState
+                  message={error}
+                  colSpan={5}
+                  onRetry={fetchIdentities}
+                />
+              ) : paginatedIdentities.length === 0 ? (
                 <TableRow>
                   <TableCell
                     colSpan={5}
@@ -236,7 +207,12 @@ export default function IdentitiesPage() {
                           variant="ghost"
                           size="sm"
                           className="text-destructive hover:text-destructive"
-                          onClick={() => deleteIdentity(identity.id)}
+                          onClick={() =>
+                            setDeleteTarget({
+                              id: identity.id,
+                              email: identity.traits.email || identity.id,
+                            })
+                          }
                         >
                           Delete
                         </Button>
@@ -250,10 +226,13 @@ export default function IdentitiesPage() {
         </div>
       </div>
 
+      {/* Pagination */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mt-4">
         <p className="text-sm text-muted-foreground">
-          Showing {filteredIdentities.length === 0 ? 0 : startIndex + 1}-
-          {Math.min(startIndex + PAGE_SIZE, filteredIdentities.length)} of {filteredIdentities.length} identities
+          Showing{" "}
+          {filteredIdentities.length === 0 ? 0 : startIndex + 1}-
+          {Math.min(startIndex + PAGE_SIZE, filteredIdentities.length)} of{" "}
+          {filteredIdentities.length} identities
         </p>
         <div className="flex items-center gap-2">
           <Button
@@ -272,13 +251,29 @@ export default function IdentitiesPage() {
             type="button"
             variant="outline"
             size="sm"
-            onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+            onClick={() =>
+              setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+            }
             disabled={safePage >= totalPages}
           >
             Next
           </Button>
         </div>
       </div>
+
+      {/* Delete dialog */}
+      <DeleteDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="Delete Identity"
+        description={
+          deleteTarget
+            ? `This will permanently delete ${deleteTarget.email}. This action cannot be undone.`
+            : ""
+        }
+        successMessage="Identity deleted successfully"
+        onConfirm={handleDeleteConfirm}
+      />
     </div>
   );
 }
