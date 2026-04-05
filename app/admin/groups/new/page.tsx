@@ -56,8 +56,12 @@ export default function NewGroupPage() {
       });
 
       if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Failed to create group");
+        let message = "Failed to create group";
+        try {
+          const data = await response.json();
+          message = data.error || message;
+        } catch {}
+        throw new Error(message);
       }
 
       const data = await response.json();

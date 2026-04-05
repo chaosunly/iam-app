@@ -66,8 +66,12 @@ export default function NewIdentityPage() {
       });
 
       if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Failed to create identity");
+        let message = "Failed to create identity";
+        try {
+          const data = await response.json();
+          message = data.error || message;
+        } catch {}
+        throw new Error(message);
       }
 
       const result = await response.json();
