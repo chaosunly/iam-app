@@ -20,44 +20,23 @@ import { Separator } from "@/components/ui/separator";
 import { Eye, EyeOff, ShieldCheck, Fingerprint, Key } from "lucide-react";
 import Link from "next/link";
 
-const PREFILL_KEY = "ory_registration_prefill";
-
-interface PrefillData {
-  firstName?: string;
-  lastName?: string;
-  email?: string;
-}
-
 interface RegistrationClientProps {
   flow: RegistrationFlow;
 }
 
 export function RegistrationClient({ flow }: RegistrationClientProps) {
   const [showPassword, setShowPassword] = useState(false);
-  const [prefill] = useState<PrefillData>(() => {
-    try {
-      const stored = sessionStorage.getItem(PREFILL_KEY);
-      if (stored) {
-        sessionStorage.removeItem(PREFILL_KEY);
-        return JSON.parse(stored) as PrefillData;
-      }
-    } catch {
-      // sessionStorage unavailable (e.g. private-browsing restrictions) — ignore
-    }
-    return {};
-  });
-  const groups = getNodesByGroup(flow.ui.nodes);
 
-  const emailNode = getNodeByName(flow.ui.nodes, "traits.email");
-  const passwordNode = getNodeByName(flow.ui.nodes, "password");
+  const groups = getNodesByGroup(flow.ui.nodes);
   const firstNameNode = getNodeByName(flow.ui.nodes, "traits.name.first");
   const lastNameNode = getNodeByName(flow.ui.nodes, "traits.name.last");
+  const emailNode = getNodeByName(flow.ui.nodes, "traits.email");
+  const passwordNode = getNodeByName(flow.ui.nodes, "password");
 
   const hasPassword = !!groups.password;
   const hasOidc = !!groups.oidc;
   const hasPasskey = !!groups.passkey;
   const hasWebAuthn = !!groups.webauthn;
-  const hasCredentialMethod = hasPassword || hasWebAuthn || hasPasskey;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -83,237 +62,82 @@ export function RegistrationClient({ flow }: RegistrationClientProps) {
             </CardDescription>
           </CardHeader>
 
-          {/* ── Email / Password section ── */}
-          {hasCredentialMethod ? (
-            /* Kratos returned password nodes — submit normally */
-            <KratosForm
-              action={flow.ui.action}
-              nodes={flow.ui.nodes}
-              messages={flow.ui.messages}
-            >
-              <CardContent className="space-y-4">
-                {(firstNameNode || lastNameNode) && (
-                  <div className="grid grid-cols-2 gap-3">
-                    {firstNameNode && (
-                      <div className="space-y-2">
-                        <Label htmlFor="traits.name.first">First name</Label>
-                        <Input
-                          id="traits.name.first"
-                          name="traits.name.first"
-                          type="text"
-                          autoComplete="given-name"
-                          defaultValue={firstNameNode.value || prefill.firstName || ""}
-                          placeholder="Jane"
-                        />
-                        {firstNameNode.messages.map((msg, i) => (
-                          <p key={i} className="text-xs text-destructive">{msg}</p>
-                        ))}
-                      </div>
-                    )}
-                    {lastNameNode && (
-                      <div className="space-y-2">
-                        <Label htmlFor="traits.name.last">Last name</Label>
-                        <Input
-                          id="traits.name.last"
-                          name="traits.name.last"
-                          type="text"
-                          autoComplete="family-name"
-                          defaultValue={lastNameNode.value || prefill.lastName || ""}
-                          placeholder="Doe"
-                        />
-                        {lastNameNode.messages.map((msg, i) => (
-                          <p key={i} className="text-xs text-destructive">{msg}</p>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {emailNode && (
-                  <div className="space-y-2">
-                    <Label htmlFor="traits.email">Email</Label>
-                    <Input
-                      id="traits.email"
-                      name="traits.email"
-                      type="email"
-                      autoComplete="email"
-                      autoFocus={!firstNameNode}
-                      defaultValue={emailNode.value || prefill.email || ""}
-                      placeholder="you@example.com"
-                    />
-                    {emailNode.messages.map((msg, i) => (
-                      <p key={i} className="text-xs text-destructive">{msg}</p>
-                    ))}
-                  </div>
-                )}
-
-                {hasPassword && passwordNode && (
-                  <div className="space-y-2">
-                    <Label htmlFor="password">Password</Label>
-                    <div className="relative">
-                      <Input
-                        id="password"
-                        name="password"
-                        type={showPassword ? "text" : "password"}
-                        autoComplete="new-password"
-                        defaultValue={passwordNode.value}
-                        placeholder="••••••••"
-                        className="pr-10"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword((v) => !v)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                        aria-label={showPassword ? "Hide password" : "Show password"}
-                      >
-                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
-                    </div>
-                    {passwordNode.messages.map((msg, i) => (
-                      <p key={i} className="text-xs text-destructive">{msg}</p>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-
-              <CardFooter className="flex flex-col gap-3 pt-2">
-                {hasPassword && (
-                  <Button type="submit" name="method" value="password" className="w-full">
-                    Create account
-                  </Button>
-                )}
-                {hasWebAuthn && (
-                  <>
-                    {hasPassword && <Separator />}
-                    <Button
-                      type="submit"
-                      name="method"
-                      value="webauthn"
-                      variant="outline"
-                      className="w-full"
-                      id="webauthn-register-button"
-                    >
-                      <Key className="h-4 w-4 mr-2" />
-                      Register with security key
-                    </Button>
-                  </>
-                )}
-                {hasPasskey && (
-                  <>
-                    {(hasPassword || hasWebAuthn) && <Separator />}
-                    <Button
-                      type="submit"
-                      name="method"
-                      value="passkey"
-                      variant="outline"
-                      className="w-full"
-                      id="passkey-register-button"
-                    >
-                      <Fingerprint className="h-4 w-4 mr-2" />
-                      Register with passkey
-                    </Button>
-                  </>
-                )}
-
-                {/* OIDC separator + buttons */}
-                {hasOidc && (
-                  <>
-                    <div className="relative my-1">
-                      <Separator />
-                      <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-xs text-muted-foreground">
-                        or
-                      </span>
-                    </div>
-                    {(groups.oidc ?? [])
-                      .filter((n) => n.type === "input")
-                      .map((node) => {
-                        const attrs = node.attributes as { name: string; value: string };
-                        const label = node.meta?.label?.text ?? attrs.value;
-                        return (
-                          <Button
-                            key={attrs.value}
-                            type="submit"
-                            name={attrs.name}
-                            value={attrs.value}
-                            variant="outline"
-                            className="w-full"
-                          >
-                            {label}
-                          </Button>
-                        );
-                      })}
-                  </>
-                )}
-              </CardFooter>
-            </KratosForm>
-          ) : (
-            /* Kratos returned OIDC-only flow (OAuth2 challenge context).
-               Collect credentials in a real <form>, save them to sessionStorage,
-               then navigate to a fresh Kratos browser flow so the data is restored. */
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                const fd = new FormData(e.currentTarget);
-                try {
-                  sessionStorage.setItem(
-                    PREFILL_KEY,
-                    JSON.stringify({
-                      firstName: fd.get("first_name") as string,
-                      lastName: fd.get("last_name") as string,
-                      email: fd.get("email") as string,
-                    }),
-                  );
-                } catch {
-                  // sessionStorage unavailable — continue without prefill
-                }
-                window.location.href = "/self-service/registration/browser";
-              }}
-            >
-              <CardContent className="space-y-4">
+          {/*
+           * Single KratosForm = single <form action={flow.ui.action}>.
+           * All inputs and submit buttons live inside it so the CSRF token
+           * hidden field is always included on submission.
+           */}
+          <KratosForm
+            action={flow.ui.action}
+            nodes={flow.ui.nodes}
+            messages={flow.ui.messages}
+          >
+            <CardContent className="space-y-4">
+              {/* Name fields (default group) */}
+              {(firstNameNode || lastNameNode) && (
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="first_name">First name</Label>
-                    <Input
-                      id="first_name"
-                      name="first_name"
-                      type="text"
-                      autoComplete="given-name"
-                      defaultValue={prefill.firstName}
-                      placeholder="Jane"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="last_name">Last name</Label>
-                    <Input
-                      id="last_name"
-                      name="last_name"
-                      type="text"
-                      autoComplete="family-name"
-                      defaultValue={prefill.lastName}
-                      placeholder="Doe"
-                    />
-                  </div>
+                  {firstNameNode && (
+                    <div className="space-y-2">
+                      <Label htmlFor="traits.name.first">First name</Label>
+                      <Input
+                        id="traits.name.first"
+                        name="traits.name.first"
+                        type="text"
+                        autoComplete="given-name"
+                        defaultValue={firstNameNode.value}
+                        placeholder="Jane"
+                      />
+                      {firstNameNode.messages.map((msg, i) => (
+                        <p key={i} className="text-xs text-destructive">{msg}</p>
+                      ))}
+                    </div>
+                  )}
+                  {lastNameNode && (
+                    <div className="space-y-2">
+                      <Label htmlFor="traits.name.last">Last name</Label>
+                      <Input
+                        id="traits.name.last"
+                        name="traits.name.last"
+                        type="text"
+                        autoComplete="family-name"
+                        defaultValue={lastNameNode.value}
+                        placeholder="Doe"
+                      />
+                      {lastNameNode.messages.map((msg, i) => (
+                        <p key={i} className="text-xs text-destructive">{msg}</p>
+                      ))}
+                    </div>
+                  )}
                 </div>
+              )}
 
+              {/* Email (default group) */}
+              {emailNode && (
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="traits.email">Email</Label>
                   <Input
-                    id="email"
-                    name="email"
+                    id="traits.email"
+                    name="traits.email"
                     type="email"
                     autoComplete="email"
-                    autoFocus
-                    defaultValue={prefill.email}
+                    autoFocus={!firstNameNode}
+                    defaultValue={emailNode.value}
                     placeholder="you@example.com"
                   />
+                  {emailNode.messages.map((msg, i) => (
+                    <p key={i} className="text-xs text-destructive">{msg}</p>
+                  ))}
                 </div>
+              )}
 
+              {/* Password (password group) */}
+              {hasPassword && passwordNode && (
                 <div className="space-y-2">
-                  <Label htmlFor="password_direct">Password</Label>
+                  <Label htmlFor="password">Password</Label>
                   <div className="relative">
                     <Input
-                      id="password_direct"
-                      name="password_direct"
+                      id="password"
+                      name="password"
                       type={showPassword ? "text" : "password"}
                       autoComplete="new-password"
                       placeholder="••••••••"
@@ -325,58 +149,99 @@ export function RegistrationClient({ flow }: RegistrationClientProps) {
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                       aria-label={showPassword ? "Hide password" : "Show password"}
                     >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
                     </button>
                   </div>
+                  {passwordNode.messages.map((msg, i) => (
+                    <p key={i} className="text-xs text-destructive">{msg}</p>
+                  ))}
                 </div>
-              </CardContent>
+              )}
+            </CardContent>
 
-              <CardFooter className="flex flex-col gap-3 pt-2">
-                <Button type="submit" className="w-full">
+            <CardFooter className="flex flex-col gap-3 pt-2">
+              {/* Password submit */}
+              {hasPassword && (
+                <Button
+                  type="submit"
+                  name="method"
+                  value="password"
+                  className="w-full"
+                >
                   Create account
                 </Button>
+              )}
 
-                {hasOidc && (
-                  <>
-                    {/* "or" divider */}
+              {/* WebAuthn */}
+              {hasWebAuthn && (
+                <Button
+                  type="submit"
+                  name="method"
+                  value="webauthn"
+                  variant="outline"
+                  className="w-full"
+                  id="webauthn-register-button"
+                >
+                  <Key className="h-4 w-4 mr-2" />
+                  Register with security key
+                </Button>
+              )}
+
+              {/* Passkey */}
+              {hasPasskey && (
+                <Button
+                  type="submit"
+                  name="method"
+                  value="passkey"
+                  variant="outline"
+                  className="w-full"
+                  id="passkey-register-button"
+                >
+                  <Fingerprint className="h-4 w-4 mr-2" />
+                  Register with passkey
+                </Button>
+              )}
+
+              {/* OIDC providers */}
+              {hasOidc && (
+                <>
+                  {(hasPassword || hasWebAuthn || hasPasskey) && (
                     <div className="relative w-full my-1">
                       <Separator />
                       <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-xs text-muted-foreground">
                         or
                       </span>
                     </div>
-
-                    {/* OIDC via current Kratos flow */}
-                    <KratosForm
-                      action={flow.ui.action}
-                      nodes={flow.ui.nodes}
-                      messages={flow.ui.messages}
-                      className="w-full"
-                    >
-                      {(groups.oidc ?? [])
-                        .filter((n) => n.type === "input")
-                        .map((node) => {
-                          const attrs = node.attributes as { name: string; value: string };
-                          const label = node.meta?.label?.text ?? attrs.value;
-                          return (
-                            <Button
-                              key={attrs.value}
-                              type="submit"
-                              name={attrs.name}
-                              value={attrs.value}
-                              variant="outline"
-                              className="w-full"
-                            >
-                              {label}
-                            </Button>
-                          );
-                        })}
-                    </KratosForm>
-                  </>
-                )}
-              </CardFooter>
-            </form>
-          )}
+                  )}
+                  {(groups.oidc ?? [])
+                    .filter((n) => n.type === "input")
+                    .map((node) => {
+                      const attrs = node.attributes as {
+                        name: string;
+                        value: string;
+                      };
+                      const label = node.meta?.label?.text ?? attrs.value;
+                      return (
+                        <Button
+                          key={attrs.value}
+                          type="submit"
+                          name={attrs.name}
+                          value={attrs.value}
+                          variant="outline"
+                          className="w-full"
+                        >
+                          {label}
+                        </Button>
+                      );
+                    })}
+                </>
+              )}
+            </CardFooter>
+          </KratosForm>
         </Card>
 
         <p className="text-center text-sm text-muted-foreground">
