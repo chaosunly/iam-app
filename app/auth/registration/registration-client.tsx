@@ -243,17 +243,28 @@ export function RegistrationClient({ flow }: RegistrationClientProps) {
                 </Button>
               )}
 
-              {/* Code step 1: request the verification code */}
+              {/* Code step 1: request the verification code (passwordless alternative) */}
               {hasCode && !isCodeVerifyStep && (
-                <Button
-                  type="submit"
-                  name="method"
-                  value="code"
-                  className="w-full"
-                >
-                  <Mail className="h-4 w-4 mr-2" />
-                  Create account
-                </Button>
+                <>
+                  {hasPassword && (
+                    <div className="relative w-full my-1">
+                      <Separator />
+                      <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-xs text-muted-foreground">
+                        or
+                      </span>
+                    </div>
+                  )}
+                  <Button
+                    type="submit"
+                    name="method"
+                    value="code"
+                    variant={hasPassword ? "outline" : "default"}
+                    className="w-full"
+                  >
+                    <Mail className="h-4 w-4 mr-2" />
+                    Sign up with email code
+                  </Button>
+                </>
               )}
 
               {/* Code step 2: submit the OTP */}
