@@ -30,6 +30,7 @@ export function RegistrationClient({ flow }: RegistrationClientProps) {
   const groups = getNodesByGroup(flow.ui.nodes);
   const firstNameNode = getNodeByName(flow.ui.nodes, "traits.name.first");
   const lastNameNode = getNodeByName(flow.ui.nodes, "traits.name.last");
+  const usernameNode = getNodeByName(flow.ui.nodes, "traits.username");
   const emailNode = getNodeByName(flow.ui.nodes, "traits.email");
   const passwordNode = getNodeByName(flow.ui.nodes, "password");
   const codeNode = getNodeByName(flow.ui.nodes, "code");
@@ -39,6 +40,11 @@ export function RegistrationClient({ flow }: RegistrationClientProps) {
   const hasOidc = !!groups.oidc;
   const hasPasskey = !!groups.passkey;
   const hasWebAuthn = !!groups.webauthn;
+  // Kratos v1.2+ two-step registration: step 1 uses the 'profile' group.
+  // With enable_legacy_one_step: true this is absent; kept as fallback.
+  const hasProfile = !!groups.profile;
+  const isProfileOnlyStep =
+    hasProfile && !hasPassword && !hasCode && !hasPasskey && !hasWebAuthn;
 
   // Step 2 of code flow: Kratos sent the OTP and is now waiting for it
   const isCodeVerifyStep = hasCode && !!codeNode;
@@ -135,6 +141,24 @@ export function RegistrationClient({ flow }: RegistrationClientProps) {
                 </div>
               )}
 
+              {/* Username (optional trait) */}
+              {usernameNode && (
+                <div className="space-y-2">
+                  <Label htmlFor="traits.username">Username</Label>
+                  <Input
+                    id="traits.username"
+                    name="traits.username"
+                    type="text"
+                    autoComplete="username"
+                    defaultValue={usernameNode.value}
+                    placeholder="janedoe"
+                  />
+                  {usernameNode.messages.map((msg, i) => (
+                    <p key={i} className="text-xs text-destructive">{msg}</p>
+                  ))}
+                </div>
+              )}
+
               {/* Password (password group) */}
               {hasPassword && passwordNode && (
                 <div className="space-y-2">
@@ -190,6 +214,23 @@ export function RegistrationClient({ flow }: RegistrationClientProps) {
             </CardContent>
 
             <CardFooter className="flex flex-col gap-3 pt-2">
+              {/* Two-step profile step: Kratos v1.2+ without enable_legacy_one_step */}
+              {isProfileOnlyStep && (
+                <>
+                  <p className="text-xs text-center text-muted-foreground -mb-1">
+                    Step 1 of 2 — enter your details to continue
+                  </p>
+                  <Button
+                    type="submit"
+                    name="method"
+                    value="profile"
+                    className="w-full"
+                  >
+                    Continue
+                  </Button>
+                </>
+              )}
+
               {/* Password submit */}
               {hasPassword && (
                 <Button
