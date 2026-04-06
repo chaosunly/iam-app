@@ -34,7 +34,7 @@ export default async function LoginPage(props: OryPageParams) {
   if (returnTo && !flowId) {
     console.log("[LoginPage] Redirecting to create Kratos flow with return_to:", returnTo);
     const { redirect } = await import("next/navigation");
-    const baseUrl = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}`;
+    const baseUrl = `${process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_GATEWAY_URL || ""}`;
     redirect(`${baseUrl}/.ory/self-service/login/browser?return_to=${encodeURIComponent(returnTo as string)}`);
   }
 

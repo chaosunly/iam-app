@@ -278,8 +278,6 @@ export default async function DashboardPage() {
               {/* Element */}
               <a
                 href={elementSsoUrl}
-                target="_blank"
-                rel="noopener noreferrer"
                 className="flex flex-col items-center gap-3 p-4 rounded-lg border hover:bg-accent transition-colors group"
               >
                 <div className="w-12 h-12 bg-green-100 dark:bg-green-900/20 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
