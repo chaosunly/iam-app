@@ -20,12 +20,32 @@ import { Separator } from "@/components/ui/separator";
 import { Eye, EyeOff, ShieldCheck, Fingerprint, Key } from "lucide-react";
 import Link from "next/link";
 
+const PREFILL_KEY = "ory_registration_prefill";
+
+interface PrefillData {
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+}
+
 interface RegistrationClientProps {
   flow: RegistrationFlow;
 }
 
 export function RegistrationClient({ flow }: RegistrationClientProps) {
   const [showPassword, setShowPassword] = useState(false);
+  const [prefill] = useState<PrefillData>(() => {
+    try {
+      const stored = sessionStorage.getItem(PREFILL_KEY);
+      if (stored) {
+        sessionStorage.removeItem(PREFILL_KEY);
+        return JSON.parse(stored) as PrefillData;
+      }
+    } catch {
+      // sessionStorage unavailable (e.g. private-browsing restrictions) — ignore
+    }
+    return {};
+  });
   const groups = getNodesByGroup(flow.ui.nodes);
 
   const emailNode = getNodeByName(flow.ui.nodes, "traits.email");
@@ -82,7 +102,7 @@ export function RegistrationClient({ flow }: RegistrationClientProps) {
                           name="traits.name.first"
                           type="text"
                           autoComplete="given-name"
-                          defaultValue={firstNameNode.value}
+                          defaultValue={firstNameNode.value || prefill.firstName || ""}
                           placeholder="Jane"
                         />
                         {firstNameNode.messages.map((msg, i) => (
@@ -98,7 +118,7 @@ export function RegistrationClient({ flow }: RegistrationClientProps) {
                           name="traits.name.last"
                           type="text"
                           autoComplete="family-name"
-                          defaultValue={lastNameNode.value}
+                          defaultValue={lastNameNode.value || prefill.lastName || ""}
                           placeholder="Doe"
                         />
                         {lastNameNode.messages.map((msg, i) => (
@@ -118,7 +138,7 @@ export function RegistrationClient({ flow }: RegistrationClientProps) {
                       type="email"
                       autoComplete="email"
                       autoFocus={!firstNameNode}
-                      defaultValue={emailNode.value}
+                      defaultValue={emailNode.value || prefill.email || ""}
                       placeholder="you@example.com"
                     />
                     {emailNode.messages.map((msg, i) => (
@@ -228,18 +248,37 @@ export function RegistrationClient({ flow }: RegistrationClientProps) {
             </KratosForm>
           ) : (
             /* Kratos returned OIDC-only flow (OAuth2 challenge context).
-               Show the form visually but wire "Create account" to a fresh flow.
-               Wire the OIDC button to the current Kratos flow. */
-            <>
-              {/* Email / password — static form that starts a fresh Kratos flow */}
+               Collect credentials in a real <form>, save them to sessionStorage,
+               then navigate to a fresh Kratos browser flow so the data is restored. */
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const fd = new FormData(e.currentTarget);
+                try {
+                  sessionStorage.setItem(
+                    PREFILL_KEY,
+                    JSON.stringify({
+                      firstName: fd.get("first_name") as string,
+                      lastName: fd.get("last_name") as string,
+                      email: fd.get("email") as string,
+                    }),
+                  );
+                } catch {
+                  // sessionStorage unavailable — continue without prefill
+                }
+                window.location.href = "/self-service/registration/browser";
+              }}
+            >
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
                     <Label htmlFor="first_name">First name</Label>
                     <Input
                       id="first_name"
+                      name="first_name"
                       type="text"
                       autoComplete="given-name"
+                      defaultValue={prefill.firstName}
                       placeholder="Jane"
                     />
                   </div>
@@ -247,8 +286,10 @@ export function RegistrationClient({ flow }: RegistrationClientProps) {
                     <Label htmlFor="last_name">Last name</Label>
                     <Input
                       id="last_name"
+                      name="last_name"
                       type="text"
                       autoComplete="family-name"
+                      defaultValue={prefill.lastName}
                       placeholder="Doe"
                     />
                   </div>
@@ -258,9 +299,11 @@ export function RegistrationClient({ flow }: RegistrationClientProps) {
                   <Label htmlFor="email">Email</Label>
                   <Input
                     id="email"
+                    name="email"
                     type="email"
                     autoComplete="email"
                     autoFocus
+                    defaultValue={prefill.email}
                     placeholder="you@example.com"
                   />
                 </div>
@@ -270,6 +313,7 @@ export function RegistrationClient({ flow }: RegistrationClientProps) {
                   <div className="relative">
                     <Input
                       id="password_direct"
+                      name="password_direct"
                       type={showPassword ? "text" : "password"}
                       autoComplete="new-password"
                       placeholder="••••••••"
@@ -288,49 +332,50 @@ export function RegistrationClient({ flow }: RegistrationClientProps) {
               </CardContent>
 
               <CardFooter className="flex flex-col gap-3 pt-2">
-                {/* Navigate to a fresh registration browser flow */}
-                <a href="/self-service/registration/browser" className="w-full">
-                  <Button type="button" className="w-full">
-                    Create account
-                  </Button>
-                </a>
+                <Button type="submit" className="w-full">
+                  Create account
+                </Button>
 
-                {/* "or" divider */}
-                <div className="relative w-full my-1">
-                  <Separator />
-                  <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-xs text-muted-foreground">
-                    or
-                  </span>
-                </div>
+                {hasOidc && (
+                  <>
+                    {/* "or" divider */}
+                    <div className="relative w-full my-1">
+                      <Separator />
+                      <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-xs text-muted-foreground">
+                        or
+                      </span>
+                    </div>
 
-                {/* OIDC via current Kratos flow */}
-                <KratosForm
-                  action={flow.ui.action}
-                  nodes={flow.ui.nodes}
-                  messages={flow.ui.messages}
-                  className="w-full"
-                >
-                  {(groups.oidc ?? [])
-                    .filter((n) => n.type === "input")
-                    .map((node) => {
-                      const attrs = node.attributes as { name: string; value: string };
-                      const label = node.meta?.label?.text ?? attrs.value;
-                      return (
-                        <Button
-                          key={attrs.value}
-                          type="submit"
-                          name={attrs.name}
-                          value={attrs.value}
-                          variant="outline"
-                          className="w-full"
-                        >
-                          {label}
-                        </Button>
-                      );
-                    })}
-                </KratosForm>
+                    {/* OIDC via current Kratos flow */}
+                    <KratosForm
+                      action={flow.ui.action}
+                      nodes={flow.ui.nodes}
+                      messages={flow.ui.messages}
+                      className="w-full"
+                    >
+                      {(groups.oidc ?? [])
+                        .filter((n) => n.type === "input")
+                        .map((node) => {
+                          const attrs = node.attributes as { name: string; value: string };
+                          const label = node.meta?.label?.text ?? attrs.value;
+                          return (
+                            <Button
+                              key={attrs.value}
+                              type="submit"
+                              name={attrs.name}
+                              value={attrs.value}
+                              variant="outline"
+                              className="w-full"
+                            >
+                              {label}
+                            </Button>
+                          );
+                        })}
+                    </KratosForm>
+                  </>
+                )}
               </CardFooter>
-            </>
+            </form>
           )}
         </Card>
 
