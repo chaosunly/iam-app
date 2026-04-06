@@ -17,7 +17,7 @@ export default async function DashboardPage() {
   const elementBaseUrl = (
     process.env.NEXT_PUBLIC_ELEMENT_URL ||
     process.env.ELEMENT_URL ||
-    "https://nginx-sengly-branch.up.railway.app"
+    ""
   ).replace(/\/$/, "");
   const elementSsoUrl = `${elementBaseUrl}/#/login`;
 
