@@ -97,26 +97,15 @@ export async function POST(request: NextRequest) {
       ? `${forwardedProto}://${forwardedHost}`
       : request.nextUrl.origin;
 
-    // Chain through MAS logout to clear Element/MAS session cookies on the nginx domain.
-    // Return a 302 redirect directly (not JSON) so the browser navigates as a normal
-    // page load — avoids any CORS/blocked-origin issues with window.location.href.
-    // Redirect through /element-logout on the nginx domain to clear Element's
-    // localStorage, then back to IAM login. MAS /logout requires id_token_hint
-    // which we don't have, so we skip it — the cookie-stripping on /authorize
-    // already prevents MAS from using a cached session on next login.
-    const masUrl = (process.env.NEXT_PUBLIC_MAS_URL || process.env.MAS_URL || "").replace(/\/$/, "");
-    const iamLoginUrl = `${baseUrl}/auth/login`;
-    // Only chain through /element-logout if masUrl is explicitly configured AND
-    // is not the same host as baseUrl (avoids self-redirect loops).
-    // The next param must be URL-encoded so that '://' in the value doesn't
-    // break nginx URL parsing (which caused the 404).
-    const isSeparateMasHost =
-      masUrl && !masUrl.includes(new URL(baseUrl).hostname);
-    const finalRedirectUrl = isSeparateMasHost
-      ? `${masUrl}/element-logout?next=${encodeURIComponent(iamLoginUrl)}`
-      : iamLoginUrl;
+    // Redirect directly to the IAM login page.
+    // NOTE: Do NOT chain through /element-logout on the Matrix email bridge —
+    // that endpoint only exists on MAS (Matrix Authentication Service), not the bridge.
+    // Kratos already cleared the session above (303 + expired cookie) so no
+    // additional service logout is needed here.
+    const finalRedirectUrl = `${baseUrl}/auth/login`;
 
     const response = NextResponse.json({ success: true, redirectUrl: finalRedirectUrl });
+
 
     // Clear all auth cookies. Each cookie is cleared twice:
     //   • without Domain — deletes host-only cookies
