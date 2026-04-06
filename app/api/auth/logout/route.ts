@@ -106,8 +106,14 @@ export async function POST(request: NextRequest) {
     // already prevents MAS from using a cached session on next login.
     const masUrl = (process.env.NEXT_PUBLIC_MAS_URL || process.env.MAS_URL || "").replace(/\/$/, "");
     const iamLoginUrl = `${baseUrl}/auth/login`;
-    const finalRedirectUrl = masUrl
-      ? `${masUrl}/element-logout?next=${iamLoginUrl}`
+    // Only chain through /element-logout if masUrl is explicitly configured AND
+    // is not the same host as baseUrl (avoids self-redirect loops).
+    // The next param must be URL-encoded so that '://' in the value doesn't
+    // break nginx URL parsing (which caused the 404).
+    const isSeparateMasHost =
+      masUrl && !masUrl.includes(new URL(baseUrl).hostname);
+    const finalRedirectUrl = isSeparateMasHost
+      ? `${masUrl}/element-logout?next=${encodeURIComponent(iamLoginUrl)}`
       : iamLoginUrl;
 
     const response = NextResponse.json({ success: true, redirectUrl: finalRedirectUrl });
