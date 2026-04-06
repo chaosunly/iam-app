@@ -48,7 +48,7 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV PORT=3000
+ENV PORT=8080
 ENV HOSTNAME="0.0.0.0"
 
 # Create non-root user
@@ -69,7 +69,7 @@ RUN chown -R nextjs:nodejs /app
 
 USER nextjs
 
-EXPOSE 3000
+EXPOSE 8080
 
 # Run database migrations then start the server
 CMD ["sh", "-c", "./node_modules/.bin/prisma migrate deploy && node server.js"]
