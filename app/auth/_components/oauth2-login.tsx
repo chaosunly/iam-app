@@ -5,16 +5,31 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ShieldCheck, AlertCircle, ArrowRight } from "lucide-react";
 
-const getGatewayUrl = () => {
-  if (typeof window !== "undefined") return window.location.origin;
-  return process.env.NEXT_PUBLIC_GATEWAY_URL || "";
+const normalizeBaseUrl = (url: string) => url.replace(/\/$/, "");
+
+// Use configured auth base URL first to avoid domain drift in mixed proxy setups.
+const getAuthBaseUrl = () => {
+  const configuredUrl =
+    process.env.NEXT_PUBLIC_AUTH_BASE_URL ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.NEXT_PUBLIC_GATEWAY_URL;
+
+  if (configuredUrl) {
+    return normalizeBaseUrl(configuredUrl);
+  }
+
+  if (typeof window !== "undefined") {
+    return normalizeBaseUrl(window.location.origin);
+  }
+
+  return "";
 };
 
 const getClientId = () => process.env.NEXT_PUBLIC_OAUTH2_CLIENT_ID || "";
 
 export function OAuth2LoginButton() {
   const handleLogin = () => {
-    const gatewayUrl = getGatewayUrl();
+    const authBaseUrl = getAuthBaseUrl();
     const clientId = getClientId();
     if (!clientId) return;
 
@@ -23,11 +38,12 @@ export function OAuth2LoginButton() {
       client_id: clientId,
       response_type: "code",
       scope: "openid offline_access email profile",
-      redirect_uri: `${gatewayUrl}/auth/callback`,
-      state,
+      redirect_uri: `${authBaseUrl}/auth/callback`,
+      state: state,
     });
 
-    window.location.href = `${gatewayUrl}/oauth2/auth?${params.toString()}`;
+    // Redirect to Hydra
+    window.location.href = `${authBaseUrl}/oauth2/auth?${params.toString()}`;
   };
 
   return (
@@ -43,26 +59,32 @@ export function AutoOAuth2Login({ returnTo }: { returnTo?: string }) {
   const [dots, setDots] = useState(1);
 
   useEffect(() => {
-    const gatewayUrl = getGatewayUrl();
+    const authBaseUrl = getAuthBaseUrl();
     const clientId = getClientId();
-    if (!clientId) return;
 
+    console.log("[AutoOAuth2Login] Starting", {
+      authBaseUrl,
+      clientId,
+      returnTo,
+    });
+
+    if (!clientId) {
+      console.error("OAuth2 Client ID not configured");
+      return;
+    }
+
+    // Generate random state
     const state = returnTo || "/dashboard";
     const params = new URLSearchParams({
       client_id: clientId,
       response_type: "code",
       scope: "openid offline_access email profile",
-      redirect_uri: `${gatewayUrl}/auth/callback`,
-      state: encodeURIComponent(state),
+      redirect_uri: `${authBaseUrl}/auth/callback`,
+      state,
     });
 
-    window.location.href = `${gatewayUrl}/oauth2/auth?${params.toString()}`;
-
-    // Animate dots
-    const dotsInterval = setInterval(
-      () => setDots((d) => (d % 3) + 1),
-      500,
-    );
+    const authorizeUrl = `${authBaseUrl}/oauth2/auth?${params.toString()}`;
+    console.log("[AutoOAuth2Login] Redirecting to:", authorizeUrl);
 
     // Show manual button after 3 s in case the redirect stalls
     const timer = setTimeout(() => {
@@ -88,7 +110,9 @@ export function AutoOAuth2Login({ returnTo }: { returnTo?: string }) {
             </div>
             <div>
               <p className="text-sm font-semibold">Configuration Error</p>
-              <p className="text-xs text-muted-foreground">OAuth2 is not set up correctly</p>
+              <p className="text-xs text-muted-foreground">
+                OAuth2 is not set up correctly
+              </p>
             </div>
           </div>
           <Alert variant="destructive">

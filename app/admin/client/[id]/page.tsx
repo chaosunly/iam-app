@@ -68,7 +68,7 @@ export default function AdminClientDetailPage() {
       | "client_secret_basic"
       | "none",
     skip_consent: true,
-    client_secret: MASKED_SECRET,
+    client_secret: "",
   });
 
   useEffect(() => {
@@ -104,7 +104,7 @@ export default function AdminClientDetailPage() {
         token_endpoint_auth_method:
           loadedClient.token_endpoint_auth_method || "client_secret_post",
         skip_consent: loadedClient.skip_consent ?? true,
-        client_secret: MASKED_SECRET,
+        client_secret: "",
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unexpected error");
@@ -149,10 +149,7 @@ export default function AdminClientDetailPage() {
             token_endpoint_auth_method: formData.token_endpoint_auth_method,
             skip_consent: formData.skip_consent,
             client_secret:
-              formData.client_secret.trim() &&
-              formData.client_secret.trim() !== MASKED_SECRET
-                ? formData.client_secret.trim()
-                : undefined,
+              formData.client_secret.trim() ? formData.client_secret.trim() : undefined,
           }),
         },
       );
@@ -178,8 +175,8 @@ export default function AdminClientDetailPage() {
 
   async function copySecret() {
     const valueToCopy =
-      formData.client_secret && formData.client_secret !== MASKED_SECRET
-        ? formData.client_secret
+      formData.client_secret.trim()
+        ? formData.client_secret.trim()
         : knownSecret;
 
     if (!valueToCopy) {
@@ -367,10 +364,11 @@ export default function AdminClientDetailPage() {
 
               <div className="space-y-2">
                 <label className="text-sm font-medium">
-                  Client Secret (masked, enter a new one to rotate)
+                  Client Secret (leave empty to keep current secret)
                 </label>
                 <div className="flex gap-2">
                   <Input
+                    type="password"
                     value={formData.client_secret}
                     onChange={(e) =>
                       setFormData({ ...formData, client_secret: e.target.value })
@@ -382,7 +380,7 @@ export default function AdminClientDetailPage() {
                   </Button>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Existing secret is not returned by Hydra. Keep {MASKED_SECRET} to leave it unchanged.
+                  Existing secret is not returned by Hydra. Enter a new secret and save to replace it.
                 </p>
                 {copyMessage && (
                   <p className="text-xs text-muted-foreground">{copyMessage}</p>

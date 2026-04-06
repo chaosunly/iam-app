@@ -10,6 +10,19 @@ import { Check, Mail, Users, Settings, Lock, Info } from "lucide-react";
 import { UserOverviewCharts } from "@/components/charts/user-overview-charts";
 
 export default async function DashboardPage() {
+  const elementBaseUrl =
+    process.env.NEXT_PUBLIC_ELEMENT_URL ||
+    process.env.ELEMENT_URL ||
+    "https://nginx-sengly-branch.up.railway.app/";
+
+  const normalizedElementBaseUrl = elementBaseUrl.endsWith("/")
+    ? elementBaseUrl
+    : `${elementBaseUrl}/`;
+
+  const elementSsoUrl =
+    process.env.NEXT_PUBLIC_ELEMENT_SSO_URL ||
+    `${normalizedElementBaseUrl}_matrix/client/v3/login/sso/redirect?redirectUrl=${encodeURIComponent(normalizedElementBaseUrl)}`;
+
   // Get Kratos session (includes OIDC provider logins like SimpleLogin)
   const session = await getServerSession();
 
@@ -266,7 +279,7 @@ export default async function DashboardPage() {
 
               {/* Element */}
               <a
-                href="https://app.element.io"
+                href={elementSsoUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex flex-col items-center gap-3 p-4 rounded-lg border hover:bg-accent transition-colors group"
