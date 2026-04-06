@@ -17,7 +17,7 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Eye, EyeOff, ShieldCheck, Fingerprint, Key } from "lucide-react";
+import { Eye, EyeOff, ShieldCheck, Fingerprint, Key, Mail } from "lucide-react";
 import Link from "next/link";
 
 interface RegistrationClientProps {
@@ -32,11 +32,16 @@ export function RegistrationClient({ flow }: RegistrationClientProps) {
   const lastNameNode = getNodeByName(flow.ui.nodes, "traits.name.last");
   const emailNode = getNodeByName(flow.ui.nodes, "traits.email");
   const passwordNode = getNodeByName(flow.ui.nodes, "password");
+  const codeNode = getNodeByName(flow.ui.nodes, "code");
 
   const hasPassword = !!groups.password;
+  const hasCode = !!groups.code;
   const hasOidc = !!groups.oidc;
   const hasPasskey = !!groups.passkey;
   const hasWebAuthn = !!groups.webauthn;
+
+  // Step 2 of code flow: Kratos sent the OTP and is now waiting for it
+  const isCodeVerifyStep = hasCode && !!codeNode;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -161,6 +166,27 @@ export function RegistrationClient({ flow }: RegistrationClientProps) {
                   ))}
                 </div>
               )}
+
+              {/* Code OTP input — step 2: Kratos sent the code, waiting for entry */}
+              {isCodeVerifyStep && codeNode && (
+                <div className="space-y-2">
+                  <Label htmlFor="code">Verification code</Label>
+                  <Input
+                    id="code"
+                    name="code"
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    autoFocus
+                    placeholder="000000"
+                    maxLength={6}
+                    className="tracking-widest text-center text-lg font-mono"
+                  />
+                  {codeNode.messages.map((msg, i) => (
+                    <p key={i} className="text-xs text-destructive">{msg}</p>
+                  ))}
+                </div>
+              )}
             </CardContent>
 
             <CardFooter className="flex flex-col gap-3 pt-2">
@@ -173,6 +199,31 @@ export function RegistrationClient({ flow }: RegistrationClientProps) {
                   className="w-full"
                 >
                   Create account
+                </Button>
+              )}
+
+              {/* Code step 1: request the verification code */}
+              {hasCode && !isCodeVerifyStep && (
+                <Button
+                  type="submit"
+                  name="method"
+                  value="code"
+                  className="w-full"
+                >
+                  <Mail className="h-4 w-4 mr-2" />
+                  Create account
+                </Button>
+              )}
+
+              {/* Code step 2: submit the OTP */}
+              {isCodeVerifyStep && (
+                <Button
+                  type="submit"
+                  name="method"
+                  value="code"
+                  className="w-full"
+                >
+                  Verify & create account
                 </Button>
               )}
 
@@ -209,7 +260,7 @@ export function RegistrationClient({ flow }: RegistrationClientProps) {
               {/* OIDC providers */}
               {hasOidc && (
                 <>
-                  {(hasPassword || hasWebAuthn || hasPasskey) && (
+                  {(hasPassword || hasCode || hasWebAuthn || hasPasskey) && (
                     <div className="relative w-full my-1">
                       <Separator />
                       <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-xs text-muted-foreground">
