@@ -50,34 +50,38 @@ export async function POST(request: NextRequest) {
     // Assign default permissions and organization
     const success = await assignDefaultPermissions(identityId);
 
+    // Log the registration event regardless of setup success
+    await logAuthEvent(
+      identityId,
+      "registration",
+      true,
+      request.headers.get("x-forwarded-for") || undefined,
+      request.headers.get("user-agent") || undefined,
+    ).catch((err) =>
+      console.error("[Registration Hook] Failed to log auth event:", err),
+    );
+
     if (success) {
       console.log(`[Registration Hook] Successfully set up user ${identityId}`);
-
-      // Log the registration event
-      await logAuthEvent(
-        identityId,
-        "registration",
-        true,
-        request.headers.get("x-forwarded-for") || undefined,
-        request.headers.get("user-agent") || undefined,
-      );
-
-      return NextResponse.json({
-        success: true,
-        message: "User setup completed",
-      });
     } else {
-      console.error(`[Registration Hook] Failed to set up user ${identityId}`);
-      return NextResponse.json(
-        { error: "Failed to set up user permissions" },
-        { status: 500 },
+      // Log but don't fail — identity is already created; setup can be retried
+      console.error(
+        `[Registration Hook] User setup incomplete for ${identityId} — will need manual remediation`,
       );
     }
+
+    // Always return 200 so Kratos never aborts an already-created identity
+    return NextResponse.json({
+      success: true,
+      setupComplete: success,
+      message: success ? "User setup completed" : "User created; setup pending",
+    });
   } catch (error) {
     console.error("[Registration Hook] Error:", error);
+    // Return 200 to avoid Kratos aborting — the identity was already created
     return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
+      { success: false, error: "Setup failed; identity created" },
+      { status: 200 },
     );
   }
 }
