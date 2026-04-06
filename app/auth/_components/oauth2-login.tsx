@@ -86,11 +86,19 @@ export function AutoOAuth2Login({ returnTo }: { returnTo?: string }) {
     const authorizeUrl = `${authBaseUrl}/oauth2/auth?${params.toString()}`;
     console.log("[AutoOAuth2Login] Redirecting to:", authorizeUrl);
 
+    // Animate dots while waiting
+    const dotsInterval = setInterval(() => {
+      setDots((d) => (d % 3) + 1);
+    }, 400);
+
     // Show manual button after 3 s in case the redirect stalls
     const timer = setTimeout(() => {
       setShowFallback(true);
       clearInterval(dotsInterval);
     }, 3000);
+
+    // Auto-redirect
+    window.location.href = authorizeUrl;
 
     return () => {
       clearTimeout(timer);
@@ -128,7 +136,7 @@ export function AutoOAuth2Login({ returnTo }: { returnTo?: string }) {
   }
 
   const handleManualRedirect = () => {
-    const gatewayUrl = getGatewayUrl();
+    const authBaseUrl = getAuthBaseUrl();
     const cId = getClientId();
     if (!cId) return;
     const state = returnTo || "/dashboard";
@@ -136,10 +144,10 @@ export function AutoOAuth2Login({ returnTo }: { returnTo?: string }) {
       client_id: cId,
       response_type: "code",
       scope: "openid offline_access email profile",
-      redirect_uri: `${gatewayUrl}/auth/callback`,
+      redirect_uri: `${authBaseUrl}/auth/callback`,
       state: encodeURIComponent(state),
     });
-    window.location.href = `${gatewayUrl}/oauth2/auth?${params.toString()}`;
+    window.location.href = `${authBaseUrl}/oauth2/auth?${params.toString()}`;
   };
 
   return (
