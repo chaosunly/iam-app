@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { RecoveryFlow } from "@ory/client-fetch";
 import { KratosForm } from "@/components/auth/kratos-form";
 import { getNodeByName } from "@/lib/auth/ory-flow-utils";
@@ -22,6 +24,31 @@ interface RecoveryClientProps {
 }
 
 export function RecoveryClient({ flow }: RecoveryClientProps) {
+  const router = useRouter();
+
+  const isExpiredFlow = (flow.ui.messages ?? []).some(
+    (msg) =>
+      msg.id === 4000001 ||
+      (typeof msg.text === "string" && msg.text.toLowerCase().includes("expired")),
+  );
+
+  useEffect(() => {
+    if (isExpiredFlow) {
+      router.replace("/auth/recovery");
+    }
+  }, [isExpiredFlow, router]);
+
+  if (isExpiredFlow) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-3 text-muted-foreground">
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          <p className="text-sm">Starting a new session&hellip;</p>
+        </div>
+      </div>
+    );
+  }
+
   const emailNode = getNodeByName(flow.ui.nodes, "email");
   const codeNode = getNodeByName(flow.ui.nodes, "code");
 

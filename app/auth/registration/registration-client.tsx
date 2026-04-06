@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { RegistrationFlow } from "@ory/client-fetch";
 import { KratosForm } from "@/components/auth/kratos-form";
 import { WebAuthnScript } from "@/components/auth/webauthn-script";
@@ -25,7 +26,34 @@ interface RegistrationClientProps {
 }
 
 export function RegistrationClient({ flow }: RegistrationClientProps) {
+  const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
+
+  // Kratos returns expired flows with message id 4000001 (flow expired / already used).
+  // Auto-redirect to a fresh flow instead of showing a broken stale form.
+  const isExpiredFlow = (flow.ui.messages ?? []).some(
+    (msg) =>
+      msg.id === 4000001 ||
+      (typeof msg.text === "string" && msg.text.toLowerCase().includes("expired")),
+  );
+
+  useEffect(() => {
+    if (isExpiredFlow) {
+      router.replace("/auth/registration");
+    }
+  }, [isExpiredFlow, router]);
+
+  // While redirecting, show a minimal spinner so the user doesn't see stale fields.
+  if (isExpiredFlow) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-3 text-muted-foreground">
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          <p className="text-sm">Starting a new session&hellip;</p>
+        </div>
+      </div>
+    );
+  }
 
   const groups = getNodesByGroup(flow.ui.nodes);
   const firstNameNode = getNodeByName(flow.ui.nodes, "traits.name.first");

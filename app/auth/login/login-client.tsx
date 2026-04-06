@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { LoginFlow } from "@ory/client-fetch";
 import { KratosForm } from "@/components/auth/kratos-form";
 import { WebAuthnScript } from "@/components/auth/webauthn-script";
@@ -25,7 +26,32 @@ interface LoginClientProps {
 }
 
 export function LoginClient({ flow }: LoginClientProps) {
+  const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
+
+  const isExpiredFlow = (flow.ui.messages ?? []).some(
+    (msg) =>
+      msg.id === 4000001 ||
+      (typeof msg.text === "string" && msg.text.toLowerCase().includes("expired")),
+  );
+
+  useEffect(() => {
+    if (isExpiredFlow) {
+      router.replace("/auth/login");
+    }
+  }, [isExpiredFlow, router]);
+
+  if (isExpiredFlow) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-3 text-muted-foreground">
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          <p className="text-sm">Starting a new session&hellip;</p>
+        </div>
+      </div>
+    );
+  }
+
   const groups = getNodesByGroup(flow.ui.nodes);
 
   const identifierNode = getNodeByName(flow.ui.nodes, "identifier");
