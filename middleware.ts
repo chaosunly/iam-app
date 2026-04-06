@@ -2,10 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "@ory/nextjs/app";
 import { createOryMiddleware } from "@ory/nextjs/middleware";
 import oryConfig from "@/ory.config";
-import {
-  canAccessAdmin,
-  getUserDashboardRoute,
-} from "@/lib/services/permission.service";
+import { canAccessAdmin } from "@/lib/services/permission.service";
 import { logAccessDenied } from "@/lib/services/audit.service";
 import { assertRequiredKetoNamespaces } from "@/lib/services/keto.service";
 
@@ -62,7 +59,28 @@ export async function middleware(request: NextRequest) {
     return oryProxy(request);
   }
 
-  // 2. Allow public routes without session check
+  // 2. For login/registration/home: redirect already-authenticated users to their dashboard
+  // Must check this BEFORE the public-routes passthrough so active sessions are handled.
+  if (
+    pathname === "/auth/login" ||
+    pathname === "/auth/registration" ||
+    pathname === "/"
+  ) {
+    try {
+      const session = await getServerSession();
+      if (session?.identity) {
+        const { getUserDashboardRoute } = await import(
+          "@/lib/services/permission.service"
+        );
+        const dashboardRoute = await getUserDashboardRoute(session.identity.id);
+        return NextResponse.redirect(new URL(dashboardRoute, request.url));
+      }
+    } catch {
+      // No session — fall through to public route handling
+    }
+  }
+
+  // 3. Allow public routes without session check
   if (PUBLIC_ROUTES.some((pattern) => pattern.test(pathname))) {
     return NextResponse.next();
   }
@@ -117,16 +135,6 @@ export async function middleware(request: NextRequest) {
       }
 
       console.log(`[Middleware] Admin access granted for user ${userId}`);
-    }
-
-    // Check if accessing login/registration page or home while authenticated - redirect to appropriate dashboard
-    if (
-      pathname === "/auth/login" ||
-      pathname === "/auth/registration" ||
-      pathname === "/"
-    ) {
-      const dashboardRoute = await getUserDashboardRoute(userId);
-      return NextResponse.redirect(new URL(dashboardRoute, request.url));
     }
 
     // Check if admin trying to access regular dashboard - redirect to admin panel
