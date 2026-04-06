@@ -18,6 +18,20 @@ export default async function RegistrationPage(props: OryPageParams) {
 
   const flow = await getRegistrationFlow(config, flowParams);
 
+  // DEBUG: log exactly what Kratos returned so we can see which groups/nodes are present
+  if (flow) {
+    const groups = flow.ui.nodes.reduce<Record<string, string[]>>((acc, n) => {
+      const g = n.group ?? "default";
+      const name = (n.attributes as { name?: string }).name ?? n.type;
+      (acc[g] ??= []).push(name);
+      return acc;
+    }, {});
+    console.log("[RegistrationPage] flow.ui.action:", flow.ui.action);
+    console.log("[RegistrationPage] groups:", JSON.stringify(groups));
+  } else {
+    console.log("[RegistrationPage] flow is null");
+  }
+
   // If flow doesn't exist, redirect to create a new flow with return_to
   if (!flow) {
     const params = new URLSearchParams();
