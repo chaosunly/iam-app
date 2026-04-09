@@ -106,8 +106,8 @@ export async function GET(request: NextRequest) {
         body: JSON.stringify({
           grant_scope: consentRequest.requested_scope,
           grant_access_token_audience: consentRequest.requested_access_token_audience,
-          remember: true,
-          remember_for: 3600,
+          remember: false,
+          remember_for: 0,
           session: {
             id_token: consentRequest.subject
               ? {
