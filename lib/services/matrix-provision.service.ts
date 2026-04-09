@@ -31,7 +31,7 @@ import {
   toMatrixUserId,
   createMatrixRoom as createMatrixRoomOnHomeserver,
   addRoomToSpace,
-  adminJoinRoom,
+  inviteToRoom,
   kickFromRoom,
   setPowerLevel,
 } from "@/lib/matrix-admin";
@@ -50,6 +50,11 @@ function isHomeserverConfigured(): boolean {
     process.env.MATRIX_ADMIN_TOKEN &&
     process.env.MATRIX_SERVER_NAME
   );
+}
+
+/** MAS auto-provisions accounts on first login — skip Synapse admin registration. */
+function isMasManaged(): boolean {
+  return !!process.env.MAS_PUBLIC_URL;
 }
 
 function serverName(): string {
@@ -242,8 +247,8 @@ export function backgroundBootstrapGroupRoom(
   iamOrgId: string,
 ): void {
   if (!isEnabled()) return;
-  bootstrapGroupRoomDb(iamGroupId, groupName, iamOrgId).catch((err) => {
-    console.error("[MatrixProvision] Group room DB bootstrap failed:", iamGroupId, err);
+  bootstrapGroupRoom(iamGroupId, groupName, iamOrgId).catch((err) => {
+    console.error("[MatrixProvision] Group room bootstrap failed:", iamGroupId, err);
   });
 }
 
@@ -349,26 +354,32 @@ export async function syncToHomeserver(): Promise<{
   }
 
   // ── 3. Sync accounts (homeserver = "pending") ─────────────────────────────
+  // When MAS is managing auth (MSC3861), skip registration — MAS auto-provisions
+  // accounts on first login via Element. IAM DB records stay "pending" until then.
 
   const pendingAccounts = await prisma.matrixAccount.findMany({
     where: { homeserver: "pending" },
   });
 
-  for (const account of pendingAccounts) {
-    try {
-      const matrixUserId = toMatrixUserId(account.iamUserId, serverName());
+  if (isMasManaged()) {
+    result.accounts.skipped = pendingAccounts.length;
+  } else {
+    for (const account of pendingAccounts) {
+      try {
+        const matrixUserId = toMatrixUserId(account.iamUserId, serverName());
 
-      await registerMatrixUser(account.iamUserId, account.iamUserId, defaultPassword());
+        await registerMatrixUser(account.iamUserId, account.iamUserId, defaultPassword());
 
-      await prisma.matrixAccount.update({
-        where: { id: account.id },
-        data: { matrixUserId, homeserver: serverName() },
-      });
+        await prisma.matrixAccount.update({
+          where: { id: account.id },
+          data: { matrixUserId, homeserver: serverName() },
+        });
 
-      result.accounts.synced++;
-    } catch (err) {
-      console.error(`[MatrixSync] Account homeserver sync failed: ${account.iamUserId}`, err);
-      result.accounts.failed.push(account.iamUserId);
+        result.accounts.synced++;
+      } catch (err) {
+        console.error(`[MatrixSync] Account homeserver sync failed: ${account.iamUserId}`, err);
+        result.accounts.failed.push(account.iamUserId);
+      }
     }
   }
 
@@ -417,7 +428,7 @@ export async function provisionMatrixAccount(
 
   await provisionMatrixAccountDb(iamUserId);
 
-  if (isHomeserverConfigured()) {
+  if (isHomeserverConfigured() && !isMasManaged()) {
     const matrixUserId = toMatrixUserId(iamUserId, serverName());
     await registerMatrixUser(iamUserId, displayName, defaultPassword());
     await prisma.matrixAccount.update({
@@ -464,7 +475,7 @@ export async function syncGroupRoomJoin(
     return;
   }
 
-  await adminJoinRoom(room.matrixId, account.matrixUserId);
+  await inviteToRoom(room.matrixId, account.matrixUserId);
   await setPowerLevel(
     room.matrixId,
     account.matrixUserId,

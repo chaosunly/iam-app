@@ -31,6 +31,7 @@ export default function MatrixHubPage() {
   const [membersLoading, setMembersLoading] = useState(false);
 
   const [error, setError] = useState("");
+  const [groupMemberIds, setGroupMemberIds] = useState<Set<string> | null>(null);
 
   // Controlled CreateRoomSheet for quick-add from space group "+" button
   const [quickRoomSpaceId, setQuickRoomSpaceId] = useState<string | undefined>(
@@ -135,6 +136,19 @@ export default function MatrixHubPage() {
     setSelectedRoomId(id);
     setSelectedDmId(null);
     setSelectedDm(null);
+
+    const room = rooms.find((r) => r.id === id);
+    if (room?.iamGroupId) {
+      fetch(`/api/admin/groups/${room.iamGroupId}/members`)
+        .then((r) => r.json())
+        .then((data) => {
+          const ids = (data.members ?? []).map((m: { userId: string }) => m.userId);
+          setGroupMemberIds(new Set(ids));
+        })
+        .catch(() => setGroupMemberIds(null));
+    } else {
+      setGroupMemberIds(null);
+    }
   }
 
   function handleDmSelect(dm: DmContact) {
@@ -186,7 +200,7 @@ export default function MatrixHubPage() {
         <RightPanel
           room={selectedRoom}
           members={members}
-          identities={identities}
+          identities={groupMemberIds ? identities.filter((i) => groupMemberIds.has(i.id)) : identities}
           membersLoading={membersLoading}
           onMembersRefresh={() => selectedRoomId && fetchMembers(selectedRoomId)}
           onRoomDeleted={handleRoomDeleted}
