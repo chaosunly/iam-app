@@ -10,8 +10,12 @@
  *
  * Required env vars:
  *   MATRIX_HOMESERVER_URL  e.g. https://matrix.acme.corp
- *   MATRIX_ADMIN_TOKEN     Synapse admin access token
+ *   MATRIX_ADMIN_TOKEN     Synapse admin access token (compat token from MAS)
  *   MATRIX_SERVER_NAME     e.g. matrix.acme.corp
+ *
+ * When Synapse uses MAS (MSC3861), user registration must go through MAS:
+ *   MAS_PUBLIC_URL         e.g. https://mas.acme.corp
+ *   MAS_IAM_SERVICE_SECRET client_secret for the "iam-service" MAS client
  */
 
 // ── Config ────────────────────────────────────────────────────────────────────
@@ -26,6 +30,94 @@ function cfg() {
     );
   }
   return { url, token, name };
+}
+
+function serverName(): string {
+  const name = process.env.MATRIX_SERVER_NAME;
+  if (!name) throw new Error("MATRIX_SERVER_NAME must be set");
+  return name;
+}
+
+// ── MAS (Matrix Authentication Service) ──────────────────────────────────────
+
+function isMasConfigured(): boolean {
+  return !!(process.env.MAS_PUBLIC_URL && process.env.MAS_IAM_SERVICE_SECRET);
+}
+
+/**
+ * Fetches a short-lived MAS admin token via OAuth2 client credentials.
+ * Requires "iam-service" client registered in MAS config.yaml.
+ */
+async function getMasAdminToken(): Promise<string> {
+  const masUrl = process.env.MAS_PUBLIC_URL!;
+  const secret = process.env.MAS_IAM_SERVICE_SECRET!;
+  const clientId = process.env.MAS_IAM_CLIENT_ID ?? "01KNRNTFN95DG8ABA0WDGQTW0W";
+  const creds    = Buffer.from(`${clientId}:${secret}`).toString("base64");
+
+  const res = await fetch(`${masUrl}/oauth2/token`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Authorization: `Basic ${creds}`,
+    },
+    body: "grant_type=client_credentials&scope=urn%3Amas%3Aadmin",
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`MAS token request failed ${res.status}: ${text}`);
+  }
+
+  const { access_token } = await res.json() as { access_token: string };
+  return access_token;
+}
+
+/**
+ * Creates a Matrix user in MAS via the admin GraphQL API.
+ * MAS then provisions the user to Synapse on first use.
+ * Idempotent — MAS returns the existing user if username already exists.
+ */
+async function registerMatrixUserViaMas(
+  iamUserId: string,
+): Promise<{ matrixUserId: string }> {
+  const masUrl  = process.env.MAS_PUBLIC_URL!;
+  const name    = serverName();
+  const username = toMatrixLocalpart(iamUserId); // "iam-<uuid>"
+  const token   = await getMasAdminToken();
+
+  const res = await fetch(`${masUrl}/graphql`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      query: `
+        mutation CreateUser($username: String!) {
+          createUser(input: { username: $username, skipPasswordCheck: true }) {
+            user { id username }
+          }
+        }
+      `,
+      variables: { username },
+    }),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`MAS createUser failed ${res.status}: ${text}`);
+  }
+
+  const data = await res.json() as {
+    data?: { createUser?: { user?: { id: string; username: string } } };
+    errors?: { message: string }[];
+  };
+
+  if (data.errors?.length) {
+    throw new Error(`MAS createUser error: ${data.errors.map(e => e.message).join(", ")}`);
+  }
+
+  return { matrixUserId: `@${username}:${name}` };
 }
 
 // ── Identity ──────────────────────────────────────────────────────────────────
@@ -43,16 +135,23 @@ export function toMatrixUserId(iamUserId: string, serverName: string): string {
 }
 
 /**
- * Registers (or updates) a Matrix user via Synapse Admin API.
- * Idempotent: re-calling for an existing user updates the display name.
+ * Registers (or updates) a Matrix user.
  *
- * Synapse: PUT /_synapse/admin/v2/users/@user:server
+ * When MAS_PUBLIC_URL + MAS_IAM_SERVICE_SECRET are set (MSC3861 deployments),
+ * uses the MAS admin GraphQL API — compat tokens cannot access Synapse admin API
+ * in MSC3861 mode.
+ *
+ * Falls back to Synapse Admin API for non-MAS deployments.
  */
 export async function registerMatrixUser(
   iamUserId: string,
   displayName: string,
   password: string,
 ): Promise<{ matrixUserId: string }> {
+  if (isMasConfigured()) {
+    return registerMatrixUserViaMas(iamUserId);
+  }
+
   const { url, token, name } = cfg();
   const matrixUserId = toMatrixUserId(iamUserId, name);
   const endpoint = `${url}/_synapse/admin/v2/users/${encodeURIComponent(matrixUserId)}`;
