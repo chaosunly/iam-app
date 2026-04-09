@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { AlertCircle, ExternalLink } from "lucide-react";
 import { LeftPanel } from "@/components/matrix/room-browser/left-panel";
 import { RightPanel } from "@/components/matrix/room-browser/right-panel";
 import { CreateRoomSheet } from "@/components/matrix/room-browser/create-room-sheet";
@@ -175,8 +176,23 @@ export default function MatrixHubPage() {
     );
   }
 
+  const elementBaseUrl = (process.env.NEXT_PUBLIC_ELEMENT_URL ?? "").replace(/\/$/, "");
+  const elementSsoUrl = elementBaseUrl
+    ? `${elementBaseUrl}/element-logout?next=${encodeURIComponent(elementBaseUrl + "/#/login")}`
+    : "";
+
   return (
     <>
+      {elementSsoUrl && (
+        <div className="flex items-center justify-end px-4 py-2 border-b bg-background">
+          <Button asChild variant="outline" size="sm">
+            <a href={elementSsoUrl} target="_blank" rel="noopener noreferrer">
+              <ExternalLink className="w-4 h-4 mr-2" />
+              Open in Element
+            </a>
+          </Button>
+        </div>
+      )}
       <div className="flex h-[calc(100vh-4rem)] overflow-hidden">
         <LeftPanel
           orgs={orgs}

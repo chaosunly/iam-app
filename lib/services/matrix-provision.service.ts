@@ -28,13 +28,16 @@ import { prisma } from "@/lib/db";
 import { logAudit } from "./audit.service";
 import {
   registerMatrixUser,
+  setMatrixUserAdmin,
   toMatrixUserId,
   createMatrixRoom as createMatrixRoomOnHomeserver,
   addRoomToSpace,
   inviteToRoom,
+  joinRoomAsUser,
   kickFromRoom,
   setPowerLevel,
 } from "@/lib/matrix-admin";
+import { checkPermission } from "@/lib/keto";
 import { grantPermission } from "./keto.service";
 import { assignMatrixRole } from "./matrix.service";
 
@@ -383,6 +386,33 @@ export async function syncToHomeserver(): Promise<{
     }
   }
 
+  // ── 4. Sync Matrix server-admin status for IAM global admins ─────────────
+  // Any IAM user with GlobalRole:admin gets promoted to Matrix server admin.
+  // Runs for all synced accounts (homeserver != "pending").
+  // Skipped gracefully if admin token lacks admin scope (will retry on next sync).
+
+  const syncedAccounts = await prisma.matrixAccount.findMany({
+    where: { NOT: { homeserver: "pending" } },
+  });
+
+  for (const account of syncedAccounts) {
+    const isGlobalAdmin = await checkPermission({
+      namespace: "GlobalRole",
+      object: "admin",
+      relation: "is_admin",
+      subject: account.iamUserId,
+    }).catch(() => false);
+
+    if (isGlobalAdmin) {
+      await setMatrixUserAdmin(account.matrixUserId, true).catch((err) => {
+        console.warn(
+          `[MatrixSync] Could not set Matrix admin for ${account.matrixUserId} — ` +
+          `admin token may lack admin scope: ${err instanceof Error ? err.message : err}`,
+        );
+      });
+    }
+  }
+
   return result;
 }
 
@@ -476,6 +506,7 @@ export async function syncGroupRoomJoin(
   }
 
   await inviteToRoom(room.matrixId, account.matrixUserId);
+  await joinRoomAsUser(room.matrixId, account.matrixUserId);
   await setPowerLevel(
     room.matrixId,
     account.matrixUserId,
