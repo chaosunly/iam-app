@@ -52,8 +52,9 @@ export async function POST(request: NextRequest) {
       try {
         console.log("[Logout] Found session cookie:", sessionCookie.name);
 
+        const oryBase = oryUrl.replace(/\/$/, "");
         const logoutResponse = await fetch(
-          `${oryUrl}/self-service/logout/browser`,
+          `${oryBase}/.ory/self-service/logout/browser`,
           {
             redirect: "manual",
             headers: {
@@ -70,7 +71,7 @@ export async function POST(request: NextRequest) {
           // Perform the logout with token
           if (logoutData.logout_token) {
             const logoutResult = await fetch(
-              `${oryUrl}/self-service/logout?token=${logoutData.logout_token}`,
+              `${oryBase}/.ory/self-service/logout?token=${logoutData.logout_token}`,
               {
                 method: "GET",
                 redirect: "manual",
