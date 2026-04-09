@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
           // Perform the logout with token
           if (logoutData.logout_token) {
             const logoutResult = await fetch(
-              `${oryUrl}/self-service/logout?token=${logoutData.logout_token}`,
+              `${oryBase}/.ory/self-service/logout?token=${logoutData.logout_token}`,
               {
                 method: "GET",
                 redirect: "manual",
