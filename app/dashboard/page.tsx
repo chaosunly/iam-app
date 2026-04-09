@@ -19,7 +19,12 @@ export default async function DashboardPage() {
     process.env.ELEMENT_URL ||
     ""
   ).replace(/\/$/, "");
-  const elementSsoUrl = `${elementBaseUrl}/#/login`;
+  // Route through /element-logout so Element's localStorage is cleared before
+  // starting a fresh SSO flow — otherwise switching IAM accounts still shows
+  // the old Matrix account cached in localStorage.
+  const elementSsoUrl = elementBaseUrl
+    ? `${elementBaseUrl}/element-logout?next=${encodeURIComponent(elementBaseUrl + "/#/login")}`
+    : "";
 
   // Get Kratos session (includes OIDC provider logins like SimpleLogin)
   const session = await getServerSession();
