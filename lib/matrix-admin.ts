@@ -36,10 +36,10 @@ function cfg() {
 
 /**
  * Derives a deterministic Matrix localpart from a Kratos user ID (UUID).
- * Result: "iam-<uuid>" — dashes are valid in Matrix localparts per spec.
+ * Result: "<uuid>" — dashes are valid in Matrix localparts per spec.
  */
 export function toMatrixLocalpart(iamUserId: string): string {
-  return `iam-${iamUserId}`;
+  return iamUserId;
 }
 
 export function toMatrixUserId(iamUserId: string, serverName: string): string {

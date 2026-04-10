@@ -99,7 +99,7 @@ export async function provisionMatrixAccountDb(
   if (existing) return;
 
   // Use a placeholder matrixUserId — backfilled when homeserver syncs
-  const placeholderMatrixUserId = `@iam-${iamUserId}:pending`;
+  const placeholderMatrixUserId = `@${iamUserId}:pending`;
 
   await prisma.matrixAccount.create({
     data: {
