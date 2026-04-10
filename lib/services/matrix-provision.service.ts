@@ -365,7 +365,22 @@ export async function syncToHomeserver(): Promise<{
   });
 
   if (isMasManaged()) {
-    result.accounts.skipped = pendingAccounts.length;
+    // MAS provisions accounts on first login — skip Synapse registration but
+    // update DB records so membership sync can proceed (invites sent ahead of time;
+    // Matrix holds pending invites until the user first logs in via Element).
+    for (const account of pendingAccounts) {
+      try {
+        const matrixUserId = toMatrixUserId(account.iamUserId, serverName());
+        await prisma.matrixAccount.update({
+          where: { id: account.id },
+          data: { matrixUserId, homeserver: serverName() },
+        });
+        result.accounts.skipped++;
+      } catch (err) {
+        console.error(`[MatrixSync] MAS account DB update failed: ${account.iamUserId}`, err);
+        result.accounts.failed.push(account.iamUserId);
+      }
+    }
   } else {
     for (const account of pendingAccounts) {
       try {
