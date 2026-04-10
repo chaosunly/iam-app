@@ -16,6 +16,7 @@ export interface RoomItem {
   description?: string | null;
   matrixId?: string | null;
   spaceId: string;
+  iamGroupId?: string | null;
   createdAt: string;
   space?: RoomSpace | null;
 }

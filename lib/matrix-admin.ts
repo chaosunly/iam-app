@@ -12,6 +12,10 @@
  *   MATRIX_HOMESERVER_URL  e.g. https://matrix.acme.corp
  *   MATRIX_ADMIN_TOKEN     Synapse admin access token
  *   MATRIX_SERVER_NAME     e.g. matrix.acme.corp
+ *
+ * Note: When Synapse uses MAS (MSC3861), account registration is skipped —
+ * MAS auto-provisions users on their first login via Element.
+ * Set MAS_PUBLIC_URL to signal MAS-managed deployments.
  */
 
 // ── Config ────────────────────────────────────────────────────────────────────
@@ -77,6 +81,34 @@ export async function registerMatrixUser(
   }
 
   return { matrixUserId };
+}
+
+/**
+ * Sets or unsets server-admin status for a Matrix user.
+ * Requires a proper OAuth2 admin token (mat_...) — compat tokens (mct_...) lack admin scope.
+ *
+ * Synapse Admin API: PUT /_synapse/admin/v2/users/@user:server
+ */
+export async function setMatrixUserAdmin(
+  matrixUserId: string,
+  isAdmin: boolean,
+): Promise<void> {
+  const { url, token } = cfg();
+  const endpoint = `${url}/_synapse/admin/v2/users/${encodeURIComponent(matrixUserId)}`;
+
+  const res = await fetch(endpoint, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ admin: isAdmin }),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`setMatrixUserAdmin ${matrixUserId} admin=${isAdmin} → ${res.status}: ${text}`);
+  }
 }
 
 /**
@@ -180,15 +212,58 @@ export async function addRoomToSpace(
 // ── Membership ────────────────────────────────────────────────────────────────
 
 /**
- * Admin-forces a user to join a room (no invite required).
- * Synapse Admin API: POST /_synapse/admin/v1/join/{roomId}
+ * Force-joins a user to a room using the Application Service token.
+ * The AS token bypasses MAS auth entirely — registered in Synapse's homeserver.yaml.
+ * Call this after inviteToRoom to auto-accept the invite on behalf of the user.
+ *
+ * Requires env var: MATRIX_AS_TOKEN (IAM application service token)
+ *
+ * Matrix Client-Server API: POST /_matrix/client/v3/join/{roomId}?user_id=@iam-user:server
  */
-export async function adminJoinRoom(
+export async function joinRoomAsUser(
+  roomMatrixId: string,
+  matrixUserId: string,
+): Promise<void> {
+  const { url } = cfg();
+  const asToken = process.env.MATRIX_AS_TOKEN;
+  if (!asToken) return; // AS not configured — invite-only fallback
+
+  const endpoint =
+    `${url}/_matrix/client/v3/join/${encodeURIComponent(roomMatrixId)}` +
+    `?user_id=${encodeURIComponent(matrixUserId)}`;
+
+  const res = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${asToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({}),
+  });
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({} as { errcode?: string })) as { errcode?: string };
+    // Already in room — not an error
+    if (data.errcode === "M_FORBIDDEN" || data.errcode === "M_USER_IN_ROOM") return;
+    throw new Error(
+      `joinRoomAsUser ${matrixUserId} → ${roomMatrixId}: ${res.status}: ${JSON.stringify(data)}`,
+    );
+  }
+}
+
+/**
+ * Invites a user to a room via Matrix Client-Server API.
+ * Replaces adminJoinRoom — works with MAS compat tokens (no Synapse admin needed).
+ * Silently ignores M_FORBIDDEN and M_USER_IN_ROOM (already invited / already joined).
+ *
+ * Matrix Client-Server API: POST /_matrix/client/v3/rooms/{roomId}/invite
+ */
+export async function inviteToRoom(
   roomMatrixId: string,
   matrixUserId: string,
 ): Promise<void> {
   const { url, token } = cfg();
-  const endpoint = `${url}/_synapse/admin/v1/join/${encodeURIComponent(roomMatrixId)}`;
+  const endpoint = `${url}/_matrix/client/v3/rooms/${encodeURIComponent(roomMatrixId)}/invite`;
 
   const res = await fetch(endpoint, {
     method: "POST",
@@ -200,9 +275,10 @@ export async function adminJoinRoom(
   });
 
   if (!res.ok) {
-    const text = await res.text();
+    const data = await res.json().catch(() => ({} as { errcode?: string })) as { errcode?: string };
+    if (data.errcode === "M_FORBIDDEN" || data.errcode === "M_USER_IN_ROOM") return;
     throw new Error(
-      `adminJoinRoom ${matrixUserId} → ${roomMatrixId}: ${res.status}: ${text}`,
+      `inviteToRoom ${matrixUserId} → ${roomMatrixId}: ${res.status}: ${JSON.stringify(data)}`,
     );
   }
 }

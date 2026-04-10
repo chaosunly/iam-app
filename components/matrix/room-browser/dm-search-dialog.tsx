@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -76,11 +77,11 @@ export function DmSearchDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Direct Messages</DialogTitle>
+          <DialogDescription>
+            Start a conversation using their name or email. No room is created
+            until you message in Element.
+          </DialogDescription>
         </DialogHeader>
-        <p className="text-sm text-muted-foreground">
-          Start a conversation using their name or email. No room is created
-          until you message in Element.
-        </p>
         <div className="relative">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
