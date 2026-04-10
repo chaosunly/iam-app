@@ -403,8 +403,6 @@ export async function syncToHomeserver(): Promise<{
 
   // ── 4. Sync Matrix server-admin status for IAM global admins ─────────────
   // Any IAM user with GlobalRole:admin gets promoted to Matrix server admin.
-  // Runs for all synced accounts (homeserver != "pending").
-  // Skipped gracefully if admin token lacks admin scope (will retry on next sync).
 
   const syncedAccounts = await prisma.matrixAccount.findMany({
     where: { NOT: { homeserver: "pending" } },
@@ -421,8 +419,7 @@ export async function syncToHomeserver(): Promise<{
     if (isGlobalAdmin) {
       await setMatrixUserAdmin(account.matrixUserId, true).catch((err) => {
         console.warn(
-          `[MatrixSync] Could not set Matrix admin for ${account.matrixUserId} — ` +
-          `admin token may lack admin scope: ${err instanceof Error ? err.message : err}`,
+          `[MatrixSync] Could not set Matrix admin for ${account.matrixUserId}: ${err instanceof Error ? err.message : err}`,
         );
       });
     }
