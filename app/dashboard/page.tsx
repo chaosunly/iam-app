@@ -7,7 +7,7 @@ import { autoProvisionUser } from "@/lib/services/auto-provision.service";
 import { getUserGitlabRoles } from "@/lib/services/gitlab.service";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Check, Mail, Users, Settings, Lock, Info } from "lucide-react";
-import { UserOverviewCharts } from "@/components/charts/user-overview-charts"
+import { UserOverviewCharts } from "@/components/charts/user-overview-charts";
 import { ConnectedServices } from "@/components/dashboard/connected-services";
 
 export default async function DashboardPage() {
