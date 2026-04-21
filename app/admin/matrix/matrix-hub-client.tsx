@@ -183,7 +183,13 @@ export function MatrixHubClient({ elementSsoUrl }: MatrixHubClientProps) {
   return (
     <>
       {elementSsoUrl && (
-        <div className="flex items-center justify-end px-4 py-2 border-b bg-background">
+        <div className="flex items-center justify-end gap-2 px-4 py-2 border-b bg-background">
+          <Button asChild variant="outline" size="sm">
+            <a href="https://admin-beta.element.dev/" target="_blank" rel="noopener noreferrer">
+              <ExternalLink className="w-4 h-4 mr-2" />
+              Element Admin Console
+            </a>
+          </Button>
           <Button asChild variant="outline" size="sm">
             <a href={elementSsoUrl} target="_blank" rel="noopener noreferrer">
               <ExternalLink className="w-4 h-4 mr-2" />
