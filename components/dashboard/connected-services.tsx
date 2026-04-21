@@ -1,5 +1,6 @@
 "use client"
 
+import type { ReactNode } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -10,7 +11,7 @@ type Service = {
   name: string
   description: string
   href: string
-  icon: React.ReactNode
+  icon: ReactNode
   iconBg: string
   external?: boolean
 }
