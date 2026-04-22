@@ -5,7 +5,40 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
-import { Bot, Cloud, Github, Mail, Palette, Sparkles, Train } from "lucide-react"
+import {
+  siNotion,
+  siConfluence,
+  siGitlab,
+  siGithub,
+  siRailway,
+  siJira,
+  siFigma,
+  siMiro,
+  siProtonmail,
+  siElement,
+  siClaude,
+} from "simple-icons"
+
+// Reusable brand icon component powered by simple-icons
+function BrandIcon({
+  icon,
+  size = 28,
+}: {
+  icon: { svg: string; hex: string; title: string }
+  size?: number
+}) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill={`#${icon.hex}`}
+      role="img"
+      aria-label={icon.title}
+      dangerouslySetInnerHTML={{ __html: icon.svg }}
+    />
+  )
+}
 
 type Service = {
   name: string
@@ -34,30 +67,27 @@ export function ConnectedServices({ elementSsoUrl }: ConnectedServicesProps) {
           name: "Chat",
           description: "Matrix / Element",
           href: elementSsoUrl,
-          iconBg: "bg-green-100 dark:bg-green-900/20",
-          icon: (
-            <svg className="w-7 h-7 text-green-600 dark:text-green-400" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm-1.314 4.715c3.289 0 5.956 2.66 5.963 5.944a.234.234 0 01-.234.234h-1.643a.234.234 0 01-.234-.234c-.007-2.353-1.924-4.263-4.283-4.263h-.57a.469.469 0 00-.468.469v10.67c0 .259.21.469.469.469h.569c2.359 0 4.276-1.91 4.283-4.263 0-.129.105-.234.234-.234h1.643c.129 0 .234.105.234.234-.007 3.284-2.674 5.944-5.963 5.944h-.57a2.126 2.126 0 01-2.125-2.126V6.84c0-1.173.952-2.125 2.126-2.125h.569z" />
-            </svg>
-          ),
+          iconBg: "bg-[#0DBD8B]/10 dark:bg-[#0DBD8B]/20",
+          icon: <BrandIcon icon={siElement} />,
         },
         {
           name: "Proton Workspace",
           description: "Email & Calendar",
           href: "https://account.proton.me",
           external: true,
-          iconBg: "bg-purple-100 dark:bg-purple-900/20",
-          icon: <Mail className="w-7 h-7 text-purple-600 dark:text-purple-400" />,
+          iconBg: "bg-[#6D4AFF]/10 dark:bg-[#6D4AFF]/20",
+          icon: <BrandIcon icon={siProtonmail} />,
         },
         {
           name: "Slack",
           description: "Communication",
           href: "https://slack.com",
           external: true,
-          iconBg: "bg-pink-100 dark:bg-pink-900/20",
+          iconBg: "bg-[#4A154B]/10 dark:bg-[#4A154B]/20",
+          // Slack official SVG path (not in simple-icons v14)
           icon: (
-            <svg className="w-7 h-7 text-pink-600 dark:text-pink-400" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M6 15a2 2 0 0 1-2 2a2 2 0 0 1-2-2a2 2 0 0 1 2-2h2v2m1 0a2 2 0 0 1 2-2a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2a2 2 0 0 1-2-2v-5m2-8a2 2 0 0 1-2-2a2 2 0 0 1 2-2a2 2 0 0 1 2 2v2H9m0 1a2 2 0 0 1 2 2a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2a2 2 0 0 1 2-2h5m8 2a2 2 0 0 1 2-2a2 2 0 0 1 2 2a2 2 0 0 1-2 2h-2v-2m-1 0a2 2 0 0 1-2 2a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2a2 2 0 0 1 2 2v5m-2 8a2 2 0 0 1 2 2a2 2 0 0 1-2 2a2 2 0 0 1-2-2v-2h2m0-1a2 2 0 0 1-2-2a2 2 0 0 1 2-2h5a2 2 0 0 1 2 2a2 2 0 0 1-2 2h-5z" />
+            <svg width={28} height={28} viewBox="0 0 24 24" fill="#4A154B" aria-label="Slack">
+              <path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312zM15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zM15.165 17.688a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z" />
             </svg>
           ),
         },
@@ -66,25 +96,16 @@ export function ConnectedServices({ elementSsoUrl }: ConnectedServicesProps) {
           description: "Documentation",
           href: "https://notion.so",
           external: true,
-          iconBg: "bg-muted",
-          icon: (
-            <svg className="w-7 h-7 text-foreground" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M4.459 4.208c.746.606 1.026.56 2.428.466l13.215-.793c.28 0 .047-.28-.046-.326L17.86 1.968c-.42-.326-.981-.7-2.055-.607L3.01 2.295c-.466.046-.56.28-.374.466zm.793 3.08v13.904c0 .747.373 1.027 1.214.98l14.523-.84c.841-.046.935-.56.935-1.167V6.354c0-.606-.233-.887-.748-.84l-15.177.887c-.56.047-.747.327-.747.887zm14.336.653c.093.42 0 .84-.42.888l-.7.14v10.264c-.608.327-1.168.514-1.635.514-.748 0-.935-.234-1.495-.933l-4.577-7.186v6.952L12.21 19s0 .84-1.168.84l-3.222.186c-.093-.186 0-.653.327-.746l.84-.233V9.854L7.822 9.76c-.094-.42.14-1.026.793-1.073l3.456-.233 4.764 7.279v-6.44l-1.215-.139c-.093-.514.28-.887.747-.933zM1.936 1.035l13.31-.98c1.634-.14 2.055-.047 3.082.7l4.249 2.986c.7.513.934.653.934 1.213v16.378c0 1.026-.373 1.634-1.68 1.726l-15.458.934c-.98.047-1.448-.093-1.962-.747l-3.129-4.06c-.56-.747-.793-1.306-.793-1.96V2.667c0-.839.374-1.54 1.447-1.632z" />
-            </svg>
-          ),
+          iconBg: "bg-zinc-100 dark:bg-zinc-800",
+          icon: <BrandIcon icon={siNotion} />,
         },
         {
           name: "Confluence",
           description: "Wiki & Docs",
           href: "https://atlassian.com/software/confluence",
           external: true,
-          iconBg: "bg-indigo-100 dark:bg-indigo-900/20",
-          icon: (
-            <svg className="w-7 h-7 text-indigo-600 dark:text-indigo-400" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M.87 18.257c-.248.382-.318.864-.191 1.29.127.426.413.776.767.984l5.448 3.169c.731.425 1.674.174 2.104-.558l5.615-9.573c.616-1.063.617-2.366.007-3.431L8.61 1.354c-.43-.732-1.373-.983-2.104-.558L1.058 4.065c-.354.208-.64.558-.767.984-.127.426-.057.908.191 1.29z" />
-              <path d="M23.13 5.743c.248-.382.318-.864.191-1.29-.127-.426-.413-.776-.767-.984l-5.448-3.169c-.731-.425-1.674-.174-2.104.558l-5.615 9.573c-.616 1.063-.617 2.366-.007 3.431l6.01 8.784c.43.732 1.373.983 2.104.558l5.448-3.169c.354-.208.64-.558.767-.984.127-.426.057-.908-.191-1.29z" />
-            </svg>
-          ),
+          iconBg: "bg-[#172B4D]/10 dark:bg-[#172B4D]/30",
+          icon: <BrandIcon icon={siConfluence} />,
         },
       ],
     },
@@ -96,56 +117,53 @@ export function ConnectedServices({ elementSsoUrl }: ConnectedServicesProps) {
           description: "Code Repository",
           href: "https://gitlab.com",
           external: true,
-          iconBg: "bg-orange-100 dark:bg-orange-900/20",
-          icon: (
-            <svg className="w-7 h-7 text-orange-600 dark:text-orange-400" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M23.546 10.93L13.067.452c-.604-.603-1.582-.603-2.188 0L8.708 2.627l2.76 2.76c.645-.215 1.379-.07 1.889.441.516.515.658 1.258.438 1.9l2.658 2.66c.645-.223 1.387-.078 1.9.435.721.72.721 1.884 0 2.604-.719.719-1.881.719-2.6 0-.539-.541-.674-1.337-.404-1.996L12.86 8.955v6.525c.176.086.342.203.488.348.713.721.713 1.883 0 2.6-.719.721-1.889.721-2.609 0-.719-.719-.719-1.879 0-2.598.182-.18.387-.316.605-.406V8.835c-.217-.091-.424-.222-.6-.401-.545-.545-.676-1.342-.396-2.009L7.636 3.7.45 10.881c-.6.605-.6 1.584 0 2.189l10.48 10.477c.604.604 1.582.604 2.186 0l10.43-10.43c.605-.603.605-1.582 0-2.187" />
-            </svg>
-          ),
+          iconBg: "bg-[#FC6D26]/10 dark:bg-[#FC6D26]/20",
+          icon: <BrandIcon icon={siGitlab} />,
         },
         {
           name: "GitHub",
           description: "Code Repository",
           href: "https://github.com",
           external: true,
-          iconBg: "bg-muted",
-          icon: <Github className="w-7 h-7 text-foreground" />,
+          iconBg: "bg-zinc-100 dark:bg-zinc-800",
+          icon: <BrandIcon icon={siGithub} />,
         },
         {
           name: "Railway",
           description: "Deployment",
           href: "https://railway.app",
           external: true,
-          iconBg: "bg-violet-100 dark:bg-violet-900/20",
-          icon: <Train className="w-7 h-7 text-violet-600 dark:text-violet-400" />,
+          iconBg: "bg-zinc-100 dark:bg-zinc-800",
+          icon: <BrandIcon icon={siRailway} />,
         },
         {
           name: "AWS",
           description: "Cloud",
           href: "https://aws.amazon.com",
           external: true,
-          iconBg: "bg-amber-100 dark:bg-amber-900/20",
-          icon: <Cloud className="w-7 h-7 text-amber-600 dark:text-amber-400" />,
+          iconBg: "bg-[#FF9900]/10 dark:bg-[#FF9900]/20",
+          // AWS official SVG path (not in simple-icons v14 as amazonwebservices)
+          icon: (
+            <svg width={28} height={28} viewBox="0 0 24 24" fill="#FF9900" aria-label="AWS">
+              <path d="M6.763 10.036c0 .296.032.535.088.71.064.176.144.368.256.576.04.063.056.127.056.183 0 .08-.048.16-.152.24l-.503.335a.383.383 0 0 1-.208.072c-.08 0-.16-.04-.239-.112a2.47 2.47 0 0 1-.287-.375 6.18 6.18 0 0 1-.248-.471c-.622.734-1.405 1.101-2.347 1.101-.67 0-1.205-.191-1.596-.574-.391-.384-.59-.894-.59-1.533 0-.678.239-1.23.726-1.644.487-.415 1.133-.623 1.955-.623.272 0 .551.024.846.064.296.04.6.104.918.176v-.583c0-.607-.127-1.030-.375-1.277-.255-.248-.686-.367-1.3-.367-.28 0-.568.031-.863.103-.295.072-.583.16-.862.272a2.287 2.287 0 0 1-.28.104.488.488 0 0 1-.127.023c-.112 0-.168-.08-.168-.247v-.391c0-.128.016-.224.056-.28a.597.597 0 0 1 .224-.167c.279-.144.614-.264 1.005-.36a4.84 4.84 0 0 1 1.246-.151c.95 0 1.644.216 2.091.647.439.43.662 1.085.662 1.963v2.586zm-3.24 1.214c.263 0 .534-.048.822-.144.287-.096.543-.271.758-.51.128-.152.224-.32.272-.512.047-.191.08-.423.08-.694v-.335a6.66 6.66 0 0 0-.735-.136 6.02 6.02 0 0 0-.75-.048c-.535 0-.926.104-1.19.32-.263.215-.39.518-.39.917 0 .375.095.655.295.846.191.2.47.296.838.296zm6.41.862c-.144 0-.24-.024-.304-.08-.064-.048-.12-.16-.168-.311L7.586 5.55a1.398 1.398 0 0 1-.072-.32c0-.128.064-.2.191-.2h.783c.151 0 .255.025.31.08.065.048.113.16.16.312l1.342 5.284 1.245-5.284c.04-.16.088-.264.151-.312a.549.549 0 0 1 .32-.08h.638c.152 0 .256.025.32.08.063.048.12.16.151.312l1.261 5.348 1.381-5.348c.048-.16.104-.264.16-.312a.52.52 0 0 1 .311-.08h.743c.127 0 .2.065.2.2 0 .04-.009.08-.017.128a1.137 1.137 0 0 1-.056.2l-1.923 6.17c-.048.16-.104.263-.168.311a.51.51 0 0 1-.303.08h-.687c-.151 0-.255-.024-.32-.08-.063-.056-.119-.16-.15-.32l-1.238-5.148-1.23 5.14c-.04.16-.087.264-.15.32-.065.056-.177.08-.32.08zm10.256.215c-.415 0-.83-.048-1.229-.143-.399-.096-.71-.2-.918-.32-.128-.071-.215-.151-.247-.223a.563.563 0 0 1-.048-.224v-.407c0-.167.064-.247.183-.247.048 0 .096.008.144.024.048.016.12.048.2.08.271.12.566.215.878.279.319.064.63.096.95.096.502 0 .894-.088 1.165-.264a.86.86 0 0 0 .42-.758.777.777 0 0 0-.215-.559c-.144-.151-.416-.287-.807-.415l-1.157-.36c-.583-.183-1.014-.454-1.277-.813a1.902 1.902 0 0 1-.4-1.158c0-.335.073-.63.216-.886.144-.255.335-.479.575-.654.24-.184.51-.32.83-.415.32-.096.655-.136 1.006-.136.175 0 .359.008.535.032.183.024.35.056.518.088.16.04.312.08.455.127.144.048.256.096.336.144a.69.69 0 0 1 .24.2.43.43 0 0 1 .071.263v.375c0 .168-.064.256-.184.256a.83.83 0 0 1-.303-.096 3.652 3.652 0 0 0-1.532-.311c-.455 0-.815.071-1.070.223-.255.152-.383.383-.383.71 0 .224.08.416.24.567.159.152.454.304.877.44l1.134.358c.574.184.99.44 1.237.767.247.327.367.702.367 1.117 0 .343-.072.655-.207.926-.144.272-.336.511-.583.703-.248.2-.543.343-.886.447-.36.111-.734.167-1.142.167zM21.698 16.207c-2.626 1.940-6.442 2.970-9.722 2.970-4.598 0-8.74-1.700-11.87-4.526-.247-.223-.024-.527.27-.351 3.384 1.963 7.559 3.153 11.877 3.153 2.914 0 6.114-.607 9.06-1.852.439-.2.814.287.385.606zm1.093-1.245c-.335-.43-2.220-.207-3.074-.103-.255.032-.295-.192-.064-.36 1.502-1.053 3.967-.75 4.254-.399.287.36-.08 2.826-1.485 4.007-.215.184-.423.088-.327-.151.32-.79 1.03-2.57.696-2.994z" />
+            </svg>
+          ),
         },
         {
-          name: "Claude Code",
+          name: "Claude",
           description: "AI Dev Tool",
-          href: "https://claude.com/product/claude-code",
+          href: "https://claude.ai",
           external: true,
-          iconBg: "bg-rose-100 dark:bg-rose-900/20",
-          icon: <Bot className="w-7 h-7 text-rose-600 dark:text-rose-400" />,
+          iconBg: "bg-[#D97757]/10 dark:bg-[#D97757]/20",
+          icon: <BrandIcon icon={siClaude} />,
         },
         {
           name: "Jira",
           description: "Project Management",
           href: "https://atlassian.com/software/jira",
           external: true,
-          iconBg: "bg-blue-100 dark:bg-blue-900/20",
-          icon: (
-            <svg className="w-7 h-7 text-blue-600 dark:text-blue-400" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M11.571 11.513H0a5.218 5.218 0 0 0 5.232 5.215h2.13v2.057A5.215 5.215 0 0 0 12.575 24V12.518a1.005 1.005 0 0 0-1.005-1.005zm5.723-5.756H5.736a5.215 5.215 0 0 0 5.215 5.214h2.129v2.058a5.218 5.218 0 0 0 5.215 5.214V6.757a1 1 0 0 0-1-1zM23.013 0H11.455a5.215 5.215 0 0 0 5.215 5.215h2.129v2.057A5.215 5.215 0 0 0 24 12.483V1.005A1.005 1.005 0 0 0 23.013 0z" />
-            </svg>
-          ),
+          iconBg: "bg-[#0052CC]/10 dark:bg-[#0052CC]/20",
+          icon: <BrandIcon icon={siJira} />,
         },
       ],
     },
@@ -157,44 +175,29 @@ export function ConnectedServices({ elementSsoUrl }: ConnectedServicesProps) {
           description: "Design Platform",
           href: "https://figma.com",
           external: true,
-          iconBg: "bg-purple-100 dark:bg-purple-900/20",
-          icon: (
-            <svg className="w-7 h-7 text-purple-600 dark:text-purple-400" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M8 24c2.208 0 4-1.792 4-4v-4H8c-2.208 0-4 1.792-4 4s1.792 4 4 4z" />
-              <path d="M4 12c0-2.208 1.792-4 4-4h4v8H8c-2.208 0-4-1.792-4-4z" />
-              <path d="M4 4c0-2.208 1.792-4 4-4h4v8H8C5.792 8 4 6.208 4 4z" />
-              <path d="M12 0h4c2.208 0 4 1.792 4 4s-1.792 4-4 4h-4V0z" />
-              <path d="M20 12c0 2.208-1.792 4-4 4s-4-1.792-4-4 1.792-4 4-4 4 1.792 4 4z" />
-            </svg>
-          ),
+          iconBg: "bg-[#F24E1E]/10 dark:bg-[#F24E1E]/20",
+          icon: <BrandIcon icon={siFigma} />,
         },
         {
           name: "Canva",
           description: "Design Tool",
           href: "https://canva.com",
           external: true,
-          iconBg: "bg-teal-100 dark:bg-teal-900/20",
-          icon: <Palette className="w-7 h-7 text-teal-600 dark:text-teal-400" />,
-        },
-        {
-          name: "Claude Design",
-          description: "AI Design",
-          href: "https://claude.ai",
-          external: true,
-          iconBg: "bg-rose-100 dark:bg-rose-900/20",
-          icon: <Sparkles className="w-7 h-7 text-rose-600 dark:text-rose-400" />,
+          iconBg: "bg-[#00C4CC]/10 dark:bg-[#00C4CC]/20",
+          // Canva official SVG path (not in simple-icons v14)
+          icon: (
+            <svg width={28} height={28} viewBox="0 0 24 24" fill="#00C4CC" aria-label="Canva">
+              <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm0 2.824c5.070 0 9.176 4.106 9.176 9.176S17.070 21.176 12 21.176 2.824 17.070 2.824 12 6.930 2.824 12 2.824zm-1.6 5.043c-1.232 0-2.255.388-2.933 1.116-.671.72-1.007 1.739-1.007 3.04 0 1.256.34 2.24 1.012 2.924.672.683 1.633 1.024 2.863 1.024.734 0 1.39-.118 1.95-.353a3.63 3.63 0 0 0 1.393-1.05l-1.07-.784c-.247.314-.527.548-.837.7a2.53 2.53 0 0 1-1.107.228c-.714 0-1.267-.228-1.65-.68-.385-.453-.578-1.107-.578-1.954v-.302c0-.848.193-1.497.578-1.942.383-.446.936-.67 1.65-.67.4 0 .764.08 1.089.24.326.16.607.4.842.72l1.054-.808a3.507 3.507 0 0 0-1.356-1.006 4.488 4.488 0 0 0-1.893-.443zm5.327.118v7.822h1.4V7.985h-1.4z" />
+            </svg>
+          ),
         },
         {
           name: "Miro",
           description: "Whiteboard",
           href: "https://miro.com",
           external: true,
-          iconBg: "bg-yellow-100 dark:bg-yellow-900/20",
-          icon: (
-            <svg className="w-7 h-7 text-yellow-600 dark:text-yellow-400" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M17.392 0H13.9L17 10.444l4.262-3.642a6.94 6.94 0 0 0-.902-2.264 6.936 6.936 0 0 0-2.968-2.97A6.932 6.932 0 0 0 17.392 0zM6.608 0h3.49L7 10.444 2.739 6.802a6.94 6.94 0 0 1 .901-2.264 6.936 6.936 0 0 1 2.968-2.97A6.932 6.932 0 0 1 6.608 0zM12.955 13.887v9.448h-1.91v-9.448l-5.345-2.63v-.39L14.9 7.215l9.2 3.651v.391l-5.345 2.63v9.448h-1.91v-9.448l-3.89 1.899-3.89-1.899z" />
-            </svg>
-          ),
+          iconBg: "bg-[#050038]/10 dark:bg-[#FFD02F]/10",
+          icon: <BrandIcon icon={siMiro} />,
         },
       ],
     },
