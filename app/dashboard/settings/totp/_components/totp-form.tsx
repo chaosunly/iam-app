@@ -2,7 +2,11 @@
 
 import { SettingsFlow } from "@ory/client-fetch";
 import { KratosForm } from "@/components/auth/kratos-form";
-import { getNodeByName, getImageNodes, getTextNodes } from "@/lib/auth/ory-flow-utils";
+import {
+  getNodeByName,
+  getImageNodes,
+  getTextNodes,
+} from "@/lib/auth/ory-flow-utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -56,7 +60,9 @@ export function TotpForm({ flow }: TotpFormProps) {
 
       <KratosForm
         action={flow.ui.action}
-        nodes={flow.ui.nodes.filter((n) => n.group === "totp" || n.group === "default")}
+        nodes={flow.ui.nodes.filter(
+          (n) => n.group === "totp" || n.group === "default",
+        )}
         messages={flow.ui.messages}
         className="space-y-6"
       >
