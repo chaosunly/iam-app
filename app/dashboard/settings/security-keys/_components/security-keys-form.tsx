@@ -1,6 +1,6 @@
 "use client";
 
-import { SettingsFlow } from "@ory/client-fetch";
+import { SettingsFlow, UiNodeInputAttributes } from "@ory/client-fetch";
 import { KratosForm } from "@/components/auth/kratos-form";
 import { WebAuthnScript } from "@/components/auth/webauthn-script";
 import { getInputNodes } from "@/lib/auth/ory-flow-utils";
@@ -96,6 +96,14 @@ export function SecurityKeysForm({ flow }: SecurityKeysFormProps) {
             value={registerTrigger.value}
             variant="outline"
             id="webauthn-settings-register"
+            onClick={(e) => {
+              const onclick = (registerTrigger.node.attributes as UiNodeInputAttributes).onclick;
+              if (onclick) {
+                e.preventDefault();
+                // eslint-disable-next-line no-new-func
+                new Function(onclick)();
+              }
+            }}
           >
             <Plus className="h-4 w-4 mr-2" />
             Add security key

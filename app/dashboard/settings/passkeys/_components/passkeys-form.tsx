@@ -1,6 +1,6 @@
 "use client";
 
-import { SettingsFlow } from "@ory/client-fetch";
+import { SettingsFlow, UiNodeInputAttributes } from "@ory/client-fetch";
 import { KratosForm } from "@/components/auth/kratos-form";
 import { WebAuthnScript } from "@/components/auth/webauthn-script";
 import { getInputNodes } from "@/lib/auth/ory-flow-utils";
@@ -97,6 +97,14 @@ export function PasskeysForm({ flow }: PasskeysFormProps) {
             value={createButton.value}
             variant="outline"
             id="passkey-settings-create"
+            onClick={(e) => {
+              const onclick = (createButton.node.attributes as UiNodeInputAttributes).onclick;
+              if (onclick) {
+                e.preventDefault();
+                // eslint-disable-next-line no-new-func
+                new Function(onclick)();
+              }
+            }}
           >
             <Plus className="h-4 w-4 mr-2" />
             Add passkey
