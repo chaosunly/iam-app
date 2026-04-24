@@ -1,5 +1,6 @@
 import { getSettingsFlow, OryPageParams } from "@ory/nextjs/app";
 import { SettingsFlow } from "@ory/client-fetch";
+import { redirect } from "next/navigation";
 import config from "@/ory.config";
 import { ProfileForm } from "./_components/profile-form";
 import { PasswordForm } from "./_components/password-form";
@@ -19,7 +20,7 @@ export default async function SettingsPage(props: OryPageParams) {
   const flow = await getSettingsFlow(config, params);
 
   if (!flow) {
-    return null;
+    redirect("/dashboard/settings");
   }
 
   return (
