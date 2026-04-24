@@ -115,9 +115,8 @@ export function ConnectedServices({ elementSsoUrl }: ConnectedServicesProps) {
         {
           name: "GitLab",
           description: "Code Repository",
-          href: "https://gitlab.com",
-          external: true,
-          iconBg: "bg-[#FC6D26]/10 dark:bg-[#FC6D26]/20",
+          href: "https://polis-production-1f3a.up.railway.app/api/v1/saml/idp/sso?tenant=rexform-sandbox&product=gitlab-saml",
+          iconBg: "bg-orange-100 dark:bg-orange-900/20",
           icon: <BrandIcon icon={siGitlab} />,
         },
         {
