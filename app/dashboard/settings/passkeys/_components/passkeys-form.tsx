@@ -23,6 +23,8 @@ export function PasskeysForm({ flow }: PasskeysFormProps) {
     n.name.startsWith("passkey_remove_"),
   );
 
+  console.log("[passkeys] nodes:", passkeyNodes.map((n) => ({ name: n.name, type: n.type })));
+
   if (passkeyNodes.length === 0) {
     return (
       <div className="space-y-6">
