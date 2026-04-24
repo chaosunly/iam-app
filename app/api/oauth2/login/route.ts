@@ -128,19 +128,26 @@ export async function GET(request: NextRequest) {
 
       const acceptResult = await acceptResponse.json();
 
-      // Rewrite Hydra's public-domain redirect_to through nginx so the CSRF cookie
-      // (set on nginx-sengly via proxy) is included in the return request to Hydra.
+      // Rewrite Hydra's redirect_to through the gateway only when the original auth
+      // request came through the gateway. In that case Hydra's CSRF cookie was set on
+      // the gateway domain and must be sent back on the return trip. If the request
+      // came directly to Hydra (e.g. Polis/SAML SSO), the CSRF cookie is on Hydra's
+      // own domain — rewriting would strip it and cause request_forbidden.
       const NGINX_URL = (process.env.NGINX_URL || "").replace(/\/$/, "");
       let redirectTo = acceptResult.redirect_to as string;
       if (NGINX_URL && redirectTo) {
         try {
-          const url = new URL(redirectTo);
           const nginxUrl = new URL(NGINX_URL);
-          if (url.pathname.startsWith("/oauth2/") && url.hostname !== nginxUrl.hostname) {
-            url.hostname = nginxUrl.hostname;
-            url.protocol = nginxUrl.protocol;
-            url.port = nginxUrl.port;
-            redirectTo = url.toString();
+          const requestOriginUrl = new URL(loginRequest.request_url);
+          const requestCameFromGateway = requestOriginUrl.hostname === nginxUrl.hostname;
+          if (requestCameFromGateway) {
+            const url = new URL(redirectTo);
+            if (url.pathname.startsWith("/oauth2/") && url.hostname !== nginxUrl.hostname) {
+              url.hostname = nginxUrl.hostname;
+              url.protocol = nginxUrl.protocol;
+              url.port = nginxUrl.port;
+              redirectTo = url.toString();
+            }
           }
         } catch {
           // keep original if URL parsing fails
