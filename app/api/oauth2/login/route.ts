@@ -108,12 +108,15 @@ export async function GET(request: NextRequest) {
             subject: kratosIdentity.id,
             remember: false,
             remember_for: 0,
-            // Pass Kratos identity data as context for Hydra to include in id_token
+            // Pass Kratos identity data as context for Hydra to include in id_token.
+            // Also store the original auth request hostname so the consent handler
+            // can apply the same CSRF cookie domain routing logic.
             context: {
               email: userEmail,
               username: userName,
               preferred_username: userName,
               name: userDisplayName,
+              _hydra_origin_hostname: new URL(loginRequest.request_url).hostname,
             },
             acr: "urn:mace:incommon:iap:silver", // Authentication context class reference
           }),

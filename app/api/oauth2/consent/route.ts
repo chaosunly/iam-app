@@ -131,18 +131,35 @@ export async function GET(request: NextRequest) {
 
     const acceptResult = await acceptResponse.json();
 
-    // Rewrite Hydra's public-domain redirect_to through nginx (same reason as login handler)
+    // Apply the same CSRF cookie domain routing as the login handler.
+    // The login handler stored the original auth request hostname in context so we
+    // can route the consent_verifier to the same host the browser has the CSRF cookie on.
     const NGINX_URL = (process.env.NGINX_URL || "").replace(/\/$/, "");
     let redirectTo = acceptResult.redirect_to as string;
     if (NGINX_URL && redirectTo) {
       try {
         const url = new URL(redirectTo);
         const nginxUrl = new URL(NGINX_URL);
-        if (url.pathname.startsWith("/oauth2/") && url.hostname !== nginxUrl.hostname) {
-          url.hostname = nginxUrl.hostname;
-          url.protocol = nginxUrl.protocol;
-          url.port = nginxUrl.port;
-          redirectTo = url.toString();
+        const originHostname = (consentRequest.context as Record<string, string> | null)?._hydra_origin_hostname;
+
+        if (url.pathname.startsWith("/oauth2/")) {
+          if (!originHostname || originHostname === nginxUrl.hostname) {
+            // Auth came through gateway → redirect_to must go through gateway
+            if (url.hostname !== nginxUrl.hostname) {
+              url.hostname = nginxUrl.hostname;
+              url.protocol = nginxUrl.protocol;
+              url.port = nginxUrl.port;
+              redirectTo = url.toString();
+            }
+          } else {
+            // Auth came directly to Hydra (e.g. Polis SSO) → redirect_to must stay on Hydra
+            if (url.hostname === nginxUrl.hostname) {
+              url.hostname = originHostname;
+              url.protocol = "https:";
+              url.port = "";
+              redirectTo = url.toString();
+            }
+          }
         }
       } catch {
         // keep original if URL parsing fails
