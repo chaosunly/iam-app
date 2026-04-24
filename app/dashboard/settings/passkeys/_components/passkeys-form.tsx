@@ -52,7 +52,7 @@ export function PasskeysForm({ flow }: PasskeysFormProps) {
 
       <KratosForm
         action={flow.ui.action}
-        nodes={flow.ui.nodes}
+        nodes={flow.ui.nodes.filter((n) => n.group === "passkey" || n.group === "default")}
         messages={flow.ui.messages}
         className="space-y-6"
       >

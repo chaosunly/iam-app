@@ -51,7 +51,7 @@ export function SecurityKeysForm({ flow }: SecurityKeysFormProps) {
 
       <KratosForm
         action={flow.ui.action}
-        nodes={flow.ui.nodes}
+        nodes={flow.ui.nodes.filter((n) => n.group === "webauthn" || n.group === "default")}
         messages={flow.ui.messages}
         className="space-y-6"
       >
