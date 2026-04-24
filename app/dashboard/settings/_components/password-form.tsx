@@ -48,7 +48,7 @@ export function PasswordForm({ flow }: PasswordFormProps) {
 
       <KratosForm
         action={flow.ui.action}
-        nodes={flow.ui.nodes}
+        nodes={flow.ui.nodes.filter((n) => n.group === "password" || n.group === "default")}
         messages={flow.ui.messages}
         className="space-y-6"
       >

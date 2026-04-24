@@ -56,7 +56,7 @@ export function TotpForm({ flow }: TotpFormProps) {
 
       <KratosForm
         action={flow.ui.action}
-        nodes={flow.ui.nodes}
+        nodes={flow.ui.nodes.filter((n) => n.group === "totp" || n.group === "default")}
         messages={flow.ui.messages}
         className="space-y-6"
       >

@@ -44,7 +44,7 @@ export function ConnectedApps({ flow }: ConnectedAppsProps) {
       {hasConnectedApps && (
         <KratosForm
           action={flow.ui.action}
-          nodes={flow.ui.nodes}
+          nodes={flow.ui.nodes.filter((n) => n.group === "oidc" || n.group === "default")}
           messages={flow.ui.messages}
           className="space-y-3"
         >
