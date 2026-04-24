@@ -1,42 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { getServerSession } from "@ory/nextjs/app";
 import {
   canAccessAdmin,
   isGroupAdmin,
   invalidateUserCache,
 } from "@/lib/services/permission.service";
+import { withErrorHandler, UnauthorizedError, ForbiddenError } from "@/lib/errors";
+import { validateBody } from "@/lib/middleware/validate";
 import { getGroupMembers, addUserToGroup } from "@/lib/services/group.service";
 import { backgroundSyncGroupRoomJoin } from "@/lib/services/matrix-provision.service";
 import { getIdentity } from "@/lib/services/kratos.service";
 
-/**
- * GET /api/admin/groups/[id]/members
- * List all members of a group
- */
+const addMemberSchema = z.object({
+  userId: z.string().min(1, "User ID is required"),
+  role: z.enum(["member", "moderator", "matrix_admin"]).optional().default("member"),
+});
+
 export async function GET(
-  request: NextRequest,
+  _req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  try {
+  return withErrorHandler(async () => {
     const session = await getServerSession();
-    if (!session?.identity) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
+    if (!session?.identity) throw new UnauthorizedError();
     const userId = session.identity.id;
     const { id: groupId } = await params;
-    const [globalAdmin, groupAdmin] = await Promise.all([
-      canAccessAdmin(userId),
-      isGroupAdmin(userId, groupId),
-    ]);
-
-    if (!globalAdmin && !groupAdmin) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const [globalAdmin, groupAdmin] = await Promise.all([canAccessAdmin(userId), isGroupAdmin(userId, groupId)]);
+    if (!globalAdmin && !groupAdmin) throw new ForbiddenError();
 
     const memberIds = await getGroupMembers(groupId);
-
-    // Fetch user details from Kratos for each member
     const members = await Promise.all(
       memberIds.map(async (memberId) => {
         try {
@@ -48,77 +41,31 @@ export async function GET(
               ? `${identity.traits.name.first || ""} ${identity.traits.name.last || ""}`.trim()
               : identity.traits.email || memberId,
           };
-        } catch (error) {
-          console.error(`Failed to fetch identity for ${memberId}:`, error);
-          // Return basic info if identity fetch fails
-          return {
-            userId: memberId,
-            email: "",
-            name: memberId,
-          };
+        } catch {
+          return { userId: memberId, email: "", name: memberId };
         }
       }),
     );
-
     return NextResponse.json({ members });
-  } catch (error) {
-    console.error("Error fetching group members:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
-  }
+  });
 }
 
-/**
- * POST /api/admin/groups/[id]/members
- * Add a member to a group
- */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  try {
+  return withErrorHandler(async () => {
     const session = await getServerSession();
-    if (!session?.identity) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
+    if (!session?.identity) throw new UnauthorizedError();
     const adminId = session.identity.id;
-    const body = await request.json();
-    const { userId, role = "member" } = body;
-
-    if (!userId) {
-      return NextResponse.json(
-        { error: "User ID is required" },
-        { status: 400 },
-      );
-    }
-
     const { id: groupId } = await params;
-    const [globalAdmin, groupAdmin] = await Promise.all([
-      canAccessAdmin(adminId),
-      isGroupAdmin(adminId, groupId),
-    ]);
+    const [globalAdmin, groupAdmin] = await Promise.all([canAccessAdmin(adminId), isGroupAdmin(adminId, groupId)]);
+    if (!globalAdmin && !groupAdmin) throw new ForbiddenError();
 
-    if (!globalAdmin && !groupAdmin) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-    await addUserToGroup(groupId, userId, adminId);
-    invalidateUserCache(userId);
-    backgroundSyncGroupRoomJoin(groupId, userId, role);
-
+    const body = await validateBody(request, addMemberSchema);
+    await addUserToGroup(groupId, body.userId, adminId);
+    invalidateUserCache(body.userId);
+    backgroundSyncGroupRoomJoin(groupId, body.userId, body.role);
     return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error("Error adding member to group:", error);
-    return NextResponse.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to add member to group",
-      },
-      { status: 500 },
-    );
-  }
+  });
 }

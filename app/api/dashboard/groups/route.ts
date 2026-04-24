@@ -1,20 +1,14 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "@ory/nextjs/app";
+import { withErrorHandler, UnauthorizedError } from "@/lib/errors";
 import { listSubjectRelations } from "@/lib/services/keto.service";
 import { prisma } from "@/lib/db";
 import { getGroupMembers } from "@/lib/services/group.service";
 
-/**
- * GET /api/dashboard/groups
- * Returns all groups the current user is a member of or an admin of,
- * annotated with isAdmin / isMember flags.
- */
 export async function GET() {
-  try {
+  return withErrorHandler(async () => {
     const session = await getServerSession();
-    if (!session?.identity) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    if (!session?.identity) throw new UnauthorizedError();
 
     const userId = session.identity.id;
 
@@ -53,11 +47,5 @@ export async function GET() {
     );
 
     return NextResponse.json({ groups: groupsWithMeta });
-  } catch (error) {
-    console.error("Error fetching user groups:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
-  }
+  });
 }

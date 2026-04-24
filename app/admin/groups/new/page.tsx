@@ -1,14 +1,14 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import Link from "next/link";
-import { AlertCircle, ChevronLeft } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ChevronLeft } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { FormErrorAlert } from "@/components/ui/form-error-alert";
 import {
   Form,
   FormControl,
@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { useApiMutation } from "@/lib/hooks/use-api-mutation";
 
 const groupSchema = z.object({
   name: z.string().min(1, "Group name is required"),
@@ -33,43 +34,21 @@ type GroupFormValues = z.infer<typeof groupSchema>;
 
 export default function NewGroupPage() {
   const router = useRouter();
-  const [apiError, setApiError] = useState<string | null>(null);
 
   const form = useForm<GroupFormValues>({
     resolver: zodResolver(groupSchema),
-    defaultValues: {
-      name: "",
-      description: "",
-    },
+    defaultValues: { name: "", description: "" },
   });
 
-  const onSubmit = async (values: GroupFormValues) => {
-    setApiError(null);
-    try {
-      const response = await fetch("/api/admin/groups", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: values.name,
-          description: values.description || undefined,
-        }),
-      });
-
-      if (!response.ok) {
-        let message = "Failed to create group";
-        try {
-          const data = await response.json();
-          message = data.error || message;
-        } catch {}
-        throw new Error(message);
-      }
-
-      const data = await response.json();
+  const { mutate, isPending, error } = useApiMutation<
+    GroupFormValues,
+    { id: string }
+  >("/api/admin/groups", {
+    onSuccess: (data) => {
+      toast.success("Group created");
       router.push(`/admin/groups/${data.id}`);
-    } catch (err) {
-      setApiError(err instanceof Error ? err.message : "Failed to create group");
-    }
-  };
+    },
+  });
 
   return (
     <div className="space-y-6 p-6 md:p-8">
@@ -81,20 +60,18 @@ export default function NewGroupPage() {
           </Link>
         </Button>
         <h1 className="text-3xl font-bold">Create New Group</h1>
-        <p className="text-muted-foreground mt-1">
+        <p className="mt-1 text-muted-foreground">
           Create a new group to organize users
         </p>
       </div>
 
       <div className="max-w-2xl">
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            {apiError && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{apiError}</AlertDescription>
-              </Alert>
-            )}
+          <form
+            onSubmit={form.handleSubmit((values) => mutate(values))}
+            className="space-y-6"
+          >
+            <FormErrorAlert error={error} />
 
             <div className="rounded-lg border p-6 space-y-6">
               <FormField
@@ -106,10 +83,7 @@ export default function NewGroupPage() {
                       Group Name <span className="text-destructive">*</span>
                     </FormLabel>
                     <FormControl>
-                      <Input
-                        placeholder="e.g., Engineering Team"
-                        {...field}
-                      />
+                      <Input placeholder="e.g., Engineering Team" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -129,9 +103,7 @@ export default function NewGroupPage() {
                         {...field}
                       />
                     </FormControl>
-                    <FormDescription>
-                      Optional. Max 500 characters.
-                    </FormDescription>
+                    <FormDescription>Optional. Max 500 characters.</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -142,8 +114,8 @@ export default function NewGroupPage() {
               <Button type="button" variant="outline" asChild>
                 <Link href="/admin/groups">Cancel</Link>
               </Button>
-              <Button type="submit" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? "Creating..." : "Create Group"}
+              <Button type="submit" disabled={isPending}>
+                {isPending ? "Creating..." : "Create Group"}
               </Button>
             </div>
           </form>

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "@ory/nextjs/app";
-import { canAccessAdmin } from "@/lib/services/permission.service";
+import { withErrorHandler, BadRequestError } from "@/lib/errors";
+import { requireAdmin } from "@/lib/middleware/auth.middleware";
 import { logAudit } from "@/lib/services/audit.service";
 import { prisma } from "@/lib/db";
 import { getDefaultOrganizationId } from "@/lib/services/organization.service";
@@ -20,41 +20,16 @@ interface DbSyncResult {
   accounts: { synced: number; skipped: number; failed: string[] };
 }
 
-/**
- * POST /api/admin/matrix/sync?phase=db|homeserver|all
- *
- * Two-phase sync:
- *   phase=db          (default) — Populates Matrix DB tables from IAM data.
- *                                 No Synapse needed.
- *   phase=homeserver  — Reads from Matrix tables, creates rooms/accounts on
- *                       Synapse, backfills matrixId. Requires Synapse config.
- *   phase=all         — Runs both phases + membership sync.
- *
- * Every step is idempotent — safe to call multiple times.
- */
 export async function POST(request: NextRequest) {
-  try {
-    const session = await getServerSession();
-    if (!session?.identity) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    const actorId = session.identity.id;
-    if (!(await canAccessAdmin(actorId))) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
+  return withErrorHandler(async () => {
+    const userContext = await requireAdmin(request);
     const phase = request.nextUrl.searchParams.get("phase") ?? "db";
 
     if (!["db", "homeserver", "all"].includes(phase)) {
-      return NextResponse.json(
-        { error: "phase must be one of: db, homeserver, all" },
-        { status: 400 },
-      );
+      throw new BadRequestError("phase must be one of: db, homeserver, all");
     }
 
     const response: Record<string, unknown> = { phase };
-
-    // ── Phase 1: DB provisioning ─────────────────────────────────────────────
 
     if (phase === "db" || phase === "all") {
       const dbResult: DbSyncResult = {
@@ -63,17 +38,11 @@ export async function POST(request: NextRequest) {
         accounts: { synced: 0, skipped: 0, failed: [] },
       };
 
-      // 1a. Sync orgs → MatrixOrg + MatrixSpace + MatrixRoom (DB only)
       const orgs = await prisma.organization.findMany();
       for (const org of orgs) {
         try {
-          const existing = await prisma.matrixOrg.findFirst({
-            where: { iamOrgId: org.id },
-          });
-          if (existing) {
-            dbResult.orgs.skipped++;
-            continue;
-          }
+          const existing = await prisma.matrixOrg.findFirst({ where: { iamOrgId: org.id } });
+          if (existing) { dbResult.orgs.skipped++; continue; }
           await bootstrapMatrixOrgDb(org.id, org.name);
           dbResult.orgs.synced++;
         } catch (err) {
@@ -82,33 +51,21 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // 1b. Sync groups → MatrixRoom (DB only)
       const groups = await prisma.group.findMany();
       for (const group of groups) {
         try {
-          const existing = await prisma.matrixRoom.findFirst({
-            where: { iamGroupId: group.id },
-          });
-          if (existing) {
-            dbResult.groups.skipped++;
-            continue;
-          }
+          const existing = await prisma.matrixRoom.findFirst({ where: { iamGroupId: group.id } });
+          if (existing) { dbResult.groups.skipped++; continue; }
           await bootstrapGroupRoomDb(group.id, group.name, group.organizationId);
-          const created = await prisma.matrixRoom.findFirst({
-            where: { iamGroupId: group.id },
-          });
-          if (created) {
-            dbResult.groups.synced++;
-          } else {
-            dbResult.groups.skipped++;
-          }
+          const created = await prisma.matrixRoom.findFirst({ where: { iamGroupId: group.id } });
+          if (created) dbResult.groups.synced++;
+          else dbResult.groups.skipped++;
         } catch (err) {
           console.error(`[MatrixSync] Group DB failed: ${group.id}`, err);
           dbResult.groups.failed.push(group.id);
         }
       }
 
-      // 1c. Provision MatrixAccount for every Kratos identity
       let allIdentities: { id: string }[] = [];
       try {
         allIdentities = await listIdentities(0, 1000);
@@ -118,13 +75,8 @@ export async function POST(request: NextRequest) {
 
       for (const identity of allIdentities) {
         try {
-          const existing = await prisma.matrixAccount.findUnique({
-            where: { iamUserId: identity.id },
-          });
-          if (existing) {
-            dbResult.accounts.skipped++;
-            continue;
-          }
+          const existing = await prisma.matrixAccount.findUnique({ where: { iamUserId: identity.id } });
+          if (existing) { dbResult.accounts.skipped++; continue; }
           await provisionMatrixAccountDb(identity.id);
           dbResult.accounts.synced++;
         } catch (err) {
@@ -133,7 +85,6 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // 1d. Collect group members + admins for membership sync (phase=all)
       const groupMemberships: {
         groupId: string;
         members: { userId: string; role: "member" | "moderator" }[];
@@ -156,13 +107,8 @@ export async function POST(request: NextRequest) {
       }
 
       response.db = dbResult;
-
-      if (phase === "all") {
-        (response as any)._groupMemberships = groupMemberships;
-      }
+      if (phase === "all") (response as any)._groupMemberships = groupMemberships;
     }
-
-    // ── Phase 2: Homeserver sync ─────────────────────────────────────────────
 
     if (phase === "homeserver" || phase === "all") {
       const hsConfigured = !!(
@@ -179,7 +125,6 @@ export async function POST(request: NextRequest) {
         const hsResult = await syncToHomeserver();
         response.homeserver = hsResult;
 
-        // Membership sync (only when homeserver is available)
         if (phase === "all") {
           const memberships = { synced: 0, skipped: 0, failed: [] as string[] };
           const groupMemberships = (response as any)._groupMemberships as
@@ -194,12 +139,10 @@ export async function POST(request: NextRequest) {
                     prisma.matrixRoom.findFirst({ where: { iamGroupId: groupId } }),
                     prisma.matrixAccount.findUnique({ where: { iamUserId: userId } }),
                   ]);
-
                   if (!room?.matrixId || !account || account.homeserver === "pending") {
                     memberships.skipped++;
                     continue;
                   }
-
                   await syncGroupRoomJoin(groupId, userId, role);
                   memberships.synced++;
                 } catch (err) {
@@ -209,19 +152,15 @@ export async function POST(request: NextRequest) {
               }
             }
           }
-
           response.memberships = memberships;
         }
       }
 
-      // Clean up internal field
       delete (response as any)._groupMemberships;
     }
 
-    // ── Audit log ────────────────────────────────────────────────────────────
-
     await logAudit({
-      userId: actorId,
+      userId: userContext.userId,
       action: "matrix_sync",
       resource: `Organization:${getDefaultOrganizationId()}`,
       result: "success",
@@ -229,11 +168,5 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json({ result: response });
-  } catch (error: any) {
-    console.error("[MatrixSync] Sync failed:", error);
-    return NextResponse.json(
-      { error: error.message || "Internal server error" },
-      { status: 500 },
-    );
-  }
+  });
 }

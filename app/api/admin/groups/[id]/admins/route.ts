@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { getServerSession } from "@ory/nextjs/app";
-import {
-  canAccessAdmin,
-  invalidateUserCache,
-} from "@/lib/services/permission.service";
+import { canAccessAdmin, invalidateUserCache } from "@/lib/services/permission.service";
+import { withErrorHandler, UnauthorizedError, ForbiddenError, NotFoundError } from "@/lib/errors";
+import { validateBody } from "@/lib/middleware/validate";
 import { getGroupById } from "@/lib/services/group.service";
 import { getIdentity } from "@/lib/services/kratos.service";
 import {
@@ -12,30 +12,21 @@ import {
   listObjectPermissions,
 } from "@/lib/services/keto.service";
 
-/**
- * GET /api/admin/groups/[id]/admins
- * List all admins of a group
- */
+const adminUserSchema = z.object({
+  userId: z.string().min(1, "userId is required"),
+});
+
 export async function GET(
-  request: NextRequest,
+  _req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  try {
+  return withErrorHandler(async () => {
     const session = await getServerSession();
-    if (!session?.identity) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const userId = session.identity.id;
-    if (!(await canAccessAdmin(userId))) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    if (!session?.identity) throw new UnauthorizedError();
+    if (!(await canAccessAdmin(session.identity.id))) throw new ForbiddenError();
 
     const { id: groupId } = await params;
-
-    if (!(await getGroupById(groupId))) {
-      return NextResponse.json({ error: "Group not found" }, { status: 404 });
-    }
+    if (!(await getGroupById(groupId))) throw new NotFoundError("Group not found");
 
     const tuples = await listObjectPermissions("Group", groupId);
     const adminTuples = tuples.filter((t) => t.relation === "admins");
@@ -58,119 +49,43 @@ export async function GET(
     );
 
     return NextResponse.json({ admins });
-  } catch (error) {
-    console.error("Error fetching group admins:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
-  }
+  });
 }
 
-/**
- * POST /api/admin/groups/[id]/admins
- * Grant a user admin role on a group
- * Body: { userId: string }
- */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  try {
+  return withErrorHandler(async () => {
     const session = await getServerSession();
-    if (!session?.identity) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const userId = session.identity.id;
-    if (!(await canAccessAdmin(userId))) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    if (!session?.identity) throw new UnauthorizedError();
+    if (!(await canAccessAdmin(session.identity.id))) throw new ForbiddenError();
 
     const { id: groupId } = await params;
+    if (!(await getGroupById(groupId))) throw new NotFoundError("Group not found");
 
-    if (!(await getGroupById(groupId))) {
-      return NextResponse.json({ error: "Group not found" }, { status: 404 });
-    }
-
-    const body = await request.json();
-    const { userId: targetUserId } = body;
-
-    if (!targetUserId) {
-      return NextResponse.json(
-        { error: "userId is required" },
-        { status: 400 },
-      );
-    }
-
-    await grantPermission({
-      namespace: "Group",
-      object: groupId,
-      relation: "admins",
-      subject: targetUserId,
-    });
-
-    invalidateUserCache(targetUserId);
-
-    return NextResponse.json(
-      { message: "Group admin granted successfully" },
-      { status: 201 },
-    );
-  } catch (error) {
-    console.error("Error granting group admin:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
-  }
+    const body = await validateBody(request, adminUserSchema);
+    await grantPermission({ namespace: "Group", object: groupId, relation: "admins", subject: body.userId });
+    invalidateUserCache(body.userId);
+    return NextResponse.json({ message: "Group admin granted successfully" }, { status: 201 });
+  });
 }
 
-/**
- * DELETE /api/admin/groups/[id]/admins
- * Revoke a user's admin role on a group
- * Body: { userId: string }
- */
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  try {
+  return withErrorHandler(async () => {
     const session = await getServerSession();
-    if (!session?.identity) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const userId = session.identity.id;
-    if (!(await canAccessAdmin(userId))) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    if (!session?.identity) throw new UnauthorizedError();
+    if (!(await canAccessAdmin(session.identity.id))) throw new ForbiddenError();
 
     const { id: groupId } = await params;
     const body = await request.json();
     const { userId: targetUserId } = body;
 
-    if (!targetUserId) {
-      return NextResponse.json(
-        { error: "userId is required" },
-        { status: 400 },
-      );
-    }
-
-    await revokePermission({
-      namespace: "Group",
-      object: groupId,
-      relation: "admins",
-      subject: targetUserId,
-    });
-
+    await revokePermission({ namespace: "Group", object: groupId, relation: "admins", subject: targetUserId });
     invalidateUserCache(targetUserId);
-
     return NextResponse.json({ message: "Group admin revoked successfully" });
-  } catch (error) {
-    console.error("Error revoking group admin:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
-  }
+  });
 }

@@ -4,6 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { withErrorHandler } from "@/lib/errors";
 
 const HYDRA_ADMIN_URL =
   process.env.HYDRA_ADMIN_URL || "http://hydra.railway.internal:4445";
@@ -29,13 +30,12 @@ function appendClearCookieHeaders(
 }
 
 export async function GET(request: NextRequest) {
-  try {
+  return withErrorHandler(async (): Promise<NextResponse> => {
     const searchParams = request.nextUrl.searchParams;
     const logout_challenge = searchParams.get("logout_challenge");
 
     // Get host for cookie clearing
     const forwardedHost = request.headers.get("x-forwarded-host");
-    const forwardedProto = request.headers.get("x-forwarded-proto") || "https";
     const host = forwardedHost || request.nextUrl.hostname;
 
     if (!logout_challenge) {
@@ -102,11 +102,5 @@ export async function GET(request: NextRequest) {
     appendClearCookieHeaders(response, "refresh_token", host);
 
     return response;
-  } catch (error) {
-    console.error("OAuth2 logout error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
-  }
+  });
 }

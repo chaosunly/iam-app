@@ -10,9 +10,10 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { withErrorHandler } from "@/lib/errors";
 
 export async function POST(request: NextRequest) {
-  try {
+  return withErrorHandler(async (): Promise<NextResponse> => {
     const body = await request.json();
     const { sub, email, name } = body;
 
@@ -77,14 +78,5 @@ export async function POST(request: NextRequest) {
         name: name,
       },
     });
-  } catch (error) {
-    console.error("Profile completion error:", error);
-    return NextResponse.json(
-      {
-        error:
-          error instanceof Error ? error.message : "Failed to complete profile",
-      },
-      { status: 500 },
-    );
-  }
+  });
 }

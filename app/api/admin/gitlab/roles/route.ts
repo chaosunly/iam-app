@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "@ory/nextjs/app";
-import { canAccessAdmin } from "@/lib/services/permission.service";
+import { z } from "zod";
+import { withErrorHandler, BadRequestError } from "@/lib/errors";
+import { requireAdmin } from "@/lib/middleware/auth.middleware";
+import { validateBody } from "@/lib/middleware/validate";
 import {
   assignGitlabRole,
   updateGitlabRole,
@@ -8,184 +10,69 @@ import {
   getResourceMembers,
 } from "@/lib/services/gitlab.service";
 
-/**
- * GET /api/admin/gitlab/roles
- * Get role assignments for a resource
- * Query params: resourceType, resourceId
- */
+const GITLAB_ROLES = ["owner", "maintainer", "developer", "reporter", "guest"] as const;
+
+const assignGitlabRoleSchema = z.object({
+  userId: z.string().min(1, "userId is required"),
+  resourceType: z.enum(["group", "project"]),
+  resourceId: z.string().min(1, "resourceId is required"),
+  role: z.enum(GITLAB_ROLES),
+});
+
+const updateGitlabRoleSchema = z.object({
+  userId: z.string().min(1, "userId is required"),
+  resourceType: z.enum(["group", "project"]),
+  resourceId: z.string().min(1, "resourceId is required"),
+  newRole: z.enum(GITLAB_ROLES),
+});
+
 export async function GET(request: NextRequest) {
-  try {
-    const session = await getServerSession();
-    if (!session?.identity) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const userId = session.identity.id;
-    const hasAdminAccess = await canAccessAdmin(userId);
-
-    if (!hasAdminAccess) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
-    const searchParams = request.nextUrl.searchParams;
-    const resourceType = searchParams.get("resourceType") as
-      | "group"
-      | "project";
-    const resourceId = searchParams.get("resourceId");
-
+  return withErrorHandler(async () => {
+    await requireAdmin(request);
+    const resourceType = request.nextUrl.searchParams.get("resourceType") as "group" | "project";
+    const resourceId = request.nextUrl.searchParams.get("resourceId");
     if (!resourceType || !resourceId) {
-      return NextResponse.json(
-        { error: "resourceType and resourceId are required" },
-        { status: 400 },
-      );
+      throw new BadRequestError("resourceType and resourceId are required");
     }
-
     const members = await getResourceMembers(resourceType, resourceId);
     return NextResponse.json({ members });
-  } catch (error: any) {
-    console.error("Error fetching role assignments:", error);
-    return NextResponse.json(
-      { error: error.message || "Internal server error" },
-      { status: error.statusCode || 500 },
-    );
-  }
+  });
 }
 
-/**
- * POST /api/admin/gitlab/roles
- * Assign a role to a user
- */
 export async function POST(request: NextRequest) {
-  try {
-    const session = await getServerSession();
-    if (!session?.identity) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const userId = session.identity.id;
-    const hasAdminAccess = await canAccessAdmin(userId);
-
-    if (!hasAdminAccess) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
-    const body = await request.json();
-    const { userId: targetUserId, resourceType, resourceId, role } = body;
-
-    if (!targetUserId || !resourceType || !resourceId || !role) {
-      return NextResponse.json(
-        { error: "userId, resourceType, resourceId, and role are required" },
-        { status: 400 },
-      );
-    }
-
+  return withErrorHandler(async () => {
+    await requireAdmin(request);
+    const body = await validateBody(request, assignGitlabRoleSchema);
     const assignment = await assignGitlabRole({
-      userId: targetUserId,
-      resourceType,
-      resourceId,
-      role,
+      userId: body.userId,
+      resourceType: body.resourceType,
+      resourceId: body.resourceId,
+      role: body.role,
     });
-
     return NextResponse.json({ assignment }, { status: 201 });
-  } catch (error: any) {
-    console.error("Error assigning role:", error);
-
-    if (error.statusCode === 409) {
-      return NextResponse.json({ error: error.message }, { status: 409 });
-    }
-
-    return NextResponse.json(
-      { error: error.message || "Internal server error" },
-      { status: error.statusCode || 500 },
-    );
-  }
+  });
 }
 
-/**
- * PUT /api/admin/gitlab/roles
- * Update a user's role
- */
 export async function PUT(request: NextRequest) {
-  try {
-    const session = await getServerSession();
-    if (!session?.identity) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const userId = session.identity.id;
-    const hasAdminAccess = await canAccessAdmin(userId);
-
-    if (!hasAdminAccess) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
-    const body = await request.json();
-    const { userId: targetUserId, resourceType, resourceId, newRole } = body;
-
-    if (!targetUserId || !resourceType || !resourceId || !newRole) {
-      return NextResponse.json(
-        { error: "userId, resourceType, resourceId, and newRole are required" },
-        { status: 400 },
-      );
-    }
-
+  return withErrorHandler(async () => {
+    await requireAdmin(request);
+    const body = await validateBody(request, updateGitlabRoleSchema);
     const assignment = await updateGitlabRole({
-      userId: targetUserId,
-      resourceType,
-      resourceId,
-      newRole,
+      userId: body.userId,
+      resourceType: body.resourceType,
+      resourceId: body.resourceId,
+      newRole: body.newRole,
     });
-
     return NextResponse.json({ assignment });
-  } catch (error: any) {
-    console.error("Error updating role:", error);
-    return NextResponse.json(
-      { error: error.message || "Internal server error" },
-      { status: error.statusCode || 500 },
-    );
-  }
+  });
 }
 
-/**
- * DELETE /api/admin/gitlab/roles
- * Remove a user's role
- */
 export async function DELETE(request: NextRequest) {
-  try {
-    const session = await getServerSession();
-    if (!session?.identity) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const userId = session.identity.id;
-    const hasAdminAccess = await canAccessAdmin(userId);
-
-    if (!hasAdminAccess) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
+  return withErrorHandler(async () => {
+    await requireAdmin(request);
     const body = await request.json();
     const { userId: targetUserId, resourceType, resourceId } = body;
-
-    if (!targetUserId || !resourceType || !resourceId) {
-      return NextResponse.json(
-        { error: "userId, resourceType, and resourceId are required" },
-        { status: 400 },
-      );
-    }
-
-    await removeGitlabRole({
-      userId: targetUserId,
-      resourceType,
-      resourceId,
-    });
-
+    await removeGitlabRole({ userId: targetUserId, resourceType, resourceId });
     return NextResponse.json({ success: true });
-  } catch (error: any) {
-    console.error("Error removing role:", error);
-    return NextResponse.json(
-      { error: error.message || "Internal server error" },
-      { status: error.statusCode || 500 },
-    );
-  }
+  });
 }

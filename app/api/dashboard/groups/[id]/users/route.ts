@@ -3,21 +3,15 @@ import { getServerSession } from "@ory/nextjs/app";
 import { isGlobalAdmin, isGroupAdmin } from "@/lib/services/permission.service";
 import { listIdentities } from "@/lib/services/kratos.service";
 import { getGroupMembers } from "@/lib/services/group.service";
+import { withErrorHandler, UnauthorizedError, ForbiddenError } from "@/lib/errors";
 
-/**
- * GET /api/dashboard/groups/[id]/users
- * Returns all system users NOT already in the group.
- * Accessible to global admins and group admins of this specific group.
- */
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  try {
+  return withErrorHandler(async () => {
     const session = await getServerSession();
-    if (!session?.identity) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    if (!session?.identity) throw new UnauthorizedError();
 
     const userId = session.identity.id;
     const { id: groupId } = await params;
@@ -27,9 +21,7 @@ export async function GET(
       isGroupAdmin(userId, groupId),
     ]);
 
-    if (!globalAdmin && !groupAdmin) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    if (!globalAdmin && !groupAdmin) throw new ForbiddenError();
 
     const [identities, memberIds] = await Promise.all([
       listIdentities(0, 250),
@@ -40,11 +32,5 @@ export async function GET(
     const available = identities.filter((id) => !memberIdSet.has(id.id));
 
     return NextResponse.json({ users: available });
-  } catch (error) {
-    console.error("Error fetching available users for group:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
-  }
+  });
 }

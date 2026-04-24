@@ -1,11 +1,22 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { Plus } from "lucide-react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { FormErrorAlert } from "@/components/ui/form-error-alert";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -20,13 +31,22 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { useApiMutation } from "@/lib/hooks/use-api-mutation";
 import type { RoomItem, RoomSpace } from "./types";
+
+const createRoomSchema = z.object({
+  name: z.string().min(1, "Room name is required"),
+  spaceId: z.string().min(1, "Space is required"),
+  matrixId: z.string().optional(),
+  description: z.string().optional(),
+});
+
+type CreateRoomValues = z.infer<typeof createRoomSchema>;
 
 interface CreateRoomSheetProps {
   spaces: RoomSpace[];
   defaultSpaceId?: string;
   onCreated: (room: RoomItem) => void;
-  /** Controlled mode: provide both or neither */
   open?: boolean;
   onOpenChange?: (v: boolean) => void;
 }
@@ -39,63 +59,46 @@ export function CreateRoomSheet({
   onOpenChange: onControlledOpenChange,
 }: CreateRoomSheetProps) {
   const isControlled = controlledOpen !== undefined;
-  const [internalOpen, setInternalOpen] = useState(false);
-  const sheetOpen = isControlled ? controlledOpen! : internalOpen;
 
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [matrixId, setMatrixId] = useState("");
-  const [spaceId, setSpaceId] = useState(defaultSpaceId ?? "");
-  const [creating, setCreating] = useState(false);
+  const form = useForm<CreateRoomValues>({
+    resolver: zodResolver(createRoomSchema),
+    defaultValues: {
+      name: "",
+      spaceId: defaultSpaceId ?? "",
+      matrixId: "",
+      description: "",
+    },
+  });
 
-  // When the controlled sheet opens, reset the form with the pre-filled spaceId
+  const { mutate, isPending, error, reset: resetError } = useApiMutation<
+    CreateRoomValues,
+    { room: RoomItem }
+  >("/api/admin/matrix/rooms", {
+    onSuccess: (data) => {
+      toast.success(`Room "${form.getValues("name")}" created`);
+      form.reset({ name: "", spaceId: defaultSpaceId ?? "", matrixId: "", description: "" });
+      handleOpenChange(false);
+      onCreated(data.room);
+    },
+  });
+
   useEffect(() => {
     if (isControlled && controlledOpen) {
-      setName("");
-      setDescription("");
-      setMatrixId("");
-      setSpaceId(defaultSpaceId ?? "");
+      form.reset({ name: "", spaceId: defaultSpaceId ?? "", matrixId: "", description: "" });
+      resetError();
     }
   }, [isControlled, controlledOpen, defaultSpaceId]);
 
   function handleOpenChange(v: boolean) {
     if (isControlled) onControlledOpenChange?.(v);
-    else setInternalOpen(v);
-  }
-
-  async function handleCreate() {
-    if (!name.trim() || !spaceId) return;
-    setCreating(true);
-    try {
-      const res = await fetch("/api/admin/matrix/rooms", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: name.trim(),
-          description: description.trim() || undefined,
-          matrixId: matrixId.trim() || undefined,
-          spaceId,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        toast.error(data.error || "Failed to create room");
-        return;
-      }
-      toast.success(`Room "${name.trim()}" created`);
-      setName("");
-      setDescription("");
-      setMatrixId("");
-      setSpaceId(defaultSpaceId ?? "");
-      handleOpenChange(false);
-      onCreated(data.room);
-    } finally {
-      setCreating(false);
-    }
+    else form.reset();
   }
 
   return (
-    <Sheet open={sheetOpen} onOpenChange={handleOpenChange}>
+    <Sheet
+      open={isControlled ? controlledOpen : undefined}
+      onOpenChange={handleOpenChange}
+    >
       {!isControlled && (
         <SheetTrigger asChild>
           <Button size="sm" className="w-full gap-1.5">
@@ -108,59 +111,90 @@ export function CreateRoomSheet({
         <SheetHeader>
           <SheetTitle>New Room</SheetTitle>
         </SheetHeader>
-        <div className="mt-4 space-y-4 px-4">
-          <div className="space-y-1.5">
-            <Label>
-              Space <span className="text-destructive">*</span>
-            </Label>
-            <Select value={spaceId} onValueChange={setSpaceId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select a space" />
-              </SelectTrigger>
-              <SelectContent>
-                {spaces.map((s) => (
-                  <SelectItem key={s.id} value={s.id}>
-                    {s.org ? `${s.org.name} / ` : ""}
-                    {s.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label>
-              Name <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="general"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Element Room ID</Label>
-            <Input
-              value={matrixId}
-              onChange={(e) => setMatrixId(e.target.value)}
-              placeholder="!xyz456:matrix.org"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Description</Label>
-            <Input
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Optional"
-            />
-          </div>
-          <Button
-            onClick={handleCreate}
-            disabled={creating || !name.trim() || !spaceId}
-            className="w-full"
+        <Form {...form}>
+          <form
+            onSubmit={form.handleSubmit((values) => mutate(values))}
+            className="mt-4 space-y-4 px-4"
           >
-            {creating ? "Creating..." : "Create Room"}
-          </Button>
-        </div>
+            <FormErrorAlert error={error} />
+
+            <FormField
+              control={form.control}
+              name="spaceId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    Space <span className="text-destructive">*</span>
+                  </FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a space" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {spaces.map((s) => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.org ? `${s.org.name} / ` : ""}
+                          {s.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    Name <span className="text-destructive">*</span>
+                  </FormLabel>
+                  <FormControl>
+                    <Input placeholder="general" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="matrixId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Element Room ID</FormLabel>
+                  <FormControl>
+                    <Input placeholder="!xyz456:matrix.org" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="description"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Description</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Optional" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <Button type="submit" disabled={isPending} className="w-full">
+              {isPending ? "Creating..." : "Create Room"}
+            </Button>
+          </form>
+        </Form>
       </SheetContent>
     </Sheet>
   );

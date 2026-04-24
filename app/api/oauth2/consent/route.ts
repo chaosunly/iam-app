@@ -6,11 +6,12 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "@ory/nextjs/app";
+import { withErrorHandler } from "@/lib/errors";
 
 const HYDRA_ADMIN_URL = process.env.HYDRA_ADMIN_URL || "http://hydra.railway.internal:4445";
 
 export async function GET(request: NextRequest) {
-  try {
+  return withErrorHandler(async (): Promise<NextResponse> => {
     const searchParams = request.nextUrl.searchParams;
     const consent_challenge = searchParams.get("consent_challenge");
 
@@ -151,11 +152,5 @@ export async function GET(request: NextRequest) {
 
     // Redirect user back to Hydra (via nginx proxy)
     return NextResponse.redirect(redirectTo);
-  } catch (error) {
-    console.error("OAuth2 consent error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
-  }
+  });
 }

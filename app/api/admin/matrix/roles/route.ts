@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "@ory/nextjs/app";
-import { canAccessAdmin } from "@/lib/services/permission.service";
+import { z } from "zod";
+import { withErrorHandler, BadRequestError } from "@/lib/errors";
+import { requireAdmin } from "@/lib/middleware/auth.middleware";
+import { validateBody } from "@/lib/middleware/validate";
 import { invalidateUserCache } from "@/lib/services/permission.service";
 import {
   assignMatrixRole,
@@ -14,89 +16,51 @@ import {
 } from "@/lib/services/matrix-sync.service";
 import { logAdminAction } from "@/lib/services/audit.service";
 
-/**
- * GET /api/admin/matrix/roles?resourceType=&resourceId=
- * List role assignments for a resource
- */
-export async function GET(request: NextRequest) {
-  try {
-    const session = await getServerSession();
-    if (!session?.identity) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    if (!(await canAccessAdmin(session.identity.id))) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+const MATRIX_ROLES = ["matrix_admin", "moderator", "support", "member", "viewer"] as const;
 
+const assignRoleSchema = z.object({
+  userId: z.string().min(1, "userId is required"),
+  resourceType: z.enum(["org", "space", "room"]),
+  resourceId: z.string().min(1, "resourceId is required"),
+  role: z.enum(MATRIX_ROLES),
+  matrixResourceId: z.string().optional(),
+});
+
+const updateRoleSchema = z.object({
+  userId: z.string().min(1, "userId is required"),
+  resourceType: z.enum(["org", "space", "room"]),
+  resourceId: z.string().min(1, "resourceId is required"),
+  newRole: z.enum(MATRIX_ROLES),
+  matrixResourceId: z.string().optional(),
+});
+
+export async function GET(request: NextRequest) {
+  return withErrorHandler(async () => {
+    await requireAdmin(request);
     const searchParams = request.nextUrl.searchParams;
     const resourceType = searchParams.get("resourceType") as "org" | "space" | "room";
     const resourceId = searchParams.get("resourceId");
-
     if (!resourceType || !resourceId) {
-      return NextResponse.json(
-        { error: "resourceType and resourceId are required" },
-        { status: 400 },
-      );
+      throw new BadRequestError("resourceType and resourceId are required");
     }
-
     const members = await getMatrixResourceMembers(resourceType, resourceId);
     return NextResponse.json({ members });
-  } catch (error: any) {
-    console.error("GET /api/admin/matrix/roles error:", error);
-    return NextResponse.json(
-      { error: error.message || "Internal server error" },
-      { status: error.statusCode || 500 },
-    );
-  }
+  });
 }
 
-/**
- * POST /api/admin/matrix/roles
- * Assign a role to a user
- */
 export async function POST(request: NextRequest) {
-  try {
-    const session = await getServerSession();
-    if (!session?.identity) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    const actorId = session.identity.id;
-    if (!(await canAccessAdmin(actorId))) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
-    const body = await request.json();
+  return withErrorHandler(async () => {
+    const userContext = await requireAdmin(request);
+    const body = await validateBody(request, assignRoleSchema);
     const { userId: targetUserId, resourceType, resourceId, role, matrixResourceId } = body;
 
-    if (!targetUserId || !resourceType || !resourceId || !role) {
-      return NextResponse.json(
-        { error: "userId, resourceType, resourceId, and role are required" },
-        { status: 400 },
-      );
-    }
-
-    const assignment = await assignMatrixRole({
-      userId: targetUserId,
-      resourceType,
-      resourceId,
-      role,
-    });
-
-    // Invalidate permission cache for the target user
+    const assignment = await assignMatrixRole({ userId: targetUserId, resourceType, resourceId, role });
     invalidateUserCache(targetUserId);
+    await logAdminAction(userContext.userId, "matrix_role_assigned", `MatrixRoleAssignment:${resourceType}:${resourceId}`, true, { targetUserId, role });
 
-    await logAdminAction(
-      actorId,
-      "matrix_role_assigned",
-      `MatrixRoleAssignment:${resourceType}:${resourceId}`,
-      true,
-      { targetUserId, role },
-    );
-
-    // Sync to Matrix homeserver (result surfaced in response for UI feedback)
     const sync = await syncMatrixRole({
       action: "assign",
-      actorUserId: actorId,
+      actorUserId: userContext.userId,
       targetUserId,
       resourceType,
       resourceId,
@@ -105,64 +69,22 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json({ assignment, sync }, { status: 201 });
-  } catch (error: any) {
-    console.error("POST /api/admin/matrix/roles error:", error);
-    if (error.statusCode === 409) {
-      return NextResponse.json({ error: error.message }, { status: 409 });
-    }
-    return NextResponse.json(
-      { error: error.message || "Internal server error" },
-      { status: error.statusCode || 500 },
-    );
-  }
+  });
 }
 
-/**
- * PUT /api/admin/matrix/roles
- * Update a user's role
- */
 export async function PUT(request: NextRequest) {
-  try {
-    const session = await getServerSession();
-    if (!session?.identity) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    const actorId = session.identity.id;
-    if (!(await canAccessAdmin(actorId))) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
-    const body = await request.json();
+  return withErrorHandler(async () => {
+    const userContext = await requireAdmin(request);
+    const body = await validateBody(request, updateRoleSchema);
     const { userId: targetUserId, resourceType, resourceId, newRole, matrixResourceId } = body;
 
-    if (!targetUserId || !resourceType || !resourceId || !newRole) {
-      return NextResponse.json(
-        { error: "userId, resourceType, resourceId, and newRole are required" },
-        { status: 400 },
-      );
-    }
-
-    const assignment = await updateMatrixRole({
-      userId: targetUserId,
-      resourceType,
-      resourceId,
-      newRole,
-    });
-
+    const assignment = await updateMatrixRole({ userId: targetUserId, resourceType, resourceId, newRole });
     invalidateUserCache(targetUserId);
+    await logAdminAction(userContext.userId, "matrix_role_updated", `MatrixRoleAssignment:${resourceType}:${resourceId}`, true, { targetUserId, newRole });
 
-    await logAdminAction(
-      actorId,
-      "matrix_role_updated",
-      `MatrixRoleAssignment:${resourceType}:${resourceId}`,
-      true,
-      { targetUserId, newRole },
-    );
-
-    // Fire-and-forget for updates (don't block response)
     backgroundSyncMatrixRole({
       action: "update",
-      actorUserId: actorId,
+      actorUserId: userContext.userId,
       targetUserId,
       resourceType,
       resourceId,
@@ -171,55 +93,22 @@ export async function PUT(request: NextRequest) {
     });
 
     return NextResponse.json({ assignment });
-  } catch (error: any) {
-    return NextResponse.json(
-      { error: error.message || "Internal server error" },
-      { status: error.statusCode || 500 },
-    );
-  }
+  });
 }
 
-/**
- * DELETE /api/admin/matrix/roles
- * Remove a user's role
- */
 export async function DELETE(request: NextRequest) {
-  try {
-    const session = await getServerSession();
-    if (!session?.identity) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    const actorId = session.identity.id;
-    if (!(await canAccessAdmin(actorId))) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
+  return withErrorHandler(async () => {
+    const userContext = await requireAdmin(request);
     const body = await request.json();
     const { userId: targetUserId, resourceType, resourceId, matrixResourceId, role } = body;
 
-    if (!targetUserId || !resourceType || !resourceId) {
-      return NextResponse.json(
-        { error: "userId, resourceType, and resourceId are required" },
-        { status: 400 },
-      );
-    }
-
     await removeMatrixRole({ userId: targetUserId, resourceType, resourceId });
-
     invalidateUserCache(targetUserId);
+    await logAdminAction(userContext.userId, "matrix_role_revoked", `MatrixRoleAssignment:${resourceType}:${resourceId}`, true, { targetUserId });
 
-    await logAdminAction(
-      actorId,
-      "matrix_role_revoked",
-      `MatrixRoleAssignment:${resourceType}:${resourceId}`,
-      true,
-      { targetUserId },
-    );
-
-    // Revocations are synced eagerly (security-sensitive)
     const sync = await syncMatrixRole({
       action: "revoke",
-      actorUserId: actorId,
+      actorUserId: userContext.userId,
       targetUserId,
       resourceType,
       resourceId,
@@ -228,10 +117,5 @@ export async function DELETE(request: NextRequest) {
     });
 
     return NextResponse.json({ success: true, sync });
-  } catch (error: any) {
-    return NextResponse.json(
-      { error: error.message || "Internal server error" },
-      { status: error.statusCode || 500 },
-    );
-  }
+  });
 }

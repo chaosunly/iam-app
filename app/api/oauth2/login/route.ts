@@ -4,11 +4,12 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "@ory/nextjs/app";
+import { withErrorHandler } from "@/lib/errors";
 
 const HYDRA_ADMIN_URL = process.env.HYDRA_ADMIN_URL || "http://hydra.railway.internal:4445";
 
 export async function GET(request: NextRequest) {
-  try {
+  return withErrorHandler(async (): Promise<NextResponse> => {
     console.info("/api/oauth2/login start", {
       url: request.nextUrl.toString(),
       cookies: request.cookies.getAll().map((c) => c.name),
@@ -189,8 +190,5 @@ export async function GET(request: NextRequest) {
     });
 
     return response;
-  } catch (error) {
-    console.error("OAuth2 login error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
-  }
+  });
 }

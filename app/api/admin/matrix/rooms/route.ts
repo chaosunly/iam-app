@@ -1,68 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "@ory/nextjs/app";
-import { canAccessAdmin } from "@/lib/services/permission.service";
+import { z } from "zod";
+import { withErrorHandler } from "@/lib/errors";
+import { requireAdmin } from "@/lib/middleware/auth.middleware";
+import { validateBody } from "@/lib/middleware/validate";
 import { createMatrixRoom, getMatrixRooms } from "@/lib/services/matrix.service";
 import { logAdminAction } from "@/lib/services/audit.service";
 
-/**
- * GET /api/admin/matrix/rooms?spaceId=
- */
-export async function GET(request: NextRequest) {
-  try {
-    const session = await getServerSession();
-    if (!session?.identity) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    if (!(await canAccessAdmin(session.identity.id))) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+const createRoomSchema = z.object({
+  name: z.string().min(1, "name is required"),
+  spaceId: z.string().min(1, "spaceId is required"),
+  matrixId: z.string().optional(),
+  description: z.string().optional(),
+});
 
+export async function GET(request: NextRequest) {
+  return withErrorHandler(async () => {
+    await requireAdmin(request);
     const spaceId = request.nextUrl.searchParams.get("spaceId") ?? undefined;
     const rooms = await getMatrixRooms(spaceId);
     return NextResponse.json({ rooms });
-  } catch (error: any) {
-    return NextResponse.json(
-      { error: error.message || "Internal server error" },
-      { status: error.statusCode || 500 },
-    );
-  }
+  });
 }
 
-/**
- * POST /api/admin/matrix/rooms
- */
 export async function POST(request: NextRequest) {
-  try {
-    const session = await getServerSession();
-    if (!session?.identity) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    const actorId = session.identity.id;
-    if (!(await canAccessAdmin(actorId))) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
-    const body = await request.json();
-    const { name, description, matrixId, spaceId } = body;
-
-    if (!name || !spaceId) {
-      return NextResponse.json(
-        { error: "name and spaceId are required" },
-        { status: 400 },
-      );
-    }
-
-    const room = await createMatrixRoom({ name, description, matrixId, spaceId });
-    await logAdminAction(actorId, "matrix_room_created", `MatrixRoom:${room.id}`, true, { name, spaceId });
-
+  return withErrorHandler(async () => {
+    const userContext = await requireAdmin(request);
+    const body = await validateBody(request, createRoomSchema);
+    const room = await createMatrixRoom(body);
+    await logAdminAction(userContext.userId, "matrix_room_created", `MatrixRoom:${room.id}`, true, { name: body.name, spaceId: body.spaceId });
     return NextResponse.json({ room }, { status: 201 });
-  } catch (error: any) {
-    if (error.statusCode === 409) {
-      return NextResponse.json({ error: error.message }, { status: 409 });
-    }
-    return NextResponse.json(
-      { error: error.message || "Internal server error" },
-      { status: error.statusCode || 500 },
-    );
-  }
+  });
 }

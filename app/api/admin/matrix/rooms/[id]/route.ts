@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "@ory/nextjs/app";
-import { canAccessAdmin } from "@/lib/services/permission.service";
+import { z } from "zod";
+import { withErrorHandler, NotFoundError } from "@/lib/errors";
+import { requireAdmin } from "@/lib/middleware/auth.middleware";
+import { validateBody } from "@/lib/middleware/validate";
 import {
   getMatrixRoomById,
   deleteMatrixRoom,
@@ -8,102 +10,47 @@ import {
 } from "@/lib/services/matrix.service";
 import { logAdminAction } from "@/lib/services/audit.service";
 
+const updateRoomSchema = z.object({
+  name: z.string().optional(),
+  description: z.string().optional(),
+});
+
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  try {
-    const session = await getServerSession();
-    if (!session?.identity) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    if (!(await canAccessAdmin(session.identity.id))) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
+  return withErrorHandler(async () => {
+    await requireAdmin(request);
     const { id: roomId } = await params;
     const room = await getMatrixRoomById(roomId);
-    if (!room) {
-      return NextResponse.json(
-        { error: "Matrix room not found" },
-        { status: 404 },
-      );
-    }
-
+    if (!room) throw new NotFoundError("Matrix room not found");
     return NextResponse.json({ room });
-  } catch (error: any) {
-    return NextResponse.json(
-      { error: error.message || "Internal server error" },
-      { status: error.statusCode || 500 },
-    );
-  }
+  });
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  try {
-    const session = await getServerSession();
-    if (!session?.identity) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    const actorId = session.identity.id;
-    if (!(await canAccessAdmin(actorId))) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
+  return withErrorHandler(async () => {
+    const userContext = await requireAdmin(request);
     const { id: roomId } = await params;
-
     await deleteMatrixRoom(roomId);
-    await logAdminAction(
-      actorId,
-      "matrix_room_deleted",
-      `MatrixRoom:${roomId}`,
-      true,
-    );
-
+    await logAdminAction(userContext.userId, "matrix_room_deleted", `MatrixRoom:${roomId}`, true);
     return NextResponse.json({ success: true });
-  } catch (error: any) {
-    return NextResponse.json(
-      { error: error.message || "Internal server error" },
-      { status: error.statusCode || 500 },
-    );
-  }
+  });
 }
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  try {
-    const session = await getServerSession();
-    if (!session?.identity) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    const actorId = session.identity.id;
-    if (!(await canAccessAdmin(actorId))) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
+  return withErrorHandler(async () => {
+    const userContext = await requireAdmin(request);
     const { id: roomId } = await params;
-    const body = await request.json();
-    const { name, description } = body;
-
-    const room = await updateMatrixRoom(roomId, { name, description });
-    await logAdminAction(
-      actorId,
-      "matrix_room_updated",
-      `MatrixRoom:${roomId}`,
-      true,
-      { name },
-    );
-
+    const body = await validateBody(request, updateRoomSchema);
+    const room = await updateMatrixRoom(roomId, body);
+    await logAdminAction(userContext.userId, "matrix_room_updated", `MatrixRoom:${roomId}`, true, { name: body.name });
     return NextResponse.json({ room });
-  } catch (error: any) {
-    return NextResponse.json(
-      { error: error.message || "Internal server error" },
-      { status: error.statusCode || 500 },
-    );
-  }
+  });
 }

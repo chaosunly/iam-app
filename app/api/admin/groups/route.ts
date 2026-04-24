@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { getServerSession } from "@ory/nextjs/app";
 import { canAccessAdmin } from "@/lib/services/permission.service";
+import { withErrorHandler, UnauthorizedError, ForbiddenError } from "@/lib/errors";
+import { validateBody } from "@/lib/middleware/validate";
 import {
   getOrganizationGroups,
   createGroup,
@@ -8,82 +11,35 @@ import {
 import { getDefaultOrganizationId } from "@/lib/services/organization.service";
 import { backgroundBootstrapGroupRoom } from "@/lib/services/matrix-provision.service";
 
-/**
- * GET /api/admin/groups
- * List all groups in the organization
- */
+const createGroupSchema = z.object({
+  name: z.string().min(1, "Group name is required"),
+  description: z.string().optional(),
+});
+
 export async function GET() {
-  try {
+  return withErrorHandler(async () => {
     const session = await getServerSession();
-    if (!session?.identity) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const userId = session.identity.id;
-    const hasAdminAccess = await canAccessAdmin(userId);
-
-    if (!hasAdminAccess) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    if (!session?.identity) throw new UnauthorizedError();
+    if (!(await canAccessAdmin(session.identity.id))) throw new ForbiddenError();
 
     const organizationId = getDefaultOrganizationId();
     const groups = await getOrganizationGroups(organizationId);
-
     return NextResponse.json({ groups });
-  } catch (error) {
-    console.error("Error fetching groups:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
-  }
+  });
 }
 
-/**
- * POST /api/admin/groups
- * Create a new group
- */
 export async function POST(request: NextRequest) {
-  try {
+  return withErrorHandler(async () => {
     const session = await getServerSession();
-    if (!session?.identity) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
+    if (!session?.identity) throw new UnauthorizedError();
     const userId = session.identity.id;
-    const hasAdminAccess = await canAccessAdmin(userId);
+    if (!(await canAccessAdmin(userId))) throw new ForbiddenError();
 
-    if (!hasAdminAccess) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
-    const body = await request.json();
-    const { name, description } = body;
-
-    if (!name) {
-      return NextResponse.json(
-        { error: "Group name is required" },
-        { status: 400 },
-      );
-    }
-
+    const body = await validateBody(request, createGroupSchema);
     const organizationId = getDefaultOrganizationId();
-    const group = await createGroup(
-      organizationId,
-      { name, description },
-      userId,
-    );
+    const group = await createGroup(organizationId, body, userId);
 
     backgroundBootstrapGroupRoom(group.id, group.name, group.organizationId);
     return NextResponse.json(group, { status: 201 });
-  } catch (error) {
-    console.error("Error creating group:", error);
-    return NextResponse.json(
-      {
-        error:
-          error instanceof Error ? error.message : "Failed to create group",
-      },
-      { status: 500 },
-    );
-  }
+  });
 }

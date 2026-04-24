@@ -1,17 +1,36 @@
 "use client";
 
-import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { FormErrorAlert } from "@/components/ui/form-error-alert";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { useApiMutation } from "@/lib/hooks/use-api-mutation";
 import type { RoomOrg } from "./types";
+
+const createOrgSchema = z.object({
+  name: z.string().min(1, "Org name is required"),
+  homeserver: z.string().optional(),
+  description: z.string().optional(),
+});
+
+type CreateOrgValues = z.infer<typeof createOrgSchema>;
 
 interface CreateOrgSheetProps {
   open: boolean;
@@ -24,81 +43,90 @@ export function CreateOrgSheet({
   onOpenChange,
   onCreated,
 }: CreateOrgSheetProps) {
-  const [name, setName] = useState("");
-  const [homeserver, setHomeserver] = useState("");
-  const [description, setDescription] = useState("");
-  const [creating, setCreating] = useState(false);
+  const form = useForm<CreateOrgValues>({
+    resolver: zodResolver(createOrgSchema),
+    defaultValues: { name: "", homeserver: "", description: "" },
+  });
 
-  async function handleCreate() {
-    if (!name.trim()) return;
-    setCreating(true);
-    try {
-      const res = await fetch("/api/admin/matrix/orgs", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: name.trim(),
-          homeserver: homeserver.trim() || undefined,
-          description: description.trim() || undefined,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        toast.error(data.error || "Failed to create org");
-        return;
-      }
-      toast.success(`Org "${name.trim()}" created`);
-      setName("");
-      setHomeserver("");
-      setDescription("");
+  const { mutate, isPending, error } = useApiMutation<
+    CreateOrgValues,
+    { org: RoomOrg }
+  >("/api/admin/matrix/orgs", {
+    onSuccess: (data) => {
+      toast.success(`Org "${form.getValues("name")}" created`);
+      form.reset();
       onOpenChange(false);
       onCreated(data.org);
-    } finally {
-      setCreating(false);
-    }
+    },
+  });
+
+  function handleOpenChange(v: boolean) {
+    if (!v) form.reset();
+    onOpenChange(v);
   }
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <Sheet open={open} onOpenChange={handleOpenChange}>
       <SheetContent>
         <SheetHeader>
           <SheetTitle>New Org</SheetTitle>
         </SheetHeader>
-        <div className="mt-4 space-y-4 px-4">
-          <div className="space-y-1.5">
-            <Label>
-              Name <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Acme Corp"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Homeserver</Label>
-            <Input
-              value={homeserver}
-              onChange={(e) => setHomeserver(e.target.value)}
-              placeholder="https://matrix.org"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Description</Label>
-            <Input
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Optional"
-            />
-          </div>
-          <Button
-            onClick={handleCreate}
-            disabled={creating || !name.trim()}
-            className="w-full"
+        <Form {...form}>
+          <form
+            onSubmit={form.handleSubmit((values) => mutate(values))}
+            className="mt-4 space-y-4 px-4"
           >
-            {creating ? "Creating..." : "Create Org"}
-          </Button>
-        </div>
+            <FormErrorAlert error={error} />
+
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    Name <span className="text-destructive">*</span>
+                  </FormLabel>
+                  <FormControl>
+                    <Input placeholder="Acme Corp" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="homeserver"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Homeserver</FormLabel>
+                  <FormControl>
+                    <Input placeholder="https://matrix.org" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="description"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Description</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Optional" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <Button type="submit" disabled={isPending} className="w-full">
+              {isPending ? "Creating..." : "Create Org"}
+            </Button>
+          </form>
+        </Form>
       </SheetContent>
     </Sheet>
   );

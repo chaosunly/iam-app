@@ -5,48 +5,25 @@ import {
   isGroupAdmin,
   invalidateUserCache,
 } from "@/lib/services/permission.service";
+import { withErrorHandler, UnauthorizedError, ForbiddenError } from "@/lib/errors";
 import { removeUserFromGroup } from "@/lib/services/group.service";
 import { backgroundSyncGroupRoomLeave } from "@/lib/services/matrix-provision.service";
 
-/**
- * DELETE /api/admin/groups/[id]/members/[userId]
- * Remove a member from a group
- */
 export async function DELETE(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ id: string; userId: string }> },
 ) {
-  try {
+  return withErrorHandler(async () => {
     const session = await getServerSession();
-    if (!session?.identity) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
+    if (!session?.identity) throw new UnauthorizedError();
     const adminId = session.identity.id;
     const { id: groupId, userId } = await params;
-    const [globalAdmin, groupAdmin] = await Promise.all([
-      canAccessAdmin(adminId),
-      isGroupAdmin(adminId, groupId),
-    ]);
+    const [globalAdmin, groupAdmin] = await Promise.all([canAccessAdmin(adminId), isGroupAdmin(adminId, groupId)]);
+    if (!globalAdmin && !groupAdmin) throw new ForbiddenError();
 
-    if (!globalAdmin && !groupAdmin) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
     await removeUserFromGroup(groupId, userId, adminId);
     invalidateUserCache(userId);
     backgroundSyncGroupRoomLeave(groupId, userId);
-
     return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error("Error removing member from group:", error);
-    return NextResponse.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to remove member from group",
-      },
-      { status: 500 },
-    );
-  }
+  });
 }

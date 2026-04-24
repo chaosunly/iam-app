@@ -1,11 +1,21 @@
 "use client";
 
-import { useState } from "react";
 import { Layers } from "lucide-react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { FormErrorAlert } from "@/components/ui/form-error-alert";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Sheet,
   SheetContent,
@@ -13,7 +23,16 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { useApiMutation } from "@/lib/hooks/use-api-mutation";
 import type { RoomSpace } from "./types";
+
+const createSpaceSchema = z.object({
+  name: z.string().min(1, "Space name is required"),
+  matrixId: z.string().optional(),
+  description: z.string().optional(),
+});
+
+type CreateSpaceValues = z.infer<typeof createSpaceSchema>;
 
 interface CreateSpaceSheetProps {
   orgId: string;
@@ -26,44 +45,24 @@ export function CreateSpaceSheet({
   orgName,
   onCreated,
 }: CreateSpaceSheetProps) {
-  const [open, setOpen] = useState(false);
-  const [name, setName] = useState("");
-  const [matrixId, setMatrixId] = useState("");
-  const [description, setDescription] = useState("");
-  const [creating, setCreating] = useState(false);
+  const form = useForm<CreateSpaceValues>({
+    resolver: zodResolver(createSpaceSchema),
+    defaultValues: { name: "", matrixId: "", description: "" },
+  });
 
-  async function handleCreate() {
-    if (!name.trim() || !orgId) return;
-    setCreating(true);
-    try {
-      const res = await fetch("/api/admin/matrix/spaces", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: name.trim(),
-          orgId,
-          matrixId: matrixId.trim() || undefined,
-          description: description.trim() || undefined,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        toast.error(data.error || "Failed to create space");
-        return;
-      }
-      toast.success(`Space "${name.trim()}" created`);
-      setName("");
-      setMatrixId("");
-      setDescription("");
-      setOpen(false);
+  const { mutate, isPending, error } = useApiMutation<
+    CreateSpaceValues & { orgId: string },
+    { space: RoomSpace }
+  >("/api/admin/matrix/spaces", {
+    onSuccess: (data) => {
+      toast.success(`Space "${form.getValues("name")}" created`);
+      form.reset();
       onCreated(data.space);
-    } finally {
-      setCreating(false);
-    }
-  }
+    },
+  });
 
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
+    <Sheet onOpenChange={(open) => { if (!open) form.reset(); }}>
       <SheetTrigger asChild>
         <Button
           size="sm"
@@ -79,44 +78,68 @@ export function CreateSpaceSheet({
         <SheetHeader>
           <SheetTitle>New Space</SheetTitle>
         </SheetHeader>
-        <div className="mt-4 space-y-4 px-4">
-          <div className="rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">
-            Creating space in <strong>{orgName}</strong>
-          </div>
-          <div className="space-y-1.5">
-            <Label>
-              Name <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="General"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Matrix Space ID</Label>
-            <Input
-              value={matrixId}
-              onChange={(e) => setMatrixId(e.target.value)}
-              placeholder="!abc:matrix.org"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Description</Label>
-            <Input
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Optional"
-            />
-          </div>
-          <Button
-            onClick={handleCreate}
-            disabled={creating || !name.trim()}
-            className="w-full"
+        <Form {...form}>
+          <form
+            onSubmit={form.handleSubmit((values) =>
+              mutate({ ...values, orgId })
+            )}
+            className="mt-4 space-y-4 px-4"
           >
-            {creating ? "Creating..." : "Create Space"}
-          </Button>
-        </div>
+            <div className="rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">
+              Creating space in <strong>{orgName}</strong>
+            </div>
+
+            <FormErrorAlert error={error} />
+
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    Name <span className="text-destructive">*</span>
+                  </FormLabel>
+                  <FormControl>
+                    <Input placeholder="General" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="matrixId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Matrix Space ID</FormLabel>
+                  <FormControl>
+                    <Input placeholder="!abc:matrix.org" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="description"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Description</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Optional" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <Button type="submit" disabled={isPending} className="w-full">
+              {isPending ? "Creating..." : "Create Space"}
+            </Button>
+          </form>
+        </Form>
       </SheetContent>
     </Sheet>
   );
