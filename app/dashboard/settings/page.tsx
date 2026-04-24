@@ -1,39 +1,36 @@
-import { redirect } from "next/navigation";
-import { getSettingsFlow } from "@ory/nextjs/app";
+import { getSettingsFlow, OryPageParams } from "@ory/nextjs/app";
+import { SettingsFlow } from "@ory/client-fetch";
 import config from "@/ory.config";
+import { ProfileForm } from "./_components/profile-form";
+import { PasswordForm } from "./_components/password-form";
+import { TotpForm } from "./totp/_components/totp-form";
+import { LookupSecretsForm } from "./lookup-secrets/_components/lookup-secrets-form";
+import { SecurityKeysForm } from "./security-keys/_components/security-keys-form";
+import { PasskeysForm } from "./passkeys/_components/passkeys-form";
+import { ConnectedApps } from "./_components/connected-apps";
 
-const SETTINGS_SECTIONS = [
-  "general",
-  "profile",
-  "password",
-  "totp",
-  "lookup-secrets",
-  "security-keys",
-  "passkeys",
-  "connected-apps",
-];
+export const dynamic = "force-dynamic";
 
-export default async function SettingsPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ flow?: string }>;
-}) {
-  const params = await searchParams;
+export default async function SettingsPage(props: OryPageParams) {
+  const searchParams = await props.searchParams;
+  const params = searchParams.flow
+    ? searchParams
+    : { ...searchParams, return_to: "/dashboard/settings" };
+  const flow = await getSettingsFlow(config, params);
 
-  if (params.flow) {
-    // Fetch the flow to check its return_to — after a successful settings
-    // update, Kratos redirects here; if return_to points to a section, send
-    // the user there instead of always defaulting to profile.
-    const flow = await getSettingsFlow(config, params).catch(() => null);
-    const returnTo = (flow as { return_to?: string } | null)?.return_to ?? "";
-    const section = returnTo.split("/dashboard/settings/")[1]?.split("?")[0];
-
-    if (section && SETTINGS_SECTIONS.includes(section)) {
-      redirect(`/dashboard/settings/${section}?flow=${params.flow}`);
-    }
-
-    redirect(`/dashboard/settings/profile?flow=${params.flow}`);
+  if (!flow) {
+    return null;
   }
 
-  redirect("/dashboard/settings/profile");
+  return (
+    <div className="space-y-10">
+      <ProfileForm flow={flow as unknown as SettingsFlow} />
+      <PasswordForm flow={flow as unknown as SettingsFlow} />
+      <TotpForm flow={flow as unknown as SettingsFlow} />
+      <LookupSecretsForm flow={flow as unknown as SettingsFlow} />
+      <SecurityKeysForm flow={flow as unknown as SettingsFlow} />
+      <PasskeysForm flow={flow as unknown as SettingsFlow} />
+      <ConnectedApps flow={flow as unknown as SettingsFlow} />
+    </div>
+  );
 }
