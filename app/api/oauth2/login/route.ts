@@ -139,12 +139,20 @@ export async function GET(request: NextRequest) {
       try {
         const url = new URL(redirectTo);
         const originUrl = new URL(loginRequest.request_url);
+        console.info("/api/oauth2/login redirect debug", {
+          request_url: loginRequest.request_url,
+          redirect_to_original: acceptResult.redirect_to,
+          origin_hostname: originUrl.hostname,
+          redirect_hostname: url.hostname,
+          will_rewrite: url.pathname.startsWith("/oauth2/") && url.hostname !== originUrl.hostname,
+        });
         if (url.pathname.startsWith("/oauth2/") && url.hostname !== originUrl.hostname) {
           url.hostname = originUrl.hostname;
           url.protocol = originUrl.protocol;
           url.port = originUrl.port;
           redirectTo = url.toString();
         }
+        console.info("/api/oauth2/login final redirect", { redirectTo });
       } catch {
         // keep original if URL parsing fails
       }
