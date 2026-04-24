@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { Suspense } from "react";
 import { cn } from "@/lib/utils";
 import {
@@ -60,13 +60,6 @@ const navItems = [
 
 function SettingsNavContent() {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const flowId = searchParams.get("flow");
-
-  const buildHref = (baseHref: string) => {
-    if (flowId) return `${baseHref}?flow=${flowId}`;
-    return baseHref;
-  };
 
   const isActive = (href: string) => pathname.startsWith(href);
 
@@ -78,7 +71,7 @@ function SettingsNavContent() {
         return (
           <Link
             key={item.href}
-            href={buildHref(item.href)}
+            href={item.href}
             className={cn(
               "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
               active

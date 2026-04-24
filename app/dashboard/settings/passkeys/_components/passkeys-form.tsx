@@ -17,13 +17,11 @@ export function PasskeysForm({ flow }: PasskeysFormProps) {
     (n) => n.node.group === "passkey",
   );
   const createButton = passkeyNodes.find(
-    (n) => n.name === "passkey_create_button",
+    (n) => n.name === "passkey_register_trigger",
   );
   const removeButtons = passkeyNodes.filter((n) =>
     n.name.startsWith("passkey_remove_"),
   );
-
-  console.log("[passkeys] nodes:", passkeyNodes.map((n) => ({ name: n.name, type: n.type })));
 
   if (passkeyNodes.length === 0) {
     return (
@@ -94,15 +92,14 @@ export function PasskeysForm({ flow }: PasskeysFormProps) {
         {/* Add new passkey */}
         {createButton && (
           <Button
-            type="submit"
-            name="passkey_create_button"
+            type="button"
+            name="passkey_register_trigger"
             value={createButton.value}
             variant="outline"
             id="passkey-settings-create"
-            onClick={(e) => {
+            onClick={() => {
               const onclick = (createButton.node.attributes as UiNodeInputAttributes).onclick;
               if (onclick) {
-                e.preventDefault();
                 // eslint-disable-next-line no-new-func
                 new Function(onclick)();
               }
