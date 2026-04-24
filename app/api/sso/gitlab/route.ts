@@ -9,5 +9,14 @@ export async function GET() {
   url.searchParams.set("clientID", POLIS_GITLAB_CLIENT_ID);
   url.searchParams.set("clientSecret", POLIS_GITLAB_CLIENT_SECRET);
 
-  return NextResponse.redirect(url.toString());
+  const target = url.toString();
+
+  // Use HTML redirect instead of HTTP 302 — nginx proxy_redirect rewrites
+  // all Location headers to the gateway domain, breaking external redirects.
+  const html = `<!DOCTYPE html><html><head><meta http-equiv="refresh" content="0;url=${target}"></head><body><script>window.location.replace(${JSON.stringify(target)})</script></body></html>`;
+
+  return new NextResponse(html, {
+    status: 200,
+    headers: { "Content-Type": "text/html; charset=utf-8" },
+  });
 }
