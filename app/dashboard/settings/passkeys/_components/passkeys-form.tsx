@@ -20,7 +20,7 @@ export function PasskeysForm({ flow }: PasskeysFormProps) {
     (n) => n.name === "passkey_register_trigger",
   );
   const removeButtons = passkeyNodes.filter((n) =>
-    n.name.startsWith("passkey_remove_"),
+    n.name === "passkey_remove" || n.name.startsWith("passkey_remove_"),
   );
 
   return (
@@ -52,10 +52,12 @@ export function PasskeysForm({ flow }: PasskeysFormProps) {
                   {removeButtons.map((node) => {
                     const label =
                       node.label ??
-                      node.name.replace("passkey_remove_", "Passkey ");
+                      (node.name.includes("_remove_")
+                        ? node.name.replace("passkey_remove_", "Passkey ")
+                        : "Passkey");
                     return (
                       <div
-                        key={node.name}
+                        key={node.value || node.name}
                         className="flex items-center justify-between rounded-lg border p-3"
                       >
                         <div className="flex items-center gap-3">
