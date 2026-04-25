@@ -90,7 +90,11 @@ export async function GET(request: NextRequest) {
       // Extract user data from Kratos identity for Hydra id_token
       const userEmail = kratosIdentity.traits?.email || "";
       const userName = kratosIdentity.traits?.username || kratosIdentity.traits?.preferred_username || kratosIdentity.id;
-      const userDisplayName = kratosIdentity.traits?.name || kratosIdentity.traits?.given_name || userName;
+      const nameObj = kratosIdentity.traits?.name;
+      const userDisplayName =
+        typeof nameObj === "object" && nameObj !== null
+          ? [nameObj.first, nameObj.last].filter(Boolean).join(" ").trim() || userName
+          : (nameObj as string | undefined) || kratosIdentity.traits?.given_name || userName;
 
       console.info("/api/oauth2/login accepting with identity data", {
         userId: kratosIdentity.id,
