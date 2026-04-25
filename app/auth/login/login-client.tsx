@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { LoginFlow } from "@ory/client-fetch";
+import { LoginFlow, UiNodeInputAttributes } from "@ory/client-fetch";
 import { KratosForm } from "@/components/auth/kratos-form";
 import { WebAuthnScript } from "@/components/auth/webauthn-script";
 import { getNodeByName, getNodesByGroup } from "@/lib/auth/ory-flow-utils";
@@ -64,9 +64,14 @@ export function LoginClient({ flow }: LoginClientProps) {
   const hasOidc = !!groups.oidc;
   const hasCode = !!groups.code;
   const hasWebAuthn = !!groups.webauthn;
-  const hasPasskey = !!groups.passkey;
   const hasTotp = !!groups.totp;
   const hasLookup = !!groups.lookup_secret;
+
+  const passkeyLoginTrigger = (groups.passkey ?? []).find(
+    (n) => n.type === "input" &&
+      (n.attributes as UiNodeInputAttributes).name === "passkey_login_trigger",
+  );
+  const hasPasskey = !!passkeyLoginTrigger;
 
   const is2FA = hasTotp || hasLookup;
   const isRefresh = flow.refresh === true;
@@ -356,12 +361,21 @@ export function LoginClient({ flow }: LoginClientProps) {
                     <>
                       {(hasPassword || hasCode || hasWebAuthn) && <Separator />}
                       <Button
-                        type="submit"
-                        name="method"
-                        value="passkey"
+                        type="button"
                         variant="outline"
                         className="w-full"
-                        id="passkey-button"
+                        id="passkey-login-button"
+                        onClick={() => {
+                          const onclick = (passkeyLoginTrigger!.attributes as UiNodeInputAttributes).onclick;
+                          if (onclick) {
+                            try {
+                              // eslint-disable-next-line no-new-func
+                              new Function(onclick)();
+                            } catch (err) {
+                              console.error("[Passkey] Login script error:", err);
+                            }
+                          }
+                        }}
                       >
                         <Fingerprint className="h-4 w-4 mr-2" />
                         Use passkey
