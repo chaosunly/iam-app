@@ -88,8 +88,12 @@ export function SecurityKeysForm({ flow }: SecurityKeysFormProps) {
                     const onclick = (registerTrigger.node.attributes as UiNodeInputAttributes).onclick;
                     if (onclick) {
                       e.preventDefault();
-                      // eslint-disable-next-line no-new-func
-                      new Function(onclick)();
+                      try {
+                        // eslint-disable-next-line no-new-func
+                        new Function(onclick)();
+                      } catch (err) {
+                        console.error("[WebAuthn] Registration script error:", err);
+                      }
                     }
                   }}
                 >

@@ -88,8 +88,12 @@ export function PasskeysForm({ flow }: PasskeysFormProps) {
                   onClick={() => {
                     const onclick = (createButton.node.attributes as UiNodeInputAttributes).onclick;
                     if (onclick) {
-                      // eslint-disable-next-line no-new-func
-                      new Function(onclick)();
+                      try {
+                        // eslint-disable-next-line no-new-func
+                        new Function(onclick)();
+                      } catch (err) {
+                        console.error("[Passkey] Registration script error:", err);
+                      }
                     }
                   }}
                 >
