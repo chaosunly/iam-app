@@ -50,9 +50,10 @@ export function KratosForm({
       {hiddenFields.map((field) => (
         <input
           key={field.name}
+          id={field.name}
           type="hidden"
           name={field.name}
-          value={field.value}
+          defaultValue={field.value}
         />
       ))}
 
