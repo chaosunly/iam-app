@@ -136,19 +136,29 @@ export async function GET(request: NextRequest) {
     // back to the original auth request host so the browser sends Hydra's CSRF cookie.
     let redirectTo = acceptResult.redirect_to as string;
     const originHostname = (consentRequest.context as Record<string, string> | null)?._hydra_origin_hostname;
-    if (originHostname) {
-      try {
-        const url = new URL(redirectTo);
-        if (url.pathname.startsWith("/oauth2/") && url.hostname !== originHostname) {
-          url.hostname = originHostname;
-          url.protocol = "https:";
-          url.port = "";
-          redirectTo = url.toString();
-        }
-      } catch {
-        // keep original if URL parsing fails
+    try {
+      const url = new URL(redirectTo);
+      console.info("/api/oauth2/consent redirect debug", {
+        consent_challenge,
+        subject: consentRequest.subject,
+        request_url: consentRequest.request_url,
+        redirect_to_original: acceptResult.redirect_to,
+        origin_hostname: originHostname,
+        redirect_hostname: url.hostname,
+        redirect_pathname: url.pathname,
+        context_keys: Object.keys((consentRequest.context as Record<string, unknown>) ?? {}),
+        will_rewrite: url.pathname.startsWith("/oauth2/") && !!originHostname && url.hostname !== originHostname,
+      });
+      if (originHostname && url.pathname.startsWith("/oauth2/") && url.hostname !== originHostname) {
+        url.hostname = originHostname;
+        url.protocol = "https:";
+        url.port = "";
+        redirectTo = url.toString();
       }
+    } catch {
+      console.warn("/api/oauth2/consent redirect URL parse failed", { redirectTo });
     }
+    console.info("/api/oauth2/consent final redirect", { redirectTo });
 
     // Redirect user back to Hydra (via nginx proxy)
     return NextResponse.redirect(redirectTo);
