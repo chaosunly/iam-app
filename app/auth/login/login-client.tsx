@@ -69,6 +69,7 @@ export function LoginClient({ flow }: LoginClientProps) {
   const hasLookup = !!groups.lookup_secret;
 
   const is2FA = hasTotp || hasLookup;
+  const isRefresh = flow.refresh === true;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -82,11 +83,13 @@ export function LoginClient({ flow }: LoginClientProps) {
             <ShieldCheck className="h-5 w-5" />
           </div>
           <h1 className="text-2xl font-bold tracking-tight">
-            {is2FA ? "Two-factor authentication" : "Welcome back"}
+            {is2FA ? "Two-factor authentication" : isRefresh ? "Confirm your identity" : "Welcome back"}
           </h1>
           <p className="text-sm text-muted-foreground">
             {is2FA
               ? "Verify your identity to continue"
+              : isRefresh
+              ? "To update your account settings, please sign in again"
               : "Sign in to your account to continue"}
           </p>
         </div>
@@ -406,7 +409,7 @@ export function LoginClient({ flow }: LoginClientProps) {
           </KratosForm>
         </Card>
 
-        {!is2FA && (
+        {!is2FA && !isRefresh && (
           <p className="text-center text-sm text-muted-foreground">
             Don&apos;t have an account?{" "}
             <Link
