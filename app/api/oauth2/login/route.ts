@@ -89,7 +89,10 @@ export async function GET(request: NextRequest) {
 
       // Extract user data from Kratos identity for Hydra id_token
       const userEmail = kratosIdentity.traits?.email || "";
-      const userName = kratosIdentity.traits?.username || kratosIdentity.traits?.preferred_username || kratosIdentity.id;
+      const userName =
+        kratosIdentity.traits?.username ||
+        kratosIdentity.traits?.preferred_username ||
+        (userEmail ? userEmail.split("@")[0] : kratosIdentity.id);
       const nameObj = kratosIdentity.traits?.name;
       const userDisplayName =
         typeof nameObj === "object" && nameObj !== null
