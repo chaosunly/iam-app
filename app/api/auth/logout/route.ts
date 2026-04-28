@@ -47,12 +47,32 @@ export async function POST(request: NextRequest) {
         cookie.name.startsWith("ory_session_"),
     );
 
+    const HYDRA_ADMIN_URL = process.env.HYDRA_ADMIN_URL || "http://hydra.railway.internal:4445";
+
     // If there's a session, try to create logout flow
     if (sessionCookie) {
       try {
         console.log("[Logout] Found session cookie:", sessionCookie.name);
 
         const oryBase = oryUrl.replace(/\/$/, "");
+
+        // Get current identity ID before logout so we can revoke Hydra login sessions.
+        // This prevents the next user from hitting skip=true with the stale subject,
+        // which causes MAS upstream CSRF failures due to prompt=login restart.
+        let kratosSubject: string | null = null;
+        try {
+          const whoamiRes = await fetch(`${oryBase}/.ory/sessions/whoami`, {
+            headers: { Cookie: `${sessionCookie.name}=${sessionCookie.value}` },
+          });
+          if (whoamiRes.ok) {
+            const whoami = await whoamiRes.json();
+            kratosSubject = whoami?.identity?.id ?? null;
+            console.log("[Logout] Current subject:", kratosSubject);
+          }
+        } catch (e) {
+          console.warn("[Logout] Failed to get whoami:", e);
+        }
+
         const logoutResponse = await fetch(
           `${oryBase}/.ory/self-service/logout/browser`,
           {
@@ -81,6 +101,20 @@ export async function POST(request: NextRequest) {
               },
             );
             console.log("[Logout] Logout completed:", logoutResult.status);
+          }
+        }
+
+        // Revoke all Hydra login sessions for this subject so the next user who logs in
+        // via any OAuth2 client (e.g. MAS) gets skip=false and no stale subject mismatch.
+        if (kratosSubject) {
+          try {
+            const revokeRes = await fetch(
+              `${HYDRA_ADMIN_URL}/admin/oauth2/auth/sessions/login?subject=${encodeURIComponent(kratosSubject)}`,
+              { method: "DELETE" },
+            );
+            console.log("[Logout] Hydra login sessions revoked for subject:", kratosSubject, revokeRes.status);
+          } catch (e) {
+            console.warn("[Logout] Failed to revoke Hydra login sessions:", e);
           }
         }
       } catch (logoutError) {
