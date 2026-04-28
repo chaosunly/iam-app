@@ -154,7 +154,10 @@ export async function GET(request: NextRequest) {
         redirect_hostname: url.hostname,
         will_rewrite: url.pathname.startsWith("/oauth2/") && url.hostname !== targetHostname,
       });
-      if (url.pathname.startsWith("/oauth2/") && url.hostname !== targetHostname) {
+      // Always rewrite /oauth2/* redirects to the correct public hostname and https.
+      // Hydra may record the internal http:// scheme (nginx→Hydra is HTTP), so the
+      // Secure CSRF session cookie would not be sent without the https: fix.
+      if (url.pathname.startsWith("/oauth2/")) {
         url.hostname = targetHostname;
         url.protocol = "https:";
         url.port = "";

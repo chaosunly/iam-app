@@ -152,12 +152,14 @@ export async function GET(request: NextRequest) {
           redirect_to_original: acceptResult.redirect_to,
           origin_hostname: originUrl.hostname,
           redirect_hostname: url.hostname,
-          will_rewrite: url.pathname.startsWith("/oauth2/") && url.hostname !== originUrl.hostname,
         });
-        if (url.pathname.startsWith("/oauth2/") && url.hostname !== originUrl.hostname) {
+        // Always rewrite /oauth2/* redirects: force the correct public hostname and
+        // https so the Secure CSRF session cookie is sent (nginx→Hydra is HTTP, so
+        // Hydra may record http:// in request_url and redirect_to).
+        if (url.pathname.startsWith("/oauth2/")) {
           url.hostname = originUrl.hostname;
-          url.protocol = originUrl.protocol;
-          url.port = originUrl.port;
+          url.protocol = "https:";
+          url.port = "";
           redirectTo = url.toString();
         }
         console.info("/api/oauth2/login final redirect", { redirectTo });
