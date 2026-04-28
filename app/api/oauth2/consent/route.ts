@@ -107,8 +107,8 @@ export async function GET(request: NextRequest) {
         body: JSON.stringify({
           grant_scope: consentRequest.requested_scope,
           grant_access_token_audience: consentRequest.requested_access_token_audience,
-          remember: true,
-          remember_for: 3600,
+          remember: false,
+          remember_for: 0,
           session: {
             id_token: consentRequest.subject
               ? {
@@ -132,27 +132,25 @@ export async function GET(request: NextRequest) {
 
     const acceptResult = await acceptResponse.json();
 
-    // Same CSRF cookie domain logic as the login handler: route consent_verifier
-    // back to the original auth request host so the browser sends Hydra's CSRF cookie.
+    // Route consent_verifier back to the original auth request host so the browser
+    // sends Hydra's CSRF cookie (set on whichever domain received the initial /oauth2/auth).
     let redirectTo = acceptResult.redirect_to as string;
-    const originHostname = (consentRequest.context as Record<string, string> | null)?._hydra_origin_hostname;
     try {
       const url = new URL(redirectTo);
+      const originUrl = new URL(consentRequest.request_url);
       console.info("/api/oauth2/consent redirect debug", {
         consent_challenge,
         subject: consentRequest.subject,
         request_url: consentRequest.request_url,
         redirect_to_original: acceptResult.redirect_to,
-        origin_hostname: originHostname,
+        origin_hostname: originUrl.hostname,
         redirect_hostname: url.hostname,
-        redirect_pathname: url.pathname,
-        context_keys: Object.keys((consentRequest.context as Record<string, unknown>) ?? {}),
-        will_rewrite: url.pathname.startsWith("/oauth2/") && !!originHostname && url.hostname !== originHostname,
+        will_rewrite: url.pathname.startsWith("/oauth2/") && url.hostname !== originUrl.hostname,
       });
-      if (originHostname && url.pathname.startsWith("/oauth2/") && url.hostname !== originHostname) {
-        url.hostname = originHostname;
-        url.protocol = "https:";
-        url.port = "";
+      if (url.pathname.startsWith("/oauth2/") && url.hostname !== originUrl.hostname) {
+        url.hostname = originUrl.hostname;
+        url.protocol = originUrl.protocol;
+        url.port = originUrl.port;
         redirectTo = url.toString();
       }
     } catch {
