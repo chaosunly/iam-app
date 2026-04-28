@@ -134,23 +134,30 @@ export async function GET(request: NextRequest) {
 
     // Route consent_verifier back to the original auth request host so the browser
     // sends Hydra's CSRF cookie (set on whichever domain received the initial /oauth2/auth).
+    // Use _hydra_origin_hostname (stored during login) as the authoritative public hostname.
+    // Fall back to consentRequest.request_url if the context value is absent.
     let redirectTo = acceptResult.redirect_to as string;
     try {
       const url = new URL(redirectTo);
+      const contextHostname = (consentRequest.context as Record<string, string> | null)?._hydra_origin_hostname;
       const originUrl = new URL(consentRequest.request_url);
+      // Prefer the explicitly stored public hostname; fall back to request_url hostname.
+      const targetHostname = contextHostname || originUrl.hostname;
       console.info("/api/oauth2/consent redirect debug", {
         consent_challenge,
         subject: consentRequest.subject,
         request_url: consentRequest.request_url,
         redirect_to_original: acceptResult.redirect_to,
+        context_hostname: contextHostname,
         origin_hostname: originUrl.hostname,
+        target_hostname: targetHostname,
         redirect_hostname: url.hostname,
-        will_rewrite: url.pathname.startsWith("/oauth2/") && url.hostname !== originUrl.hostname,
+        will_rewrite: url.pathname.startsWith("/oauth2/") && url.hostname !== targetHostname,
       });
-      if (url.pathname.startsWith("/oauth2/") && url.hostname !== originUrl.hostname) {
-        url.hostname = originUrl.hostname;
-        url.protocol = originUrl.protocol;
-        url.port = originUrl.port;
+      if (url.pathname.startsWith("/oauth2/") && url.hostname !== targetHostname) {
+        url.hostname = targetHostname;
+        url.protocol = "https:";
+        url.port = "";
         redirectTo = url.toString();
       }
     } catch {
