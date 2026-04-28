@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import Link from "next/link";
+import { ChevronLeft } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { FormErrorAlert } from "@/components/ui/form-error-alert";
@@ -72,6 +74,12 @@ export default function NewIdentityPage() {
   return (
     <div className="max-w-2xl p-6 md:p-8">
       <div className="mb-8">
+        <Button variant="ghost" size="sm" asChild className="mb-4 -ml-2">
+          <Link href="/admin/identities">
+            <ChevronLeft className="mr-1 h-4 w-4" />
+            Back to Identities
+          </Link>
+        </Button>
         <h2 className="mb-2 text-3xl font-bold">Create New Identity</h2>
         <p className="text-muted-foreground">Add a new user to the system</p>
       </div>
@@ -146,12 +154,12 @@ export default function NewIdentityPage() {
             />
           </div>
 
-          <div className="flex items-center gap-4">
-            <Button type="submit" disabled={isPending}>
-              {isPending ? "Creating..." : "Create Identity"}
-            </Button>
+          <div className="flex justify-end gap-3">
             <Button type="button" variant="outline" onClick={() => router.back()}>
               Cancel
+            </Button>
+            <Button type="submit" disabled={isPending}>
+              {isPending ? "Creating..." : "Create Identity"}
             </Button>
           </div>
         </form>

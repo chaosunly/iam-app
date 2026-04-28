@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -158,6 +160,12 @@ export default function GitlabRolesPage() {
   return (
     <div className="space-y-6 p-6 md:p-8">
       <div>
+        <Button variant="ghost" size="sm" asChild className="mb-4 -ml-2">
+          <Link href="/admin/gitlab">
+            <ChevronLeft className="mr-1 h-4 w-4" />
+            Back to GitLab Access
+          </Link>
+        </Button>
         <h1 className="text-3xl font-bold">GitLab Role Assignments</h1>
         <p className="text-muted-foreground mt-1">Assign and manage GitLab roles for users</p>
       </div>

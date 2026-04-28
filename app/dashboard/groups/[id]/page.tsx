@@ -3,6 +3,36 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { ChevronLeft } from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { FormErrorAlert } from "@/components/ui/form-error-alert";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardAction,
+  CardContent,
+} from "@/components/ui/card";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+  SheetFooter,
+} from "@/components/ui/sheet";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface GroupMember {
   userId: string;
@@ -25,6 +55,15 @@ interface Identity {
   };
 }
 
+function getInitials(name: string, email: string): string {
+  const parts = name.trim().split(" ").filter(Boolean);
+  if (parts.length >= 2)
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  if (parts.length === 1 && parts[0].length >= 2)
+    return parts[0].slice(0, 2).toUpperCase();
+  return email.slice(0, 2).toUpperCase();
+}
+
 export default function DashboardGroupDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -35,19 +74,19 @@ export default function DashboardGroupDetailPage() {
   const [availableUsers, setAvailableUsers] = useState<Identity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
-  const [error, setError] = useState("");
-  const [successMsg, setSuccessMsg] = useState("");
 
-  // Edit group state
-  const [isEditing, setIsEditing] = useState(false);
+  // Edit sheet
+  const [editOpen, setEditOpen] = useState(false);
   const [editName, setEditName] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [editError, setEditError] = useState("");
 
-  // Add member state
-  const [showAddMember, setShowAddMember] = useState(false);
+  // Add member sheet
+  const [addOpen, setAddOpen] = useState(false);
   const [newMemberUserId, setNewMemberUserId] = useState("");
   const [isAddingMember, setIsAddingMember] = useState(false);
+  const [addError, setAddError] = useState("");
 
   const loadGroupData = useCallback(async () => {
     try {
@@ -70,11 +109,9 @@ export default function DashboardGroupDetailPage() {
       const membersData = await membersRes.json();
 
       setGroup(groupData);
-      setEditName(groupData.name);
-      setEditDescription(groupData.description || "");
       setMembers(membersData.members || []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load group");
+      toast.error(err instanceof Error ? err.message : "Failed to load group");
     } finally {
       setIsLoading(false);
     }
@@ -98,29 +135,11 @@ export default function DashboardGroupDetailPage() {
     loadGroupData();
   }, [loadGroupData]);
 
-  useEffect(() => {
-    if (showAddMember && availableUsers.length === 0) {
-      loadAvailableUsers();
-    }
-  }, [showAddMember, availableUsers.length, loadAvailableUsers]);
-
-  const getUserDisplayName = (user: Identity) => {
-    const first = user.traits.name?.first || "";
-    const last = user.traits.name?.last || "";
-    const full = `${first} ${last}`.trim();
-    return full || user.traits.email || user.id;
-  };
-
-  const flash = (msg: string) => {
-    setSuccessMsg(msg);
-    setTimeout(() => setSuccessMsg(""), 3000);
-  };
-
   const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editName.trim()) return;
     setIsSaving(true);
-    setError("");
+    setEditError("");
 
     try {
       const res = await fetch(`/api/admin/groups/${groupId}`, {
@@ -138,10 +157,10 @@ export default function DashboardGroupDetailPage() {
       }
 
       await loadGroupData();
-      setIsEditing(false);
-      flash("Group updated successfully");
+      setEditOpen(false);
+      toast.success("Group updated");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update group");
+      setEditError(err instanceof Error ? err.message : "Failed to update group");
     } finally {
       setIsSaving(false);
     }
@@ -151,7 +170,7 @@ export default function DashboardGroupDetailPage() {
     e.preventDefault();
     if (!newMemberUserId) return;
     setIsAddingMember(true);
-    setError("");
+    setAddError("");
 
     try {
       const res = await fetch(`/api/admin/groups/${groupId}/members`, {
@@ -166,12 +185,12 @@ export default function DashboardGroupDetailPage() {
       }
 
       setNewMemberUserId("");
-      setShowAddMember(false);
+      setAddOpen(false);
       setAvailableUsers([]);
       await loadGroupData();
-      flash("Member added successfully");
+      toast.success("Member added");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to add member");
+      setAddError(err instanceof Error ? err.message : "Failed to add member");
     } finally {
       setIsAddingMember(false);
     }
@@ -179,7 +198,6 @@ export default function DashboardGroupDetailPage() {
 
   const handleRemoveMember = async (userId: string) => {
     if (!confirm("Remove this member from the group?")) return;
-    setError("");
 
     try {
       const res = await fetch(
@@ -194,15 +212,14 @@ export default function DashboardGroupDetailPage() {
 
       setAvailableUsers([]);
       await loadGroupData();
-      flash("Member removed");
+      toast.success("Member removed");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to remove member");
+      toast.error(err instanceof Error ? err.message : "Failed to remove member");
     }
   };
 
   const handleDeleteGroup = async () => {
     if (!confirm(`Delete "${group?.name}"? This cannot be undone.`)) return;
-    setError("");
 
     try {
       const res = await fetch(`/api/admin/groups/${groupId}`, {
@@ -216,7 +233,7 @@ export default function DashboardGroupDetailPage() {
 
       router.push("/dashboard/groups");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete group");
+      toast.error(err instanceof Error ? err.message : "Failed to delete group");
     }
   };
 
@@ -237,215 +254,229 @@ export default function DashboardGroupDetailPage() {
   }
 
   return (
-    <div className="space-y-6 p-6 md:p-8 max-w-4xl">
+    <div className="space-y-6 p-6 md:p-8 max-w-3xl">
       {/* Back link */}
-      <Link
-        href="/dashboard/groups"
-        className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
-      >
-        <svg
-          className="w-4 h-4"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M15 19l-7-7 7-7"
-          />
-        </svg>
-        Back to My Groups
-      </Link>
+      <Button variant="ghost" size="sm" asChild className="-ml-2">
+        <Link href="/dashboard/groups">
+          <ChevronLeft className="mr-1 h-4 w-4" />
+          Back to My Groups
+        </Link>
+      </Button>
 
-      {/* Alerts */}
-      {error && (
-        <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-          <p className="text-sm text-red-900 dark:text-red-100">{error}</p>
-        </div>
-      )}
-      {successMsg && (
-        <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-          <p className="text-sm text-green-900 dark:text-green-100">
-            {successMsg}
-          </p>
-        </div>
-      )}
-
-      {/* Group Info */}
-      <div className="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800">
-        <div className="p-6 border-b border-zinc-200 dark:border-zinc-800 flex justify-between items-start gap-4">
-          {isEditing ? (
-            <form onSubmit={handleSaveEdit} className="flex-1 space-y-3">
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Group Name
-                </label>
-                <input
-                  type="text"
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  required
-                  className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-800 text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Description
-                </label>
-                <input
-                  type="text"
-                  value={editDescription}
-                  onChange={(e) => setEditDescription(e.target.value)}
-                  placeholder="Optional description"
-                  className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-800 text-sm"
-                />
-              </div>
-              <div className="flex gap-2">
-                <button
-                  type="submit"
-                  disabled={isSaving}
-                  className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {isSaving ? "Saving…" : "Save"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsEditing(false)}
-                  className="px-4 py-2 border border-zinc-300 dark:border-zinc-600 text-sm rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-800"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          ) : (
-            <div className="flex-1">
-              <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
-                {group.name}
-              </h1>
-              {group.description && (
-                <p className="text-zinc-500 dark:text-zinc-400 mt-1 text-sm">
-                  {group.description}
-                </p>
-              )}
-            </div>
+      {/* Group Info Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-xl">{group.name}</CardTitle>
+          {group.description && (
+            <CardDescription>{group.description}</CardDescription>
           )}
-
-          {!isEditing && (
-            <div className="flex gap-2 shrink-0">
-              <button
-                onClick={() => setIsEditing(true)}
-                className="px-3 py-2 border border-zinc-300 dark:border-zinc-600 text-sm rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-800"
+          <CardAction>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setEditName(group.name);
+                  setEditDescription(group.description || "");
+                  setEditError("");
+                  setEditOpen(true);
+                }}
               >
                 Edit
-              </button>
-              <button
-                onClick={handleDeleteGroup}
-                className="px-3 py-2 bg-red-600 text-white text-sm rounded-md hover:bg-red-700"
-              >
+              </Button>
+              <Button variant="destructive" size="sm" onClick={handleDeleteGroup}>
                 Delete
-              </button>
+              </Button>
             </div>
-          )}
-        </div>
-      </div>
+          </CardAction>
+        </CardHeader>
+      </Card>
 
-      {/* Members Section */}
-      <div className="bg-white dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800">
-        <div className="p-6 border-b border-zinc-200 dark:border-zinc-800 flex justify-between items-center">
-          <h2 className="text-lg font-semibold">Members ({members.length})</h2>
-          <button
-            onClick={() => setShowAddMember(!showAddMember)}
-            className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700"
-          >
-            Add Member
-          </button>
-        </div>
-
-        {showAddMember && (
-          <div className="p-6 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800/50">
-            <form onSubmit={handleAddMember} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  Select User
-                </label>
-                {isLoadingUsers ? (
-                  <p className="text-sm text-muted-foreground">
-                    Loading users…
-                  </p>
-                ) : (
-                  <select
-                    value={newMemberUserId}
-                    onChange={(e) => setNewMemberUserId(e.target.value)}
-                    required
-                    className="w-full px-3 py-2 border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-800 text-sm"
-                  >
-                    <option value="">— choose a user —</option>
-                    {availableUsers.map((user) => (
-                      <option key={user.id} value={user.id}>
-                        {getUserDisplayName(user)}
-                        {user.traits.email ? ` (${user.traits.email})` : ""}
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </div>
-              <div className="flex gap-2">
-                <button
-                  type="submit"
-                  disabled={isAddingMember || !newMemberUserId}
-                  className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {isAddingMember ? "Adding…" : "Add Member"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowAddMember(false);
-                    setNewMemberUserId("");
-                  }}
-                  className="px-4 py-2 border border-zinc-300 dark:border-zinc-600 text-sm rounded-md hover:bg-zinc-50 dark:hover:bg-zinc-800"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </div>
-        )}
-
-        <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
+      {/* Members Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Members ({members.length})</CardTitle>
+          <CardAction>
+            <Button
+              size="sm"
+              onClick={() => {
+                setAddError("");
+                setNewMemberUserId("");
+                setAddOpen(true);
+                if (availableUsers.length === 0) loadAvailableUsers();
+              }}
+            >
+              Add Member
+            </Button>
+          </CardAction>
+        </CardHeader>
+        <CardContent className="px-0 pb-0">
           {members.length === 0 ? (
-            <p className="p-6 text-sm text-muted-foreground text-center">
+            <p className="px-6 py-8 text-sm text-muted-foreground text-center">
               No members yet.
             </p>
           ) : (
-            members.map((member) => (
-              <div
-                key={member.userId}
-                className="p-4 flex items-center justify-between"
-              >
-                <div>
-                  <p className="text-sm font-medium">
-                    {member.name || member.email || member.userId}
-                  </p>
-                  {member.email && member.name && (
-                    <p className="text-xs text-muted-foreground">
-                      {member.email}
-                    </p>
-                  )}
-                </div>
-                <button
-                  onClick={() => handleRemoveMember(member.userId)}
-                  className="text-xs text-red-600 hover:text-red-700 font-medium"
-                >
-                  Remove
-                </button>
-              </div>
-            ))
+            <div className="divide-y">
+              {members.map((member) => {
+                const displayName = member.name || member.email || member.userId;
+                const initials = getInitials(
+                  member.name || "",
+                  member.email || member.userId,
+                );
+                return (
+                  <div
+                    key={member.userId}
+                    className="flex items-center justify-between px-6 py-3"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-xs font-semibold text-muted-foreground shrink-0">
+                        {initials}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">{displayName}</p>
+                        {member.email && member.name && (
+                          <p className="text-xs text-muted-foreground">
+                            {member.email}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => handleRemoveMember(member.userId)}
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
           )}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
+
+      {/* Edit Group Sheet */}
+      <Sheet open={editOpen} onOpenChange={setEditOpen}>
+        <SheetContent side="right">
+          <SheetHeader>
+            <SheetTitle>Edit Group</SheetTitle>
+            <SheetDescription>
+              Update the group name and description.
+            </SheetDescription>
+          </SheetHeader>
+          <form
+            onSubmit={handleSaveEdit}
+            className="flex flex-col gap-4 px-4"
+          >
+            <FormErrorAlert error={editError || null} />
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-name">
+                Group Name <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="edit-name"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-desc">Description</Label>
+              <Textarea
+                id="edit-desc"
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                rows={4}
+                placeholder="Optional description"
+              />
+            </div>
+            <SheetFooter className="flex-row justify-end gap-2 px-0">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setEditOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isSaving}>
+                {isSaving ? "Saving…" : "Save Changes"}
+              </Button>
+            </SheetFooter>
+          </form>
+        </SheetContent>
+      </Sheet>
+
+      {/* Add Member Sheet */}
+      <Sheet open={addOpen} onOpenChange={setAddOpen}>
+        <SheetContent side="right">
+          <SheetHeader>
+            <SheetTitle>Add Member</SheetTitle>
+            <SheetDescription>
+              Select a user to add to {group.name}.
+            </SheetDescription>
+          </SheetHeader>
+          <form
+            onSubmit={handleAddMember}
+            className="flex flex-col gap-4 px-4"
+          >
+            <FormErrorAlert error={addError || null} />
+            <div className="space-y-1.5">
+              <Label htmlFor="add-member-user">
+                User <span className="text-destructive">*</span>
+              </Label>
+              {isLoadingUsers ? (
+                <p className="text-sm text-muted-foreground">Loading users…</p>
+              ) : (
+                <Select
+                  value={newMemberUserId}
+                  onValueChange={setNewMemberUserId}
+                >
+                  <SelectTrigger id="add-member-user" className="w-full">
+                    <SelectValue placeholder="Select a user…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableUsers.map((user) => {
+                      const first = user.traits.name?.first || "";
+                      const last = user.traits.name?.last || "";
+                      const full = `${first} ${last}`.trim();
+                      const label = full || user.traits.email || user.id;
+                      const sub =
+                        full && user.traits.email
+                          ? ` (${user.traits.email})`
+                          : "";
+                      return (
+                        <SelectItem key={user.id} value={user.id}>
+                          {label}{sub}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+            <SheetFooter className="flex-row justify-end gap-2 px-0">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setAddOpen(false);
+                  setNewMemberUserId("");
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={isAddingMember || !newMemberUserId}
+              >
+                {isAddingMember ? "Adding…" : "Add Member"}
+              </Button>
+            </SheetFooter>
+          </form>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

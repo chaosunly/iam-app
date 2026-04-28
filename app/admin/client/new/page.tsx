@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -133,17 +134,18 @@ export default function AdminClientCreatePage() {
 
   return (
     <div className="space-y-6 p-6 md:p-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Create OAuth2 Client</h1>
-          <p className="text-muted-foreground mt-1">
-            Create a Hydra OAuth2 client for applications like IAM UI, Element,
-            or other services.
-          </p>
-        </div>
-        <Button asChild variant="outline">
-          <Link href="/admin/client">Back to Clients</Link>
+      <div>
+        <Button variant="ghost" size="sm" asChild className="mb-4 -ml-2">
+          <Link href="/admin/client">
+            <ChevronLeft className="mr-1 h-4 w-4" />
+            Back to Clients
+          </Link>
         </Button>
+        <h1 className="text-3xl font-bold">Create OAuth2 Client</h1>
+        <p className="text-muted-foreground mt-1">
+          Create a Hydra OAuth2 client for applications like IAM UI, Element,
+          or other services.
+        </p>
       </div>
 
       <Card>
@@ -241,10 +243,7 @@ export default function AdminClientCreatePage() {
               </div>
             )}
 
-            <div className="flex items-center gap-3">
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Creating..." : "Create Client"}
-              </Button>
+            <div className="flex items-center justify-end gap-3">
               {authUrl && (
                 <a
                   href={authUrl}
@@ -255,6 +254,12 @@ export default function AdminClientCreatePage() {
                   Test authorization URL
                 </a>
               )}
+              <Button type="button" variant="outline" asChild>
+                <Link href="/admin/client">Cancel</Link>
+              </Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? "Creating..." : "Create Client"}
+              </Button>
             </div>
           </form>
         </CardContent>

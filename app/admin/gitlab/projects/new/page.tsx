@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -81,8 +82,11 @@ export default function NewGitlabProjectPage() {
   return (
     <div className="max-w-2xl space-y-6 p-6 md:p-8">
       <div>
-        <Button asChild variant="ghost" size="sm" className="-ml-2">
-          <Link href="/admin/gitlab/projects">← Back to Projects</Link>
+        <Button variant="ghost" size="sm" asChild className="mb-4 -ml-2">
+          <Link href="/admin/gitlab/projects">
+            <ChevronLeft className="mr-1 h-4 w-4" />
+            Back to Projects
+          </Link>
         </Button>
         <h1 className="text-3xl font-bold mt-2">Create GitLab Project</h1>
         <p className="text-muted-foreground mt-1">Create a new GitLab project for your team</p>
@@ -147,12 +151,12 @@ export default function NewGitlabProjectPage() {
               </p>
             </div>
 
-            <div className="flex gap-3 pt-2">
-              <Button type="submit" disabled={loading}>
-                {loading ? "Creating..." : "Create Project"}
-              </Button>
+            <div className="flex justify-end gap-3 pt-2">
               <Button asChild variant="outline">
                 <Link href="/admin/gitlab/projects">Cancel</Link>
+              </Button>
+              <Button type="submit" disabled={loading}>
+                {loading ? "Creating..." : "Create Project"}
               </Button>
             </div>
           </form>
