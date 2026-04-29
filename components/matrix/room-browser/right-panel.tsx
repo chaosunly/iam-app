@@ -35,8 +35,16 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useApiMutation } from "@/lib/hooks/use-api-mutation";
 import { AssignRoleForm } from "./assign-role-form";
-import { RoleBadge } from "./role-badge";
+import { ROLE_LABELS } from "./role-badge";
 import type { RoomItem, Identity, MemberAssignment, DmContact } from "./types";
 
 interface RightPanelProps {
@@ -311,6 +319,72 @@ function identityLabel(identities: Identity[], userId: string): string {
   return identity?.traits?.email || identity?.traits?.name || userId;
 }
 
+const MATRIX_ROLES = [
+  "matrix_admin",
+  "moderator",
+  "support",
+  "member",
+  "viewer",
+] as const;
+
+const ROLE_TRIGGER_CLASSES: Record<string, string> = {
+  matrix_admin:
+    "bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-200 border-transparent",
+  moderator:
+    "bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 border-transparent",
+  support:
+    "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 border-transparent",
+  member:
+    "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 border-transparent",
+  viewer: "border-transparent",
+};
+
+interface RoleSelectProps {
+  member: MemberAssignment;
+  onRefresh: () => void;
+}
+
+function RoleSelect({ member, onRefresh }: RoleSelectProps) {
+  const { mutate, isPending } = useApiMutation<
+    { userId: string; resourceType: string; resourceId: string; newRole: string },
+    { assignment: unknown }
+  >("/api/admin/matrix/roles", {
+    method: "PUT",
+    onSuccess: () => {
+      toast.success("Role updated");
+      onRefresh();
+    },
+  });
+
+  return (
+    <Select
+      value={member.role}
+      onValueChange={(newRole) =>
+        mutate({
+          userId: member.userId,
+          resourceType: member.resourceType,
+          resourceId: member.resourceId,
+          newRole,
+        })
+      }
+      disabled={isPending}
+    >
+      <SelectTrigger
+        className={`h-auto w-auto gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold shadow-none focus:ring-0 ${ROLE_TRIGGER_CLASSES[member.role] ?? ""}`}
+      >
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {MATRIX_ROLES.map((r) => (
+          <SelectItem key={r} value={r}>
+            {ROLE_LABELS[r]}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
 function MembersTable({
   members,
   identities,
@@ -390,7 +464,7 @@ function MembersTable({
                 </div>
               </TableCell>
               <TableCell>
-                <RoleBadge role={member.role} />
+                <RoleSelect member={member} onRefresh={onRefresh} />
               </TableCell>
               <TableCell className="text-muted-foreground">
                 {new Date(member.createdAt).toLocaleDateString()}
