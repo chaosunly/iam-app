@@ -35,16 +35,8 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { useApiMutation } from "@/lib/hooks/use-api-mutation";
 import { AssignRoleForm } from "./assign-role-form";
-import { ROLE_LABELS, ROLE_CLASSES, MATRIX_ROLES } from "./role-badge";
+import { RoleSelectCell } from "./role-select-cell";
 import type { RoomItem, Identity, MemberAssignment, DmContact } from "./types";
 
 interface RightPanelProps {
@@ -319,52 +311,6 @@ function identityLabel(identities: Identity[], userId: string): string {
   return identity?.traits?.email || identity?.traits?.name || userId;
 }
 
-interface RoleSelectProps {
-  member: MemberAssignment;
-  onRefresh: () => void;
-}
-
-function RoleSelect({ member, onRefresh }: RoleSelectProps) {
-  const { mutate, isPending } = useApiMutation<
-    { userId: string; resourceType: string; resourceId: string; newRole: string },
-    { assignment: unknown }
-  >("/api/admin/matrix/roles", {
-    method: "PUT",
-    onSuccess: () => {
-      toast.success("Role updated");
-      onRefresh();
-    },
-  });
-
-  return (
-    <Select
-      value={member.role}
-      onValueChange={(newRole) =>
-        mutate({
-          userId: member.userId,
-          resourceType: member.resourceType,
-          resourceId: member.resourceId,
-          newRole,
-        })
-      }
-      disabled={isPending}
-    >
-      <SelectTrigger
-        className={`h-auto w-auto gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold shadow-none focus:ring-0 ${ROLE_CLASSES[member.role] ?? ""}`}
-      >
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        {MATRIX_ROLES.map((r) => (
-          <SelectItem key={r} value={r}>
-            {ROLE_LABELS[r]}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
-}
-
 function MembersTable({
   members,
   identities,
@@ -444,7 +390,13 @@ function MembersTable({
                 </div>
               </TableCell>
               <TableCell>
-                <RoleSelect member={member} onRefresh={onRefresh} />
+                <RoleSelectCell
+                  userId={member.userId}
+                  resourceType={member.resourceType}
+                  resourceId={member.resourceId}
+                  role={member.role}
+                  onRefresh={onRefresh}
+                />
               </TableCell>
               <TableCell className="text-muted-foreground">
                 {new Date(member.createdAt).toLocaleDateString()}

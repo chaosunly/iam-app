@@ -24,6 +24,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
+import { RoleSelectCell } from "@/components/matrix/room-browser/role-select-cell";
+import { MATRIX_ROLES, ROLE_LABELS } from "@/components/matrix/room-browser/role-badge";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -55,16 +57,6 @@ interface SyncResult {
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
-const MATRIX_ROLES = ["matrix_admin", "moderator", "support", "member", "viewer"] as const;
-
-const ROLE_LABELS: Record<string, string> = {
-  matrix_admin: "Matrix Admin",
-  moderator:    "Moderator",
-  support:      "Support",
-  member:       "Member",
-  viewer:       "Viewer",
-};
-
 const ROLE_BADGE_CLASSES: Record<string, string> = {
   matrix_admin: "bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-200",
   moderator:    "bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200",
@@ -72,58 +64,6 @@ const ROLE_BADGE_CLASSES: Record<string, string> = {
   member:       "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200",
   viewer:       "bg-secondary text-secondary-foreground",
 };
-
-// ─── RoleSelectInline ───────────────────────────────────────────────────────
-
-interface RoleSelectInlineProps {
-  member: MatrixRoleAssignment;
-  onRefresh: () => void;
-}
-
-function RoleSelectInline({ member, onRefresh }: RoleSelectInlineProps) {
-  const [saving, setSaving] = useState(false);
-
-  async function handleChange(newRole: string) {
-    setSaving(true);
-    try {
-      const res = await fetch("/api/admin/matrix/roles", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: member.userId,
-          resourceType: member.resourceType,
-          resourceId: member.resourceId,
-          newRole,
-        }),
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        alert(data.error || "Failed to update role");
-        return;
-      }
-      onRefresh();
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <Select value={member.role} onValueChange={handleChange} disabled={saving}>
-      <SelectTrigger
-        className={`h-auto w-auto gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold shadow-none focus:ring-0 ${ROLE_BADGE_CLASSES[member.role] ?? ""}`}
-      >
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        {MATRIX_ROLES.map((r) => (
-          <SelectItem key={r} value={r}>
-            {ROLE_LABELS[r]}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
-}
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
@@ -472,7 +412,13 @@ export default function MatrixRolesPage() {
                         <p className="text-xs text-muted-foreground font-mono">{member.userId}</p>
                       </TableCell>
                       <TableCell>
-                        <RoleSelectInline member={member} onRefresh={fetchMembers} />
+                        <RoleSelectCell
+                          userId={member.userId}
+                          resourceType={member.resourceType}
+                          resourceId={member.resourceId}
+                          role={member.role}
+                          onRefresh={fetchMembers}
+                        />
                       </TableCell>
                       <TableCell className="text-muted-foreground">
                         {new Date(member.createdAt).toLocaleDateString()}
