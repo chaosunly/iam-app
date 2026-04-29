@@ -27,16 +27,8 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { useApiMutation } from "@/lib/hooks/use-api-mutation";
-import { ROLE_LABELS } from "./role-badge";
+import { ROLE_LABELS, MATRIX_ROLES } from "./role-badge";
 import type { Identity } from "./types";
-
-const MATRIX_ROLES = [
-  "matrix_admin",
-  "moderator",
-  "support",
-  "member",
-  "viewer",
-] as const;
 
 interface AssignRoleFormProps {
   roomId: string;

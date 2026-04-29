@@ -1,5 +1,13 @@
 import { Badge } from "@/components/ui/badge";
 
+export const MATRIX_ROLES = [
+  "matrix_admin",
+  "moderator",
+  "support",
+  "member",
+  "viewer",
+] as const;
+
 export const ROLE_LABELS: Record<string, string> = {
   matrix_admin: "Matrix Admin",
   moderator: "Moderator",
@@ -8,7 +16,7 @@ export const ROLE_LABELS: Record<string, string> = {
   viewer: "Viewer",
 };
 
-const ROLE_CLASSES: Record<string, string> = {
+export const ROLE_CLASSES: Record<string, string> = {
   matrix_admin:
     "bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-200 border-transparent",
   moderator:
