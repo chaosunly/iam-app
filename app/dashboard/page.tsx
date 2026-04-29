@@ -77,8 +77,8 @@ export default async function DashboardPage() {
                 </p>
                 <p className="text-2xl font-bold">Active</p>
               </div>
-              <div className="w-12 h-12 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center">
-                <Check className="w-6 h-6 text-green-600 dark:text-green-400" />
+              <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center">
+                <Check className="w-6 h-6 text-muted-foreground" />
               </div>
             </CardContent>
           </Card>
@@ -91,8 +91,8 @@ export default async function DashboardPage() {
                   {email}
                 </p>
               </div>
-              <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center">
-                <Mail className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+              <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center">
+                <Mail className="w-6 h-6 text-muted-foreground" />
               </div>
             </CardContent>
           </Card>
@@ -103,8 +103,8 @@ export default async function DashboardPage() {
                 <p className="text-sm text-muted-foreground mb-1">Groups</p>
                 <p className="text-2xl font-bold">{userGroups.length}</p>
               </div>
-              <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/20 rounded-full flex items-center justify-center">
-                <Users className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+              <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center">
+                <Users className="w-6 h-6 text-muted-foreground" />
               </div>
             </CardContent>
           </Card>
@@ -131,8 +131,8 @@ export default async function DashboardPage() {
                     className="flex items-center justify-between p-3 rounded-lg border"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
-                        <Users className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                      <div className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center">
+                        <Users className="w-5 h-5 text-muted-foreground" />
                       </div>
                       <div>
                         <p className="font-medium">{group.name}</p>

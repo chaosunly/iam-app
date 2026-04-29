@@ -37,7 +37,9 @@ interface AssignRoleFormProps {
 }
 
 function identityLabel(identity: Identity): string {
-  return identity.traits?.email || identity.traits?.name || identity.id;
+  const n = identity.traits?.name;
+  const fullName = n ? [n.first, n.last].filter(Boolean).join(" ") : "";
+  return identity.traits?.email || fullName || identity.id;
 }
 
 export function AssignRoleForm({

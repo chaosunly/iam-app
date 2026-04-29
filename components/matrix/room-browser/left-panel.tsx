@@ -263,7 +263,9 @@ function DmList({ identities, selectedDmId, onDmSelect }: DmListProps) {
 
   function identityLabel(recipientId: string): string {
     const identity = identities.find((i) => i.id === recipientId);
-    return identity?.traits?.name || identity?.traits?.email || recipientId;
+    const n = identity?.traits?.name;
+    const fullName = n ? [n.first, n.last].filter(Boolean).join(" ") : "";
+    return fullName || identity?.traits?.email || recipientId;
   }
 
   return (

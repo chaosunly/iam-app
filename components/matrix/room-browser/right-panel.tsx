@@ -308,7 +308,9 @@ interface MembersTableProps {
 
 function identityLabel(identities: Identity[], userId: string): string {
   const identity = identities.find((i) => i.id === userId);
-  return identity?.traits?.email || identity?.traits?.name || userId;
+  const n = identity?.traits?.name;
+  const fullName = n ? [n.first, n.last].filter(Boolean).join(" ") : "";
+  return identity?.traits?.email || fullName || userId;
 }
 
 function MembersTable({
@@ -521,8 +523,9 @@ function DmContactPanel({ dm, identities, onRemoved }: DmContactPanelProps) {
   const [removing, setRemoving] = useState(false);
 
   const identity = identities.find((i) => i.id === dm.recipientId);
-  const label =
-    identity?.traits?.name || identity?.traits?.email || dm.recipientId;
+  const n = identity?.traits?.name;
+  const fullName = n ? [n.first, n.last].filter(Boolean).join(" ") : "";
+  const label = fullName || identity?.traits?.email || dm.recipientId;
   const initial = label[0]?.toUpperCase() ?? "?";
 
   const elementUrl = dm.matrixUserId

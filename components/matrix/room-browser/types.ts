@@ -23,7 +23,7 @@ export interface RoomItem {
 
 export interface Identity {
   id: string;
-  traits: { email?: string; name?: string };
+  traits: { email?: string; name?: { first?: string; last?: string } };
 }
 
 export type MatrixResourceType = "org" | "space" | "room";

@@ -32,11 +32,11 @@ export default async function GitlabAccessPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Groups Card */}
         <Link href="/admin/gitlab/groups">
-          <Card className="hover:border-blue-500 transition-colors cursor-pointer">
+          <Card className="hover:border-foreground/30 transition-colors cursor-pointer">
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
-                <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                  <Users className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                <div className="p-3 bg-muted rounded-lg">
+                  <Users className="w-6 h-6 text-muted-foreground" />
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold">Groups</h3>
@@ -51,11 +51,11 @@ export default async function GitlabAccessPage() {
 
         {/* Projects Card */}
         <Link href="/admin/gitlab/projects">
-          <Card className="hover:border-green-500 transition-colors cursor-pointer">
+          <Card className="hover:border-foreground/30 transition-colors cursor-pointer">
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
-                <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-lg">
-                  <Folder className="w-6 h-6 text-green-600 dark:text-green-400" />
+                <div className="p-3 bg-muted rounded-lg">
+                  <Folder className="w-6 h-6 text-muted-foreground" />
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold">Projects</h3>
@@ -70,11 +70,11 @@ export default async function GitlabAccessPage() {
 
         {/* Roles Card */}
         <Link href="/admin/gitlab/roles">
-          <Card className="hover:border-purple-500 transition-colors cursor-pointer">
+          <Card className="hover:border-foreground/30 transition-colors cursor-pointer">
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
-                <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
-                  <Shield className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                <div className="p-3 bg-muted rounded-lg">
+                  <Shield className="w-6 h-6 text-muted-foreground" />
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold">Role Assignments</h3>

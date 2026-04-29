@@ -41,7 +41,8 @@ export function DmSearchDialog({
       .filter((i) => {
         if (!q) return true;
         const email = i.traits.email?.toLowerCase() ?? "";
-        const name = i.traits.name?.toLowerCase() ?? "";
+        const nn = i.traits.name;
+        const name = nn ? [nn.first, nn.last].filter(Boolean).join(" ").toLowerCase() : "";
         return email.includes(q) || name.includes(q);
       })
       .slice(0, 8);
@@ -69,7 +70,9 @@ export function DmSearchDialog({
   }
 
   function identityLabel(identity: Identity): string {
-    return identity.traits.name || identity.traits.email || identity.id;
+    const n = identity.traits.name;
+    const fullName = n ? [n.first, n.last].filter(Boolean).join(" ") : "";
+    return fullName || identity.traits.email || identity.id;
   }
 
   return (
