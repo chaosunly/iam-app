@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { toast } from "sonner";
 
 interface UseApiMutationOptions<TData> {
@@ -23,6 +23,9 @@ export function useApiMutation<TBody = unknown, TData = unknown>(
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const onSuccessRef = useRef(onSuccess);
+  onSuccessRef.current = onSuccess;
+
   const mutate = useCallback(
     async (body?: TBody) => {
       setIsPending(true);
@@ -40,7 +43,7 @@ export function useApiMutation<TBody = unknown, TData = unknown>(
           toast.error(message);
           return;
         }
-        onSuccess?.(data as TData);
+        onSuccessRef.current?.(data as TData);
       } catch {
         const message = "Network error. Please try again.";
         setError(message);
@@ -49,7 +52,6 @@ export function useApiMutation<TBody = unknown, TData = unknown>(
         setIsPending(false);
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [url, method],
   );
 

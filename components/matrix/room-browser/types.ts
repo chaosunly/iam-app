@@ -26,10 +26,12 @@ export interface Identity {
   traits: { email?: string; name?: string };
 }
 
+export type MatrixResourceType = "org" | "space" | "room";
+
 export interface MemberAssignment {
   id: string;
   userId: string;
-  resourceType: string;
+  resourceType: MatrixResourceType;
   resourceId: string;
   role: string;
   createdAt: string;

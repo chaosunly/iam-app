@@ -10,10 +10,11 @@ import {
 } from "@/components/ui/select";
 import { useApiMutation } from "@/lib/hooks/use-api-mutation";
 import { MATRIX_ROLES, ROLE_LABELS, ROLE_CLASSES } from "./role-badge";
+import type { MatrixResourceType } from "./types";
 
 interface RoleSelectCellProps {
   userId: string;
-  resourceType: string;
+  resourceType: MatrixResourceType;
   resourceId: string;
   role: string;
   onRefresh: () => void;

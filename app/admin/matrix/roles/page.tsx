@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/table";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { RoleSelectCell } from "@/components/matrix/room-browser/role-select-cell";
-import { MATRIX_ROLES, ROLE_LABELS } from "@/components/matrix/room-browser/role-badge";
+import { MATRIX_ROLES, ROLE_LABELS, ROLE_CLASSES } from "@/components/matrix/room-browser/role-badge";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -57,13 +57,6 @@ interface SyncResult {
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
-const ROLE_BADGE_CLASSES: Record<string, string> = {
-  matrix_admin: "bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-200",
-  moderator:    "bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200",
-  support:      "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200",
-  member:       "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200",
-  viewer:       "bg-secondary text-secondary-foreground",
-};
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
@@ -346,7 +339,7 @@ export default function MatrixRolesPage() {
                         onChange={() => setRole(r)}
                         className="sr-only"
                       />
-                      <Badge className={ROLE_BADGE_CLASSES[r]}>{ROLE_LABELS[r]}</Badge>
+                      <Badge className={ROLE_CLASSES[r]}>{ROLE_LABELS[r]}</Badge>
                       <span className="text-xs text-muted-foreground">
                         {r === "matrix_admin" && "Full control — manage users, roles, spaces, rooms"}
                         {r === "moderator"    && "Manage rooms and users within their scope"}
@@ -458,7 +451,7 @@ export default function MatrixRolesPage() {
             {MATRIX_ROLES.map((r) => (
               <div key={r} className="flex gap-3">
                 <dt>
-                  <Badge className={ROLE_BADGE_CLASSES[r]}>{ROLE_LABELS[r]}</Badge>
+                  <Badge className={ROLE_CLASSES[r]}>{ROLE_LABELS[r]}</Badge>
                 </dt>
                 <dd className="text-muted-foreground">
                   {r === "matrix_admin" &&
