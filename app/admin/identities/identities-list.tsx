@@ -17,20 +17,9 @@ import {
 } from "@/components/ui/table";
 import { Plus } from "lucide-react";
 import { DeleteDialog } from "@/components/admin/delete-dialog";
+import type { Identity } from "@/lib/types";
 
 const PAGE_SIZE = 15;
-
-interface Identity {
-  id: string;
-  schema_id: string;
-  traits: {
-    email?: string;
-    name?: { first?: string; last?: string };
-  };
-  state: string;
-  created_at: string;
-  updated_at: string;
-}
 
 interface Props {
   identities: Identity[];
