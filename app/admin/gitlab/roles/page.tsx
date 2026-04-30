@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { getGitlabGroups, getGitlabProjects } from "@/lib/services/gitlab.service";
 import { listIdentities } from "@/lib/services/kratos.service";
 import { GitlabRolesClient } from "./roles-client";
@@ -12,13 +13,15 @@ export default async function GitlabRolesPage() {
   ]);
 
   return (
-    <GitlabRolesClient
-      initialGroups={groups.map((g) => ({ id: g.id, name: g.name }))}
-      initialProjects={projects.map((p) => ({ id: p.id, name: p.name }))}
-      initialIdentities={identities.map((i) => ({
-        id: i.id,
-        traits: { email: i.traits?.email, name: i.traits?.name?.first },
-      }))}
-    />
+    <Suspense fallback={<div className="p-8 text-muted-foreground">Loading...</div>}>
+      <GitlabRolesClient
+        initialGroups={groups.map((g) => ({ id: g.id, name: g.name }))}
+        initialProjects={projects.map((p) => ({ id: p.id, name: p.name }))}
+        initialIdentities={identities.map((i) => ({
+          id: i.id,
+          traits: { email: i.traits?.email, name: i.traits?.name?.first },
+        }))}
+      />
+    </Suspense>
   );
 }

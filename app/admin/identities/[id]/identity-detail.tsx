@@ -10,8 +10,9 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
+import { DeleteDialog } from "@/components/admin/delete-dialog";
 
-interface Identity {
+interface IdentityData {
   id: string;
   schema_id: string;
   traits: {
@@ -31,7 +32,7 @@ interface AccessInfo {
 }
 
 interface Props {
-  identity: Identity;
+  identity: IdentityData;
   accessInfo: AccessInfo;
 }
 
@@ -41,6 +42,7 @@ export function IdentityDetail({ identity: initialIdentity, accessInfo }: Props)
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [formData, setFormData] = useState({
     email: initialIdentity.traits.email || "",
     firstName: initialIdentity.traits.name?.first || "",
@@ -83,15 +85,14 @@ export function IdentityDetail({ identity: initialIdentity, accessInfo }: Props)
     }
   };
 
-  const handleDelete = async () => {
-    if (!confirm("Are you sure you want to delete this identity? This action cannot be undone.")) return;
-    try {
-      const response = await fetch(`/api/admin/identities/${identity.id}`, { method: "DELETE" });
-      if (!response.ok) throw new Error("Failed to delete identity");
-      router.push("/admin/identities");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete identity");
-    }
+  const handleDelete = () => {
+    setShowDeleteDialog(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    const response = await fetch(`/api/admin/identities/${identity.id}`, { method: "DELETE" });
+    if (!response.ok) throw new Error("Failed to delete identity");
+    router.push("/admin/identities");
   };
 
   return (
@@ -290,6 +291,15 @@ export function IdentityDetail({ identity: initialIdentity, accessInfo }: Props)
       <Link href="/admin/identities" className="text-sm text-muted-foreground hover:text-foreground">
         ← Back to all identities
       </Link>
+
+      <DeleteDialog
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        title="Delete Identity"
+        description={`This will permanently delete ${identity.traits.email || identity.id}. This action cannot be undone.`}
+        successMessage="Identity deleted successfully"
+        onConfirm={handleDeleteConfirm}
+      />
     </div>
   );
 }
