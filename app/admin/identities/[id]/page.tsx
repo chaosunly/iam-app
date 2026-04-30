@@ -13,17 +13,13 @@ export default async function IdentityDetailPage({
 }) {
   const { id } = await params;
 
-  let identity;
-  try {
-    identity = await getIdentity(id);
-  } catch {
-    notFound();
-  }
-
-  const [permissions, gitlabRoles] = await Promise.all([
-    listUserPermissions(id),
-    getUserGitlabRoles(id),
+  const [identity, permissions, gitlabRoles] = await Promise.all([
+    getIdentity(id).catch(() => null),
+    listUserPermissions(id).catch(() => []),
+    getUserGitlabRoles(id).catch(() => []),
   ]);
+
+  if (!identity) notFound();
 
   const accessInfo = {
     globalRoles: permissions

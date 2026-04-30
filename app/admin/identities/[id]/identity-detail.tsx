@@ -64,12 +64,17 @@ export function IdentityDetail({ identity: initialIdentity, accessInfo }: Props)
           },
         }),
       });
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Failed to update identity");
-      }
       const result = await response.json();
-      setIdentity(result.data || result);
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to update identity");
+      }
+      const saved = result.data || result;
+      setIdentity(saved);
+      setFormData({
+        email: saved.traits.email || "",
+        firstName: saved.traits.name?.first || "",
+        lastName: saved.traits.name?.last || "",
+      });
       setEditing(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
@@ -221,8 +226,8 @@ export function IdentityDetail({ identity: initialIdentity, accessInfo }: Props)
             <p className="text-sm font-medium text-muted-foreground mb-2">Global Roles</p>
             {accessInfo.globalRoles.length > 0 ? (
               <div className="flex flex-wrap gap-2">
-                {accessInfo.globalRoles.map((r, i) => (
-                  <Badge key={i} className="bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400">
+                {accessInfo.globalRoles.map((r) => (
+                  <Badge key={r.object} className="bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400">
                     {r.role}
                   </Badge>
                 ))}
@@ -235,8 +240,8 @@ export function IdentityDetail({ identity: initialIdentity, accessInfo }: Props)
             <p className="text-sm font-medium text-muted-foreground mb-2">Organization Roles</p>
             {accessInfo.orgRoles.length > 0 ? (
               <div className="space-y-1">
-                {accessInfo.orgRoles.map((r, i) => (
-                  <div key={i} className="flex items-center gap-2">
+                {accessInfo.orgRoles.map((r) => (
+                  <div key={r.organizationId} className="flex items-center gap-2">
                     <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400">{r.role}</Badge>
                     <span className="text-xs text-muted-foreground font-mono">{r.organizationId}</span>
                   </div>
@@ -250,8 +255,8 @@ export function IdentityDetail({ identity: initialIdentity, accessInfo }: Props)
             <p className="text-sm font-medium text-muted-foreground mb-2">Group Memberships</p>
             {accessInfo.groupMemberships.length > 0 ? (
               <div className="space-y-1">
-                {accessInfo.groupMemberships.map((g, i) => (
-                  <div key={i} className="flex items-center gap-2">
+                {accessInfo.groupMemberships.map((g) => (
+                  <div key={g.groupId} className="flex items-center gap-2">
                     <Badge variant="secondary">{g.role}</Badge>
                     <span className="text-xs text-muted-foreground font-mono">{g.groupId}</span>
                   </div>
@@ -265,8 +270,8 @@ export function IdentityDetail({ identity: initialIdentity, accessInfo }: Props)
             <p className="text-sm font-medium text-muted-foreground mb-2">GitLab Access</p>
             {accessInfo.gitlabAccess.length > 0 ? (
               <div className="space-y-1">
-                {accessInfo.gitlabAccess.map((g, i) => (
-                  <div key={i} className="flex items-center gap-2 flex-wrap">
+                {accessInfo.gitlabAccess.map((g) => (
+                  <div key={`${g.resourceType}-${g.resourceId}`} className="flex items-center gap-2 flex-wrap">
                     <Badge className="bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400">
                       {g.role}
                     </Badge>
