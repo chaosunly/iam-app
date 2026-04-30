@@ -1,147 +1,16 @@
-"use client";
+import { getGitlabProjects } from "@/lib/services/gitlab.service";
+import { GitlabProjectsList } from "./projects-list";
 
-import { useState, useEffect } from "react";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { AlertCircle, Folder } from "lucide-react";
+export const dynamic = "force-dynamic";
 
-interface GitlabProject {
-  id: string;
-  name: string;
-  description?: string | null;
-  createdAt: string;
-  group?: { id: string; name: string } | null;
-}
-
-export default function GitlabProjectsPage() {
-  const [projects, setProjects] = useState<GitlabProject[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    fetchProjects();
-  }, []);
-
-  async function fetchProjects() {
-    try {
-      setLoading(true);
-      const response = await fetch("/api/admin/gitlab/projects");
-      if (!response.ok) throw new Error("Failed to fetch projects");
-      const data = await response.json();
-      setProjects(data.projects || []);
-    } catch (err: any) {
-      setError(err.message || "Failed to load projects");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleDelete(projectId: string, projectName: string) {
-    if (!confirm(`Are you sure you want to delete the project "${projectName}"?`)) return;
-
-    try {
-      const response = await fetch(`/api/admin/gitlab/projects/${projectId}`, {
-        method: "DELETE",
-      });
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Failed to delete project");
-      }
-      fetchProjects();
-    } catch (err: any) {
-      alert(err.message || "Failed to delete project");
-    }
-  }
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64 text-muted-foreground">
-        Loading projects...
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-6 p-6 md:p-8">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold">GitLab Projects</h1>
-          <p className="text-muted-foreground mt-1">Manage GitLab projects and their members</p>
-        </div>
-        <Button asChild>
-          <Link href="/admin/gitlab/projects/new">Create Project</Link>
-        </Button>
-      </div>
-
-      {error && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
-
-      <Card className="p-0 gap-0">
-        {projects.length > 0 ? (
-          <div className="divide-y">
-            {projects.map((project) => (
-              <div key={project.id} className="p-6 hover:bg-muted/50 transition-colors">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <Link
-                        href={`/admin/gitlab/projects/${project.id}`}
-                        className="text-lg font-semibold hover:text-primary transition-colors"
-                      >
-                        {project.name}
-                      </Link>
-                      {project.group && (
-                        <Badge asChild variant="secondary">
-                          <Link href={`/admin/gitlab/groups/${project.group.id}`}>
-                            {project.group.name}
-                          </Link>
-                        </Badge>
-                      )}
-                    </div>
-                    {project.description && (
-                      <p className="text-muted-foreground mt-1 text-sm">{project.description}</p>
-                    )}
-                    <p className="text-sm text-muted-foreground mt-2">
-                      Created {new Date(project.createdAt).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Button asChild variant="ghost" size="sm">
-                      <Link href={`/admin/gitlab/projects/${project.id}`}>View Details</Link>
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                      onClick={() => handleDelete(project.id, project.name)}
-                    >
-                      Delete
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="p-12 text-center">
-            <Folder className="mx-auto h-12 w-12 text-muted-foreground/50 mb-4" />
-            <h3 className="mt-4 text-lg font-medium">No projects yet</h3>
-            <p className="mt-2 text-muted-foreground">
-              Get started by creating a new GitLab project.
-            </p>
-            <Button asChild className="mt-6">
-              <Link href="/admin/gitlab/projects/new">Create Project</Link>
-            </Button>
-          </div>
-        )}
-      </Card>
-    </div>
-  );
+export default async function GitlabProjectsPage() {
+  const projects = await getGitlabProjects();
+  const serialized = projects.map((p) => ({
+    id: p.id,
+    name: p.name,
+    description: p.description,
+    createdAt: p.createdAt.toISOString(),
+    group: p.group ? { id: p.group.id, name: p.group.name } : null,
+  }));
+  return <GitlabProjectsList projects={serialized} />;
 }
