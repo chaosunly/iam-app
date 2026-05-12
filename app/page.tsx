@@ -8,14 +8,15 @@ export default function Home() {
     <div className="min-h-screen bg-background text-foreground">
       {/* ── NAVBAR ── */}
       <nav className="sticky top-0 z-50 flex items-center justify-between px-6 md:px-12 py-4 bg-background/85 backdrop-blur-md border-b border-border">
-        <a
-          href="#hero"
-          className="flex items-center gap-2.5 font-bold text-sm tracking-tight text-foreground no-underline"
-        >
-          <div className="w-7 h-7 bg-foreground rounded-lg flex items-center justify-center text-background text-[10px] font-extrabold shrink-0">
-            RI
-          </div>
-          REXFORM IAM
+        <a href="#hero" className="flex items-center no-underline">
+          <Image
+            src="/rexform-logo.png"
+            alt="REXFORM"
+            width={120}
+            height={23}
+            className="dark:invert"
+            priority
+          />
         </a>
         <ul className="hidden md:flex gap-8 list-none m-0 p-0">
           {[
@@ -313,11 +314,14 @@ export default function Home() {
         <div className="max-w-5xl mx-auto px-6 md:px-12 py-16">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12 mb-12">
             <div>
-              <div className="flex items-center gap-2.5 font-bold text-sm mb-3">
-                <div className="w-7 h-7 bg-foreground rounded-lg flex items-center justify-center text-background text-[10px] font-extrabold shrink-0">
-                  RI
-                </div>
-                REXFORM IAM
+              <div className="mb-3">
+                <Image
+                  src="/rexform-logo.png"
+                  alt="REXFORM"
+                  width={110}
+                  height={21}
+                  className="dark:invert"
+                />
               </div>
               <p className="text-[12px] text-muted-foreground leading-relaxed max-w-50">
                 Inclusive innovation through secure, human-centered digital

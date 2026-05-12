@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   type LucideIcon,
@@ -196,14 +197,15 @@ export function UserSidebar({
           </Button>
         </SheetTrigger>
         <SheetContent side="left" className="w-64 p-0 flex flex-col">
-          <div className="flex h-16 items-center gap-3 px-4">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <Home className="h-4 w-4" />
-            </div>
-            <div className="flex flex-col leading-none">
-              <span className="text-sm font-semibold">REXFORM IAM</span>
-              <span className="text-xs text-muted-foreground">User Portal</span>
-            </div>
+          <div className="flex h-16 items-center px-4">
+            <Image
+              src="/rexform-logo.png"
+              alt="REXFORM"
+              width={110}
+              height={21}
+              className="dark:invert"
+              priority
+            />
           </div>
           <nav className="flex-1 overflow-y-auto p-3">
             {sections.map((section, index) => (
@@ -260,21 +262,20 @@ export function UserSidebar({
           {/* Header */}
           {collapsed ? (
             <div className="flex h-16 items-center justify-center px-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <Home className="h-4 w-4" />
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground text-[10px] font-extrabold">
+                RF
               </div>
             </div>
           ) : (
-            <div className="flex h-16 items-center gap-3 px-4">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <Home className="h-4 w-4" />
-              </div>
-              <div className="flex flex-col leading-none">
-                <span className="text-sm font-semibold">IAM App</span>
-                <span className="text-xs text-muted-foreground">
-                  User Portal
-                </span>
-              </div>
+            <div className="flex h-16 items-center px-4">
+              <Image
+                src="/rexform-logo.png"
+                alt="REXFORM"
+                width={110}
+                height={21}
+                className="dark:invert"
+                priority
+              />
             </div>
           )}
 
