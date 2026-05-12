@@ -16,8 +16,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { ShieldCheck } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 
 interface RecoveryClientProps {
   flow: RecoveryFlow;
@@ -59,9 +59,7 @@ export function RecoveryClient({ flow }: RecoveryClientProps) {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-sm space-y-6">
         <div className="flex flex-col items-center gap-2 text-center">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-            <ShieldCheck className="h-5 w-5" />
-          </div>
+          <Image src="/rexform-logo.png" alt="REXFORM" width={140} height={27} className="dark:invert" priority />
           <h1 className="text-2xl font-bold tracking-tight">Reset password</h1>
           <p className="text-sm text-muted-foreground">
             {isCodeStage

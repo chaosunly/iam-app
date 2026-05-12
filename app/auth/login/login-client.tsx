@@ -18,8 +18,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Eye, EyeOff, ShieldCheck, Mail, Key, Fingerprint } from "lucide-react";
+import { Eye, EyeOff, Mail, Key, Fingerprint } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 
 interface LoginClientProps {
   flow: LoginFlow;
@@ -84,9 +85,7 @@ export function LoginClient({ flow }: LoginClientProps) {
       <div className="w-full max-w-sm space-y-6">
         {/* Brand */}
         <div className="flex flex-col items-center gap-2 text-center">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-            <ShieldCheck className="h-5 w-5" />
-          </div>
+          <Image src="/rexform-logo.png" alt="REXFORM" width={140} height={27} className="dark:invert" priority />
           <h1 className="text-2xl font-bold tracking-tight">
             {is2FA ? "Two-factor authentication" : isRefresh ? "Confirm your identity" : "Welcome back"}
           </h1>

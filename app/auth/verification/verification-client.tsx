@@ -14,8 +14,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { MailCheck, ShieldCheck } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 
 interface VerificationClientProps {
   flow: VerificationFlow;
@@ -32,13 +32,7 @@ export function VerificationClient({ flow }: VerificationClientProps) {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-sm space-y-6">
         <div className="flex flex-col items-center gap-2 text-center">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-            {isCodeStage ? (
-              <MailCheck className="h-5 w-5" />
-            ) : (
-              <ShieldCheck className="h-5 w-5" />
-            )}
-          </div>
+          <Image src="/rexform-logo.png" alt="REXFORM" width={140} height={27} className="dark:invert" priority />
           <h1 className="text-2xl font-bold tracking-tight">
             {isCodeStage ? "Check your inbox" : "Verify your email"}
           </h1>

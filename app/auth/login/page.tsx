@@ -61,9 +61,5 @@ export default async function LoginPage(props: OryPageParams) {
   }
 
   // Trigger OAuth2 flow
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-      <AutoOAuth2Login returnTo={returnTo as string} />
-    </div>
-  );
+  return <AutoOAuth2Login returnTo={returnTo as string} />;
 }

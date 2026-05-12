@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ShieldCheck, AlertCircle, ArrowRight } from "lucide-react";
+import Image from "next/image";
 
 const normalizeBaseUrl = (url: string) => url.replace(/\/$/, "");
 
@@ -153,17 +154,9 @@ export function AutoOAuth2Login({ returnTo }: { returnTo?: string }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-linear-to-b from-background to-muted/30 px-4">
       <div className="w-full max-w-xs space-y-6 text-center">
-        {/* Animated shield icon */}
+        {/* Logo */}
         <div className="flex justify-center">
-          <div className="relative">
-            {/* Outer pulse ring */}
-            {!showFallback && (
-              <span className="absolute inset-0 rounded-2xl bg-primary/20 animate-ping" />
-            )}
-            <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg">
-              <ShieldCheck className="h-8 w-8" />
-            </div>
-          </div>
+          <Image src="/rexform-logo.png" alt="REXFORM" width={160} height={31} className="dark:invert" priority />
         </div>
 
         {/* Text */}
