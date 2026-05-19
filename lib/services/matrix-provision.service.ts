@@ -257,11 +257,28 @@ export function backgroundBootstrapGroupRoom(
 
 export function backgroundProvisionMatrixAccount(
   iamUserId: string,
-  _displayName: string,
+  displayName: string,
 ): void {
   if (!isEnabled()) return;
-  provisionMatrixAccountDb(iamUserId).catch((err) => {
-    console.error("[MatrixProvision] Account DB provision failed:", iamUserId, err);
+  provisionMatrixAccountDb(iamUserId)
+    .then(() => preProvisionOnHomeserver(iamUserId, displayName))
+    .catch((err) => {
+      console.error("[MatrixProvision] Account provision failed:", iamUserId, err);
+    });
+}
+
+async function preProvisionOnHomeserver(iamUserId: string, displayName: string): Promise<void> {
+  if (!isHomeserverConfigured()) return;
+  const matrixUserId = toMatrixUserId(iamUserId, serverName());
+  await registerMatrixUser(iamUserId, displayName, isMasManaged() ? undefined : defaultPassword());
+  await prisma.matrixAccount.upsert({
+    where: { iamUserId },
+    update: { matrixUserId, homeserver: serverName() },
+    create: {
+      iamUserId,
+      matrixUserId,
+      homeserver: serverName(),
+    },
   });
 }
 
@@ -357,27 +374,27 @@ export async function syncToHomeserver(): Promise<{
   }
 
   // ── 3. Sync accounts (homeserver = "pending") ─────────────────────────────
-  // When MAS is managing auth (MSC3861), skip registration — MAS auto-provisions
-  // accounts on first login via Element. IAM DB records stay "pending" until then.
+  // When MAS is managing auth (MSC3861), register the account via Synapse admin API
+  // without a password — MAS owns authentication. Accounts created at identity-creation
+  // time via backgroundProvisionMatrixAccount are already registered; this loop catches
+  // any that fell through (e.g. created before this feature shipped).
 
   const pendingAccounts = await prisma.matrixAccount.findMany({
     where: { homeserver: "pending" },
   });
 
   if (isMasManaged()) {
-    // MAS provisions accounts on first login — skip Synapse registration but
-    // update DB records so membership sync can proceed (invites sent ahead of time;
-    // Matrix holds pending invites until the user first logs in via Element).
     for (const account of pendingAccounts) {
       try {
         const matrixUserId = toMatrixUserId(account.iamUserId, serverName());
+        await registerMatrixUser(account.iamUserId, account.iamUserId); // no password — MAS owns auth
         await prisma.matrixAccount.update({
           where: { id: account.id },
           data: { matrixUserId, homeserver: serverName() },
         });
-        result.accounts.skipped++;
+        result.accounts.synced++;
       } catch (err) {
-        console.error(`[MatrixSync] MAS account DB update failed: ${account.iamUserId}`, err);
+        console.error(`[MatrixSync] MAS account provision failed: ${account.iamUserId}`, err);
         result.accounts.failed.push(account.iamUserId);
       }
     }

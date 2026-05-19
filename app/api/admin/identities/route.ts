@@ -14,6 +14,7 @@ import {
   withErrorHandler,
 } from "@/lib/errors";
 import { assignDefaultPermissions } from "@/lib/services/user-setup.service";
+import { backgroundProvisionMatrixAccount } from "@/lib/services/matrix-provision.service";
 import { CreateIdentityRequest } from "@/lib/types";
 
 /**
@@ -56,6 +57,7 @@ export async function POST(request: NextRequest) {
 
     // Auto-sync: add new identity to default org (mirrors registration hook behavior)
     await assignDefaultPermissions(identity.id);
+    backgroundProvisionMatrixAccount(identity.id, body.traits?.email ?? identity.id);
 
     return createSuccessResponse(identity, 201);
   });

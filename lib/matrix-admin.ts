@@ -55,11 +55,18 @@ export function toMatrixUserId(iamUserId: string, serverName: string): string {
 export async function registerMatrixUser(
   iamUserId: string,
   displayName: string,
-  password: string,
+  password?: string,
 ): Promise<{ matrixUserId: string }> {
   const { url, token, name } = cfg();
   const matrixUserId = toMatrixUserId(iamUserId, name);
   const endpoint = `${url}/_synapse/admin/v2/users/${encodeURIComponent(matrixUserId)}`;
+
+  const body: Record<string, unknown> = {
+    displayname: displayName,
+    admin: false,
+    deactivated: false,
+  };
+  if (password !== undefined) body.password = password;
 
   const res = await fetch(endpoint, {
     method: "PUT",
@@ -67,12 +74,7 @@ export async function registerMatrixUser(
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      password,
-      displayname: displayName,
-      admin: false,
-      deactivated: false,
-    }),
+    body: JSON.stringify(body),
   });
 
   if (!res.ok) {
