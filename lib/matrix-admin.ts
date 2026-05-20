@@ -10,14 +10,16 @@
  *
  * Required env vars:
  *   MATRIX_HOMESERVER_URL  e.g. https://matrix.acme.corp
- *   MATRIX_ADMIN_TOKEN     Synapse admin access token
  *   MATRIX_SERVER_NAME     e.g. matrix.acme.corp
  *
+ * Recommended (replaces MATRIX_ADMIN_TOKEN for all room/membership ops):
+ *   MATRIX_AS_TOKEN        IAM Application Service token — never expires, rate_limited: false.
+ *                          Room creation, invites, joins, power levels, and kicks all use
+ *                          the AS bot (@iam-bot:<server>) when this is set.
+ *
  * Optional:
- *   MATRIX_REGISTRATION_SECRET  Synapse registration_shared_secret — when set,
- *     registerMatrixUser uses the shared-secret endpoint instead of the admin
- *     API, so MATRIX_ADMIN_TOKEN is not required to be a server admin and the
- *     credential never expires.
+ *   MATRIX_ADMIN_TOKEN     Only required for setMatrixUserAdmin (server-admin promotion).
+ *   MATRIX_REGISTRATION_SECRET  Synapse registration_shared_secret fallback.
  */
 
 import { createHmac } from "crypto";
@@ -25,15 +27,28 @@ import { createHmac } from "crypto";
 // ── Config ────────────────────────────────────────────────────────────────────
 
 function cfg() {
-  const url   = process.env.MATRIX_HOMESERVER_URL;
-  const token = process.env.MATRIX_ADMIN_TOKEN;
-  const name  = process.env.MATRIX_SERVER_NAME;
-  if (!url || !token || !name) {
-    throw new Error(
-      "MATRIX_HOMESERVER_URL, MATRIX_ADMIN_TOKEN and MATRIX_SERVER_NAME must all be set",
-    );
+  const url  = process.env.MATRIX_HOMESERVER_URL;
+  const name = process.env.MATRIX_SERVER_NAME;
+  if (!url || !name) {
+    throw new Error("MATRIX_HOMESERVER_URL and MATRIX_SERVER_NAME must be set");
   }
-  return { url, token, name };
+  return { url, token: process.env.MATRIX_ADMIN_TOKEN ?? "", name };
+}
+
+// Returns the IAM AS bot user ID — the identity used for all room operations when
+// MATRIX_AS_TOKEN is set. Matches the sender_localpart in iam-registration.yaml.
+function botUserId(serverName: string): string {
+  return `@iam-bot:${serverName}`;
+}
+
+// When MATRIX_AS_TOKEN is set, returns [asToken, "?user_id=@iam-bot:server"].
+// Otherwise returns [adminToken, ""] so callers fall back to the admin token path.
+function roomAuth(adminToken: string, serverName: string): { authToken: string; userIdParam: string } {
+  const asToken = process.env.MATRIX_AS_TOKEN;
+  if (asToken) {
+    return { authToken: asToken, userIdParam: `?user_id=${encodeURIComponent(botUserId(serverName))}` };
+  }
+  return { authToken: adminToken, userIdParam: "" };
 }
 
 // ── Identity ──────────────────────────────────────────────────────────────────
@@ -223,14 +238,16 @@ export interface CreateRoomOptions {
 }
 
 /**
- * Creates a room (or space) as the admin user.
+ * Creates a room (or space) as @iam-bot when MATRIX_AS_TOKEN is set (preferred),
+ * otherwise falls back to the admin user via MATRIX_ADMIN_TOKEN.
  * Returns the Matrix room ID: "!abc123:server"
  *
  * Matrix Client-Server API: POST /_matrix/client/v3/createRoom
  */
 export async function createMatrixRoom(opts: CreateRoomOptions): Promise<string> {
-  const { url, token } = cfg();
-  const endpoint = `${url}/_matrix/client/v3/createRoom`;
+  const { url, token, name } = cfg();
+  const { authToken, userIdParam } = roomAuth(token, name);
+  const endpoint = `${url}/_matrix/client/v3/createRoom${userIdParam}`;
 
   const body: Record<string, unknown> = {
     name: opts.name,
@@ -242,7 +259,7 @@ export async function createMatrixRoom(opts: CreateRoomOptions): Promise<string>
   const res = await fetch(endpoint, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${token}`,
+      Authorization: `Bearer ${authToken}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify(body),
@@ -266,14 +283,15 @@ export async function addRoomToSpace(
   roomMatrixId: string,
 ): Promise<void> {
   const { url, token, name } = cfg();
+  const { authToken, userIdParam } = roomAuth(token, name);
   const endpoint =
     `${url}/_matrix/client/v3/rooms/${encodeURIComponent(spaceMatrixId)}` +
-    `/state/m.space.child/${encodeURIComponent(roomMatrixId)}`;
+    `/state/m.space.child/${encodeURIComponent(roomMatrixId)}${userIdParam}`;
 
   const res = await fetch(endpoint, {
     method: "PUT",
     headers: {
-      Authorization: `Bearer ${token}`,
+      Authorization: `Bearer ${authToken}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ via: [name], suggested: false }),
@@ -330,9 +348,11 @@ export async function joinRoomAsUser(
 }
 
 /**
- * Invites a user to a room via Matrix Client-Server API.
- * Replaces adminJoinRoom — works with MAS compat tokens (no Synapse admin needed).
- * Silently ignores M_FORBIDDEN and M_USER_IN_ROOM (already invited / already joined).
+ * Invites a user to a room.
+ * When MATRIX_AS_TOKEN is set, sends the invite as @iam-bot (rate_limited: false,
+ * never expires). Falls back to MATRIX_ADMIN_TOKEN if AS token is absent.
+ * M_FORBIDDEN is silently ignored — happens when the bot isn't yet a member of
+ * an existing room; joinRoomAsUser will still force-join the user via AS token.
  *
  * Matrix Client-Server API: POST /_matrix/client/v3/rooms/{roomId}/invite
  */
@@ -340,18 +360,20 @@ export async function inviteToRoom(
   roomMatrixId: string,
   matrixUserId: string,
 ): Promise<void> {
-  const { url, token } = cfg();
-  const endpoint = `${url}/_matrix/client/v3/rooms/${encodeURIComponent(roomMatrixId)}/invite`;
+  const { url, token, name } = cfg();
+  const { authToken, userIdParam } = roomAuth(token, name);
+  const endpoint = `${url}/_matrix/client/v3/rooms/${encodeURIComponent(roomMatrixId)}/invite${userIdParam}`;
 
   const doInvite = () =>
     fetch(endpoint, {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
       body: JSON.stringify({ user_id: matrixUserId }),
     });
 
   let res = await doInvite();
 
+  // 429 only possible on admin token path; AS token is rate_limited: false
   if (res.status === 429) {
     const data = await res.json().catch(() => ({} as { retry_after_ms?: number })) as { retry_after_ms?: number };
     await new Promise((r) => setTimeout(r, (data.retry_after_ms ?? 3000) + 200));
@@ -369,6 +391,7 @@ export async function inviteToRoom(
 
 /**
  * Kicks a user from a room.
+ * Uses @iam-bot via MATRIX_AS_TOKEN when available, else MATRIX_ADMIN_TOKEN.
  * Matrix Client-Server API: POST /_matrix/client/v3/rooms/{roomId}/kick
  */
 export async function kickFromRoom(
@@ -376,13 +399,14 @@ export async function kickFromRoom(
   matrixUserId: string,
   reason = "Removed from IAM group",
 ): Promise<void> {
-  const { url, token } = cfg();
-  const endpoint = `${url}/_matrix/client/v3/rooms/${encodeURIComponent(roomMatrixId)}/kick`;
+  const { url, token, name } = cfg();
+  const { authToken, userIdParam } = roomAuth(token, name);
+  const endpoint = `${url}/_matrix/client/v3/rooms/${encodeURIComponent(roomMatrixId)}/kick${userIdParam}`;
 
   const res = await fetch(endpoint, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${token}`,
+      Authorization: `Bearer ${authToken}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ user_id: matrixUserId, reason }),
@@ -398,17 +422,19 @@ export async function kickFromRoom(
 
 /**
  * Fetches the current m.room.power_levels state event for a room.
+ * Uses @iam-bot via MATRIX_AS_TOKEN when available.
  */
 async function getPowerLevels(
   url: string,
-  token: string,
+  authToken: string,
+  userIdParam: string,
   roomMatrixId: string,
 ): Promise<Record<string, unknown>> {
   const endpoint =
-    `${url}/_matrix/client/v3/rooms/${encodeURIComponent(roomMatrixId)}/state/m.room.power_levels`;
+    `${url}/_matrix/client/v3/rooms/${encodeURIComponent(roomMatrixId)}/state/m.room.power_levels${userIdParam}`;
 
   const res = await fetch(endpoint, {
-    headers: { Authorization: `Bearer ${token}` },
+    headers: { Authorization: `Bearer ${authToken}` },
   });
 
   if (!res.ok) {
@@ -421,6 +447,7 @@ async function getPowerLevels(
 
 /**
  * Sets a single user's power level in a room using GET → merge → PUT.
+ * Uses @iam-bot via MATRIX_AS_TOKEN when available, else MATRIX_ADMIN_TOKEN.
  * This preserves all other users' power levels in the room.
  */
 export async function setPowerLevel(
@@ -428,10 +455,11 @@ export async function setPowerLevel(
   matrixUserId: string,
   level: number,
 ): Promise<void> {
-  const { url, token } = cfg();
+  const { url, token, name } = cfg();
+  const { authToken, userIdParam } = roomAuth(token, name);
 
   // Step 1: GET current state
-  const current = await getPowerLevels(url, token, roomMatrixId);
+  const current = await getPowerLevels(url, authToken, userIdParam, roomMatrixId);
 
   // Step 2: Merge — update only this user, preserve everyone else
   const existingUsers = (current.users as Record<string, number>) ?? {};
@@ -442,12 +470,12 @@ export async function setPowerLevel(
 
   // Step 3: PUT updated state back
   const endpoint =
-    `${url}/_matrix/client/v3/rooms/${encodeURIComponent(roomMatrixId)}/state/m.room.power_levels`;
+    `${url}/_matrix/client/v3/rooms/${encodeURIComponent(roomMatrixId)}/state/m.room.power_levels${userIdParam}`;
 
   const res = await fetch(endpoint, {
     method: "PUT",
     headers: {
-      Authorization: `Bearer ${token}`,
+      Authorization: `Bearer ${authToken}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify(merged),

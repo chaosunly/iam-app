@@ -50,8 +50,8 @@ function isEnabled(): boolean {
 function isHomeserverConfigured(): boolean {
   return !!(
     process.env.MATRIX_HOMESERVER_URL &&
-    process.env.MATRIX_ADMIN_TOKEN &&
-    process.env.MATRIX_SERVER_NAME
+    process.env.MATRIX_SERVER_NAME &&
+    (process.env.MATRIX_AS_TOKEN || process.env.MATRIX_ADMIN_TOKEN)
   );
 }
 

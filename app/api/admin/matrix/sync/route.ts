@@ -113,8 +113,8 @@ export async function POST(request: NextRequest) {
     if (phase === "homeserver" || phase === "all") {
       const hsConfigured = !!(
         process.env.MATRIX_HOMESERVER_URL &&
-        process.env.MATRIX_ADMIN_TOKEN &&
-        process.env.MATRIX_SERVER_NAME
+        process.env.MATRIX_SERVER_NAME &&
+        (process.env.MATRIX_AS_TOKEN || process.env.MATRIX_ADMIN_TOKEN)
       );
 
       if (!hsConfigured) {
