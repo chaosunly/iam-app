@@ -339,8 +339,6 @@ export async function joinRoomAsUser(
 
   if (!res.ok) {
     const data = await res.json().catch(() => ({} as { errcode?: string })) as { errcode?: string };
-    // Already in room — not an error
-    if (data.errcode === "M_FORBIDDEN" || data.errcode === "M_USER_IN_ROOM") return;
     throw new Error(
       `joinRoomAsUser ${matrixUserId} → ${roomMatrixId}: ${res.status}: ${JSON.stringify(data)}`,
     );

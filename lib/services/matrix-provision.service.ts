@@ -28,7 +28,6 @@ import { prisma } from "@/lib/db";
 import { logAudit } from "./audit.service";
 import {
   registerMatrixUser,
-  setMatrixUserAdmin,
   toMatrixUserId,
   createMatrixRoom as createMatrixRoomOnHomeserver,
   addRoomToSpace,
@@ -37,7 +36,6 @@ import {
   kickFromRoom,
   setPowerLevel,
 } from "@/lib/matrix-admin";
-import { checkPermission } from "@/lib/keto";
 import { grantPermission } from "./keto.service";
 import { assignMatrixRole } from "./matrix.service";
 
@@ -418,30 +416,6 @@ export async function syncToHomeserver(): Promise<{
     }
   }
 
-  // ── 4. Sync Matrix server-admin status for IAM global admins ─────────────
-  // Any IAM user with GlobalRole:admin gets promoted to Matrix server admin.
-
-  const syncedAccounts = await prisma.matrixAccount.findMany({
-    where: { NOT: { homeserver: "pending" } },
-  });
-
-  for (const account of syncedAccounts) {
-    const isGlobalAdmin = await checkPermission({
-      namespace: "GlobalRole",
-      object: "admin",
-      relation: "is_admin",
-      subject: account.iamUserId,
-    }).catch(() => false);
-
-    if (isGlobalAdmin) {
-      await setMatrixUserAdmin(account.matrixUserId, true).catch((err) => {
-        console.warn(
-          `[MatrixSync] Could not set Matrix admin for ${account.matrixUserId}: ${err instanceof Error ? err.message : err}`,
-        );
-      });
-    }
-  }
-
   return result;
 }
 
@@ -533,6 +507,19 @@ export async function syncGroupRoomJoin(
     );
     return;
   }
+
+  // Ensure @iam-bot is in the room before inviting the user. Required for
+  // sending invites and setting power levels. For rooms created after
+  // 2026-05-20 the bot is the creator (already in). For pre-migration rooms
+  // the AS token will attempt to join the bot; if that also fails the
+  // subsequent invite will fail and the error will surface in memberships.failed.
+  await joinRoomAsUser(room.matrixId, `@iam-bot:${serverName()}`).catch((err) => {
+    console.warn(
+      `[MatrixProvision] @iam-bot could not join room ${room.id} — ` +
+      `if this is a pre-migration room, invite @iam-bot manually:`,
+      err instanceof Error ? err.message : err,
+    );
+  });
 
   await inviteToRoom(room.matrixId, account.matrixUserId);
   await joinRoomAsUser(room.matrixId, account.matrixUserId);
