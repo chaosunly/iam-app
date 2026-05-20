@@ -13,10 +13,14 @@
  *   MATRIX_ADMIN_TOKEN     Synapse admin access token
  *   MATRIX_SERVER_NAME     e.g. matrix.acme.corp
  *
- * Note: When Synapse uses MAS (MSC3861), account registration is skipped —
- * MAS auto-provisions users on their first login via Element.
- * Set MAS_PUBLIC_URL to signal MAS-managed deployments.
+ * Optional:
+ *   MATRIX_REGISTRATION_SECRET  Synapse registration_shared_secret — when set,
+ *     registerMatrixUser uses the shared-secret endpoint instead of the admin
+ *     API, so MATRIX_ADMIN_TOKEN is not required to be a server admin and the
+ *     credential never expires.
  */
+
+import { createHmac } from "crypto";
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -47,33 +51,34 @@ export function toMatrixUserId(iamUserId: string, serverName: string): string {
 }
 
 /**
- * Registers (or updates) a Matrix user via Synapse Admin API.
- * Idempotent: re-calling for an existing user updates the display name.
- *
- * Synapse: PUT /_synapse/admin/v2/users/@user:server
+ * Registers a Matrix user. Prefers the shared-secret endpoint when
+ * MATRIX_REGISTRATION_SECRET is set (no admin token required, never expires).
+ * Falls back to the admin API (PUT /_synapse/admin/v2/users/) otherwise.
+ * Idempotent — safe to call for users that already exist.
  */
 export async function registerMatrixUser(
   iamUserId: string,
   displayName: string,
   password?: string,
 ): Promise<{ matrixUserId: string }> {
-  const { url, token, name } = cfg();
+  const { url, name } = cfg();
   const matrixUserId = toMatrixUserId(iamUserId, name);
-  const endpoint = `${url}/_synapse/admin/v2/users/${encodeURIComponent(matrixUserId)}`;
+  const localpart   = toMatrixLocalpart(iamUserId);
+  const secret      = process.env.MATRIX_REGISTRATION_SECRET;
 
-  const body: Record<string, unknown> = {
-    displayname: displayName,
-    admin: false,
-    deactivated: false,
-  };
+  if (secret) {
+    return registerWithSharedSecret(url, matrixUserId, localpart, displayName, password, secret);
+  }
+
+  // Fallback: admin API (requires MATRIX_ADMIN_TOKEN to belong to a server admin)
+  const { token } = cfg();
+  const endpoint = `${url}/_synapse/admin/v2/users/${encodeURIComponent(matrixUserId)}`;
+  const body: Record<string, unknown> = { displayname: displayName, admin: false, deactivated: false };
   if (password !== undefined) body.password = password;
 
   const res = await fetch(endpoint, {
     method: "PUT",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
 
@@ -81,7 +86,44 @@ export async function registerMatrixUser(
     const text = await res.text();
     throw new Error(`registerMatrixUser ${matrixUserId} → ${res.status}: ${text}`);
   }
+  return { matrixUserId };
+}
 
+async function registerWithSharedSecret(
+  homeserverUrl: string,
+  matrixUserId: string,
+  localpart: string,
+  displayName: string,
+  password: string | undefined,
+  secret: string,
+): Promise<{ matrixUserId: string }> {
+  // Step 1: fetch nonce
+  const nonceRes = await fetch(`${homeserverUrl}/_synapse/admin/v1/register`);
+  if (!nonceRes.ok) {
+    throw new Error(`registerMatrixUser nonce fetch → ${nonceRes.status}`);
+  }
+  const { nonce } = await nonceRes.json() as { nonce: string };
+
+  // Step 2: HMAC-SHA1(nonce\x00localpart\x00password\x00notadmin)
+  // Password is required in the MAC even in MAS deployments (stored but unusable
+  // because password_config is disabled); use placeholder when caller omits it.
+  const effectivePassword = password ?? "ChangeMe123!";
+  const mac = createHmac("sha1", secret)
+    .update(`${nonce}\x00${localpart}\x00${effectivePassword}\x00notadmin`)
+    .digest("hex");
+
+  // Step 3: register
+  const regRes = await fetch(`${homeserverUrl}/_synapse/admin/v1/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ nonce, username: localpart, displayname: displayName, password: effectivePassword, admin: false, mac }),
+  });
+
+  if (!regRes.ok) {
+    const data = await regRes.json().catch(() => ({} as { errcode?: string })) as { errcode?: string };
+    if (data.errcode === "M_USER_IN_USE") return { matrixUserId }; // already exists — idempotent
+    throw new Error(`registerMatrixUser ${matrixUserId} → ${regRes.status}: ${JSON.stringify(data)}`);
+  }
   return { matrixUserId };
 }
 
