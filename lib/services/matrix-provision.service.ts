@@ -490,7 +490,7 @@ export async function syncGroupRoomJoin(
   iamUserId: string,
   role: "member" | "moderator" | "matrix_admin" = "member",
 ): Promise<void> {
-  const [room, account] = await Promise.all([
+  let [room, account] = await Promise.all([
     prisma.matrixRoom.findFirst({ where: { iamGroupId } }),
     prisma.matrixAccount.findUnique({ where: { iamUserId } }),
   ]);
@@ -501,11 +501,23 @@ export async function syncGroupRoomJoin(
     );
     return;
   }
+
+  // Account is pending (race: group-join fired before registration completed) — provision now.
   if (!account || account.homeserver === "pending") {
-    console.warn(
-      `[MatrixProvision] No synced MatrixAccount for user ${iamUserId} — skipping join`,
-    );
-    return;
+    if (!isHomeserverConfigured()) {
+      console.warn(
+        `[MatrixProvision] No synced MatrixAccount for user ${iamUserId} and homeserver not configured — skipping join`,
+      );
+      return;
+    }
+    await preProvisionOnHomeserver(iamUserId, iamUserId);
+    account = await prisma.matrixAccount.findUnique({ where: { iamUserId } });
+    if (!account || account.homeserver === "pending") {
+      console.warn(
+        `[MatrixProvision] Could not provision MatrixAccount for user ${iamUserId} — skipping join`,
+      );
+      return;
+    }
   }
 
   // Ensure @iam-bot is in the room before inviting the user. Required for
