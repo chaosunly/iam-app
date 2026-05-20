@@ -112,7 +112,7 @@ async function registerWithAS(
       Authorization: `Bearer ${asToken}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ type: "m.login.application_service", username: localpart }),
+    body: JSON.stringify({ type: "m.login.application_service", username: localpart, inhibit_login: true }),
   });
 
   if (!res.ok) {
