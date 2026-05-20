@@ -343,14 +343,20 @@ export async function inviteToRoom(
   const { url, token } = cfg();
   const endpoint = `${url}/_matrix/client/v3/rooms/${encodeURIComponent(roomMatrixId)}/invite`;
 
-  const res = await fetch(endpoint, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ user_id: matrixUserId }),
-  });
+  const doInvite = () =>
+    fetch(endpoint, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ user_id: matrixUserId }),
+    });
+
+  let res = await doInvite();
+
+  if (res.status === 429) {
+    const data = await res.json().catch(() => ({} as { retry_after_ms?: number })) as { retry_after_ms?: number };
+    await new Promise((r) => setTimeout(r, (data.retry_after_ms ?? 3000) + 200));
+    res = await doInvite();
+  }
 
   if (!res.ok) {
     const data = await res.json().catch(() => ({} as { errcode?: string })) as { errcode?: string };
