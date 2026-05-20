@@ -51,9 +51,12 @@ export function toMatrixUserId(iamUserId: string, serverName: string): string {
 }
 
 /**
- * Registers a Matrix user. Prefers the shared-secret endpoint when
- * MATRIX_REGISTRATION_SECRET is set (no admin token required, never expires).
- * Falls back to the admin API (PUT /_synapse/admin/v2/users/) otherwise.
+ * Registers a Matrix user. Priority order:
+ *   1. Application Service token (MATRIX_AS_TOKEN) — never expires, no admin needed.
+ *      Requires IAM AS namespace in iam-registration.yaml to cover UUID localparts.
+ *   2. Shared secret (MATRIX_REGISTRATION_SECRET) — no admin token, but disabled
+ *      when MAS is active (Synapse returns 404).
+ *   3. Admin API (MATRIX_ADMIN_TOKEN) — fallback; requires a server-admin token.
  * Idempotent — safe to call for users that already exist.
  */
 export async function registerMatrixUser(
@@ -63,8 +66,13 @@ export async function registerMatrixUser(
 ): Promise<{ matrixUserId: string }> {
   const { url, name } = cfg();
   const matrixUserId = toMatrixUserId(iamUserId, name);
-  const localpart   = toMatrixLocalpart(iamUserId);
-  const secret      = process.env.MATRIX_REGISTRATION_SECRET;
+  const localpart    = toMatrixLocalpart(iamUserId);
+  const asToken      = process.env.MATRIX_AS_TOKEN;
+  const secret       = process.env.MATRIX_REGISTRATION_SECRET;
+
+  if (asToken) {
+    return registerWithAS(url, matrixUserId, localpart, asToken);
+  }
 
   if (secret) {
     return registerWithSharedSecret(url, matrixUserId, localpart, displayName, password, secret);
@@ -85,6 +93,32 @@ export async function registerMatrixUser(
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`registerMatrixUser ${matrixUserId} → ${res.status}: ${text}`);
+  }
+  return { matrixUserId };
+}
+
+// Uses the IAM Application Service token to register a user in Synapse.
+// The AS token is registered directly in Synapse and never expires.
+// Requires the UUID namespace to be declared in iam-registration.yaml.
+async function registerWithAS(
+  homeserverUrl: string,
+  matrixUserId: string,
+  localpart: string,
+  asToken: string,
+): Promise<{ matrixUserId: string }> {
+  const res = await fetch(`${homeserverUrl}/_matrix/client/v3/register`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${asToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ type: "m.login.application_service", username: localpart }),
+  });
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({} as { errcode?: string })) as { errcode?: string };
+    if (data.errcode === "M_USER_IN_USE") return { matrixUserId }; // already exists — idempotent
+    throw new Error(`registerMatrixUser (AS) ${matrixUserId} → ${res.status}: ${JSON.stringify(data)}`);
   }
   return { matrixUserId };
 }
