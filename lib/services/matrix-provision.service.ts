@@ -540,7 +540,13 @@ export async function syncGroupRoomJoin(
     room.matrixId,
     account.matrixUserId,
     ROLE_TO_POWER_LEVEL[role] ?? 0,
-  );
+  ).catch((err) => {
+    // Bot not in room (existing room created before AS token migration) — join still succeeds
+    console.warn(
+      `[MatrixProvision] Could not set power level for ${iamUserId} in room ${room.id}:`,
+      err instanceof Error ? err.message : err,
+    );
+  });
 
   await assignMatrixRole({
     userId: iamUserId,
