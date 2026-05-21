@@ -2,7 +2,7 @@ export async function register() {
   // Only run in the Node.js server runtime, not during the build or in Edge
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
 
-  const INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+  const INTERVAL_MS = 30 * 1000; // 30 seconds
 
   // Delay first run so the server is fully started
   setTimeout(async () => {

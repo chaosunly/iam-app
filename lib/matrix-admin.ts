@@ -472,8 +472,37 @@ export async function kickFromRoom(
   });
 
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`kickFromRoom ${matrixUserId} from ${roomMatrixId}: ${res.status}: ${text}`);
+    const data = await res.json().catch(() => ({} as { errcode?: string; error?: string })) as { errcode?: string; error?: string };
+
+    // AS bot not in the room (pre-migration room) — fall back to admin force-join
+    // the bot first, then retry the kick.
+    if (data.errcode === "M_FORBIDDEN" && token) {
+      const joinRes = await fetch(
+        `${url}/_synapse/admin/v1/join/${encodeURIComponent(roomMatrixId)}`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ user_id: botUserId(name) }),
+        },
+      );
+      if (!joinRes.ok) {
+        const text = await joinRes.text();
+        throw new Error(`kickFromRoom bot-join fallback ${roomMatrixId}: ${joinRes.status}: ${text}`);
+      }
+      // Retry kick as bot now that it's in the room
+      const retryRes = await fetch(endpoint, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${authToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: matrixUserId, reason }),
+      });
+      if (!retryRes.ok) {
+        const text = await retryRes.text();
+        throw new Error(`kickFromRoom ${matrixUserId} from ${roomMatrixId}: ${retryRes.status}: ${text}`);
+      }
+      return;
+    }
+
+    throw new Error(`kickFromRoom ${matrixUserId} from ${roomMatrixId}: ${JSON.stringify(data)}`);
   }
 }
 

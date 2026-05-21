@@ -18,7 +18,7 @@ import { CreateIdentityRequest } from "@/lib/types";
 import { prisma } from "@/lib/db";
 import { getUserGroups } from "@/lib/services/group.service";
 import { revokePermission } from "@/lib/services/keto.service";
-import { backgroundSyncGroupRoomLeave } from "@/lib/services/matrix-provision.service";
+import { syncGroupRoomLeave } from "@/lib/services/matrix-provision.service";
 import { removeOrganizationMember, getDefaultOrganizationId } from "@/lib/services/organization.service";
 
 /**
@@ -107,15 +107,17 @@ export async function DELETE(
 
     const { id } = await params;
 
-    // Kick from Matrix rooms and remove from all groups before deletion
+    // Kick from Matrix rooms and remove from all groups before deletion.
+    // Must be awaited — matrixAccount.deleteMany below would otherwise race
+    // with the async kick and cause syncGroupRoomLeave to skip it (account = null).
     const userGroups = await getUserGroups(id);
-    for (const group of userGroups) {
-      backgroundSyncGroupRoomLeave(group.id, id);
-      await Promise.allSettled([
+    await Promise.allSettled([
+      ...userGroups.map((group) => syncGroupRoomLeave(group.id, id)),
+      ...userGroups.flatMap((group) => [
         revokePermission({ namespace: "Group", object: group.id, relation: "members", subject: id }),
         revokePermission({ namespace: "Group", object: group.id, relation: "admins", subject: id }),
-      ]);
-    }
+      ]),
+    ]);
 
     // Remove org membership so the user no longer appears in the org member list
     await removeOrganizationMember(getDefaultOrganizationId(), id, id).catch(() => {});

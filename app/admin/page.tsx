@@ -4,7 +4,6 @@ import { canAccessAdmin } from "@/lib/services/permission.service";
 import { listIdentities } from "@/lib/services/kratos.service";
 import { getOrganizationGroups } from "@/lib/services/group.service";
 import { getDefaultOrganizationId } from "@/lib/services/organization.service";
-import { syncPendingAccounts } from "@/lib/services/matrix-provision.service";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -31,10 +30,6 @@ export default async function AdminPage() {
   if (!hasAdminAccess) {
     redirect("/dashboard");
   }
-
-  // Sweep all pending Matrix accounts in the background — activates anyone who
-  // has since logged into Element. Fire-and-forget; does not block page render.
-  syncPendingAccounts().catch(() => {});
 
   // Fetch statistics
   const identities = await listIdentities(0, 1000);
