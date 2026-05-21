@@ -15,6 +15,10 @@ import {
   withErrorHandler,
 } from "@/lib/errors";
 import { CreateIdentityRequest } from "@/lib/types";
+import { prisma } from "@/lib/db";
+import { getUserGroups } from "@/lib/services/group.service";
+import { revokePermission } from "@/lib/services/keto.service";
+import { backgroundSyncGroupRoomLeave } from "@/lib/services/matrix-provision.service";
 
 /**
  * GET /api/admin/identities/[id]
@@ -100,11 +104,22 @@ export async function DELETE(
     // Zero-Trust: Authenticate and authorize
     await requireAdmin(request);
 
-    // Get identity ID
     const { id } = await params;
 
-    // Call service layer (BFF)
+    // Kick from Matrix rooms and remove from all groups before deletion
+    const userGroups = await getUserGroups(id);
+    for (const group of userGroups) {
+      backgroundSyncGroupRoomLeave(group.id, id);
+      await Promise.allSettled([
+        revokePermission({ namespace: "Group", object: group.id, relation: "members", subject: id }),
+        revokePermission({ namespace: "Group", object: group.id, relation: "admins", subject: id }),
+      ]);
+    }
+
     await deleteIdentity(id);
+
+    // Clean up Matrix account record so the email/UUID can be reused
+    await prisma.matrixAccount.deleteMany({ where: { iamUserId: id } });
 
     return createSuccessResponse({ message: "Identity deleted successfully" });
   });
