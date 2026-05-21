@@ -38,8 +38,8 @@ export async function POST(request: NextRequest) {
         accounts: { synced: 0, skipped: 0, failed: [] },
       };
 
-      // Purge MatrixRoom records whose IAM group no longer exists (orphans from
-      // groups deleted before the deletion cleanup hook was in place).
+      // Purge MatrixRoom records and their role assignments where the linked IAM
+      // group no longer exists (orphans from deletions before cleanup hooks existed).
       const orphanRooms = await prisma.matrixRoom.findMany({
         where: { iamGroupId: { not: null } },
         select: { id: true, iamGroupId: true },
@@ -47,7 +47,23 @@ export async function POST(request: NextRequest) {
       for (const room of orphanRooms) {
         const groupExists = await prisma.group.findUnique({ where: { id: room.iamGroupId! } });
         if (!groupExists) {
+          await prisma.matrixRoleAssignment.deleteMany({ where: { resourceType: "room", resourceId: room.id } }).catch(() => {});
           await prisma.matrixRoom.delete({ where: { id: room.id } }).catch(() => {});
+        }
+      }
+
+      // Purge MatrixRoleAssignment records for rooms whose group member list no
+      // longer contains that user (removed from group without cleanup).
+      const allRoomAssignments = await prisma.matrixRoleAssignment.findMany({
+        where: { resourceType: "room" },
+        select: { id: true, userId: true, resourceId: true, role: true },
+      });
+      for (const a of allRoomAssignments) {
+        const room = await prisma.matrixRoom.findUnique({ where: { id: a.resourceId } });
+        if (!room?.iamGroupId) continue;
+        const members = await getGroupMembers(room.iamGroupId);
+        if (!members.includes(a.userId)) {
+          await prisma.matrixRoleAssignment.delete({ where: { id: a.id } }).catch(() => {});
         }
       }
 

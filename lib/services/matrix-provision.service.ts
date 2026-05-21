@@ -37,7 +37,7 @@ import {
   setPowerLevel,
 } from "@/lib/matrix-admin";
 import { createMasUser } from "./mas.service";
-import { grantPermission } from "./keto.service";
+import { grantPermission, revokePermission } from "./keto.service";
 import { assignMatrixRole } from "./matrix.service";
 
 // ── Feature flags ────────────────────────────────────────────────────────────
@@ -635,7 +635,24 @@ export async function syncGroupRoomLeave(
     prisma.matrixAccount.findUnique({ where: { iamUserId } }),
   ]);
 
-  if (!room?.matrixId || !account || account.homeserver === "pending") return;
+  if (!room) return;
+
+  // Remove IAM-level role assignment and Keto permission regardless of whether
+  // the account is active on the homeserver — stale records cause ghost members.
+  const assignment = await prisma.matrixRoleAssignment.findFirst({
+    where: { userId: iamUserId, resourceType: "room", resourceId: room.id },
+  });
+  if (assignment) {
+    await prisma.matrixRoleAssignment.delete({ where: { id: assignment.id } });
+    await revokePermission({
+      namespace: "MatrixRoom",
+      object: room.id,
+      relation: assignment.role,
+      subject: iamUserId,
+    }).catch(() => {});
+  }
+
+  if (!room.matrixId || !account || account.homeserver === "pending") return;
 
   await kickFromRoom(room.matrixId, account.matrixUserId);
 }
