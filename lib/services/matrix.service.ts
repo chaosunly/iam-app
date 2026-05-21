@@ -307,11 +307,24 @@ export async function createMatrixRoom(input: CreateMatrixRoomInput): Promise<Ma
 }
 
 export async function getMatrixRooms(spaceId?: string): Promise<MatrixRoom[]> {
-  return prisma.matrixRoom.findMany({
+  const rooms = await prisma.matrixRoom.findMany({
     where: spaceId ? { spaceId } : undefined,
     include: { space: { include: { org: true } } },
     orderBy: { name: "asc" },
   });
+
+  // Filter out group rooms whose IAM group has been deleted.
+  // iamGroupId is a plain string (no FK), so orphans accumulate unless explicitly cleaned up.
+  const groupIds = [...new Set(rooms.map((r) => r.iamGroupId).filter(Boolean) as string[])];
+  if (groupIds.length === 0) return rooms;
+
+  const existingGroups = await prisma.group.findMany({
+    where: { id: { in: groupIds } },
+    select: { id: true },
+  });
+  const existingGroupIds = new Set(existingGroups.map((g) => g.id));
+
+  return rooms.filter((r) => !r.iamGroupId || existingGroupIds.has(r.iamGroupId));
 }
 
 export async function getMatrixRoomById(id: string): Promise<MatrixRoom | null> {

@@ -38,6 +38,19 @@ export async function POST(request: NextRequest) {
         accounts: { synced: 0, skipped: 0, failed: [] },
       };
 
+      // Purge MatrixRoom records whose IAM group no longer exists (orphans from
+      // groups deleted before the deletion cleanup hook was in place).
+      const orphanRooms = await prisma.matrixRoom.findMany({
+        where: { iamGroupId: { not: null } },
+        select: { id: true, iamGroupId: true },
+      });
+      for (const room of orphanRooms) {
+        const groupExists = await prisma.group.findUnique({ where: { id: room.iamGroupId! } });
+        if (!groupExists) {
+          await prisma.matrixRoom.delete({ where: { id: room.id } }).catch(() => {});
+        }
+      }
+
       const orgs = await prisma.organization.findMany();
       for (const org of orgs) {
         try {
