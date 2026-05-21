@@ -36,6 +36,7 @@ import {
   kickFromRoom,
   setPowerLevel,
 } from "@/lib/matrix-admin";
+import { createMasUser } from "./mas.service";
 import { grantPermission } from "./keto.service";
 import { assignMatrixRole } from "./matrix.service";
 
@@ -268,10 +269,21 @@ export function backgroundProvisionMatrixAccount(
 async function preProvisionOnHomeserver(iamUserId: string, displayName: string): Promise<void> {
   if (!isHomeserverConfigured()) return;
   if (isMasManaged()) {
-    // MAS creates Synapse accounts on the user's first Element login. Pre-registering
-    // via AS token causes "Localpart not available" errors in MAS because MAS sees the
-    // localpart already taken in Synapse when it tries to provision the account.
-    // Accounts are backfilled by syncToHomeserver after the user's first login.
+    // Use MAS admin API to create the user directly — this provisions them in
+    // both MAS and Synapse as a proper MAS-managed account (no AS conflict).
+    const masUser = await createMasUser(iamUserId);
+    if (masUser) {
+      const matrixUserId = toMatrixUserId(iamUserId, serverName());
+      await prisma.matrixAccount.upsert({
+        where: { iamUserId },
+        update: { matrixUserId, homeserver: serverName() },
+        create: { iamUserId, matrixUserId, homeserver: serverName() },
+      });
+      console.log(`[MatrixProvision] MAS account created: ${matrixUserId}`);
+    } else {
+      // MAS admin API not available — syncPendingAccounts will activate on first login
+      console.warn(`[MatrixProvision] MAS admin API unavailable for ${iamUserId}, staying pending`);
+    }
     return;
   }
   const matrixUserId = toMatrixUserId(iamUserId, serverName());
@@ -624,4 +636,56 @@ export function backgroundSyncGroupRoomLeave(
   syncGroupRoomLeave(iamGroupId, iamUserId).catch((err) => {
     console.error("[MatrixProvision] Group room leave failed:", iamUserId, err);
   });
+}
+
+// ── Pending account activation ────────────────────────────────────────────────
+
+/**
+ * Checks all matrix_accounts with homeserver="pending" against the Synapse
+ * profile API. For any user who has now logged into Element (MAS created their
+ * account), activates the record and fires room joins for all their groups.
+ *
+ * Safe to run frequently — profile checks are read-only and room joins are
+ * idempotent (M_USER_IN_ROOM is silently ignored).
+ */
+export async function syncPendingAccounts(): Promise<void> {
+  if (!isEnabled() || !isHomeserverConfigured() || !isMasManaged()) return;
+
+  const pending = await prisma.matrixAccount.findMany({
+    where: { homeserver: "pending" },
+  });
+  if (pending.length === 0) return;
+
+  console.log(`[MatrixProvision] Checking ${pending.length} pending account(s)`);
+
+  const hsUrl = process.env.MATRIX_HOMESERVER_URL!;
+  const server = serverName();
+
+  // Import lazily to avoid circular module reference at module load time
+  const { getUserGroups } = await import("./group.service");
+
+  for (const account of pending) {
+    try {
+      const matrixUserId = toMatrixUserId(account.iamUserId, server);
+      const profileRes = await fetch(
+        `${hsUrl}/_matrix/client/v3/profile/${encodeURIComponent(matrixUserId)}`,
+      );
+      if (profileRes.status === 404) continue;
+
+      // User has logged into Element — activate their record
+      await prisma.matrixAccount.update({
+        where: { id: account.id },
+        data: { matrixUserId, homeserver: server },
+      });
+      console.log(`[MatrixProvision] Activated pending account: ${matrixUserId}`);
+
+      // Join them to all their current group rooms
+      const groups = await getUserGroups(account.iamUserId);
+      for (const group of groups) {
+        backgroundSyncGroupRoomJoin(group.id, account.iamUserId, "member");
+      }
+    } catch (err) {
+      console.error(`[MatrixProvision] Pending check failed: ${account.iamUserId}`, err);
+    }
+  }
 }
