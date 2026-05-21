@@ -4,6 +4,7 @@ import { isGlobalAdmin } from "@/lib/services/permission.service";
 import { getUserGroups } from "@/lib/services/group.service";
 import { getDefaultOrganizationId, getUserRole } from "@/lib/services/organization.service";
 import { autoProvisionUser } from "@/lib/services/auto-provision.service";
+import { syncPendingAccounts } from "@/lib/services/matrix-provision.service";
 import { getUserGitlabRoles } from "@/lib/services/gitlab.service";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Check, Mail, Users, Settings, Lock, Info } from "lucide-react";
@@ -41,6 +42,10 @@ export default async function DashboardPage() {
 
   // Auto-provision user if they don't have permissions yet
   await autoProvisionUser(userId);
+
+  // Sweep all pending Matrix accounts in the background — activates anyone who
+  // has since logged into Element. Fire-and-forget; does not block page render.
+  syncPendingAccounts().catch(() => {});
 
   // Check if user is a global admin - redirect them to admin dashboard
   const hasAdminAccess = await isGlobalAdmin(userId);
