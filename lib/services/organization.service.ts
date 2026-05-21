@@ -173,7 +173,8 @@ export async function getOrganizationMembers(
         const last = identity.traits.name?.last || "";
         name = `${first} ${last}`.trim() || email;
       } catch {
-        // identity not found — leave blank
+        // Identity no longer exists in Kratos — skip ghost Keto entry.
+        continue;
       }
       members.push({
         userId: rel.subject,

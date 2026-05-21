@@ -352,7 +352,7 @@ export async function joinRoomAsUser(
   roomMatrixId: string,
   matrixUserId: string,
 ): Promise<void> {
-  const { url } = cfg();
+  const { url, token } = cfg();
   const asToken = process.env.MATRIX_AS_TOKEN;
   if (!asToken) return; // AS not configured — invite-only fallback
 
@@ -370,7 +370,36 @@ export async function joinRoomAsUser(
   });
 
   if (!res.ok) {
-    const data = await res.json().catch(() => ({} as { errcode?: string })) as { errcode?: string };
+    const data = await res.json().catch(() => ({} as { errcode?: string; error?: string })) as { errcode?: string; error?: string };
+
+    // Pre-migration users and MAS-managed users were not created by this AS, so
+    // Synapse rejects ?user_id impersonation. Fall back to the admin force-join
+    // API which has no AS ownership requirement.
+    if (data.errcode === "M_FORBIDDEN" && data.error?.includes("not registered this user")) {
+      if (!token) {
+        console.warn(
+          `[MatrixAdmin] joinRoomAsUser: AS impersonation rejected for ${matrixUserId}; ` +
+          `MATRIX_ADMIN_TOKEN not set — user will need to accept invite manually`,
+        );
+        return;
+      }
+      const adminRes = await fetch(
+        `${url}/_synapse/admin/v1/join/${encodeURIComponent(roomMatrixId)}`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ user_id: matrixUserId }),
+        },
+      );
+      if (!adminRes.ok) {
+        const text = await adminRes.text();
+        throw new Error(
+          `joinRoomAsUser ${matrixUserId} → ${roomMatrixId}: ${adminRes.status}: ${text}`,
+        );
+      }
+      return;
+    }
+
     throw new Error(
       `joinRoomAsUser ${matrixUserId} → ${roomMatrixId}: ${res.status}: ${JSON.stringify(data)}`,
     );
@@ -382,7 +411,7 @@ export async function joinRoomAsUser(
  * When MATRIX_AS_TOKEN is set, sends the invite as @iam-bot (rate_limited: false,
  * never expires). Falls back to MATRIX_ADMIN_TOKEN if AS token is absent.
  * M_FORBIDDEN is silently ignored — happens when the bot isn't yet a member of
- * an existing room; joinRoomAsUser will still force-join the user via AS token.
+ * an existing room; joinRoomAsUser handles the join via AS token or admin fallback.
  *
  * Matrix Client-Server API: POST /_matrix/client/v3/rooms/{roomId}/invite
  */

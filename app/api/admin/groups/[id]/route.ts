@@ -7,8 +7,11 @@ import { validateBody } from "@/lib/middleware/validate";
 import {
   deleteGroup,
   getGroupById,
+  getGroupMembers,
   updateGroup,
 } from "@/lib/services/group.service";
+import { syncGroupRoomLeave } from "@/lib/services/matrix-provision.service";
+import { prisma } from "@/lib/db";
 
 const updateGroupSchema = z.object({
   name: z.string().optional(),
@@ -44,6 +47,12 @@ export async function DELETE(
     const { id: groupId } = await params;
     const [globalAdmin, groupAdmin] = await Promise.all([canAccessAdmin(userId), isGroupAdmin(userId, groupId)]);
     if (!globalAdmin && !groupAdmin) throw new ForbiddenError();
+
+    // Kick all members from the Matrix room before deleting the DB record,
+    // since syncGroupRoomLeave looks up the room by iamGroupId.
+    const memberIds = await getGroupMembers(groupId);
+    await Promise.allSettled(memberIds.map((memberId) => syncGroupRoomLeave(groupId, memberId)));
+    await prisma.matrixRoom.deleteMany({ where: { iamGroupId: groupId } });
 
     await deleteGroup(groupId, userId);
     return NextResponse.json({ success: true });

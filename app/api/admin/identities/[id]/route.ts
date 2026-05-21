@@ -19,6 +19,7 @@ import { prisma } from "@/lib/db";
 import { getUserGroups } from "@/lib/services/group.service";
 import { revokePermission } from "@/lib/services/keto.service";
 import { backgroundSyncGroupRoomLeave } from "@/lib/services/matrix-provision.service";
+import { removeOrganizationMember, getDefaultOrganizationId } from "@/lib/services/organization.service";
 
 /**
  * GET /api/admin/identities/[id]
@@ -115,6 +116,9 @@ export async function DELETE(
         revokePermission({ namespace: "Group", object: group.id, relation: "admins", subject: id }),
       ]);
     }
+
+    // Remove org membership so the user no longer appears in the org member list
+    await removeOrganizationMember(getDefaultOrganizationId(), id, id).catch(() => {});
 
     await deleteIdentity(id);
 
