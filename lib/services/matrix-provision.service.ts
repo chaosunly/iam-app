@@ -267,8 +267,15 @@ export function backgroundProvisionMatrixAccount(
 
 async function preProvisionOnHomeserver(iamUserId: string, displayName: string): Promise<void> {
   if (!isHomeserverConfigured()) return;
+  if (isMasManaged()) {
+    // MAS creates Synapse accounts on the user's first Element login. Pre-registering
+    // via AS token causes "Localpart not available" errors in MAS because MAS sees the
+    // localpart already taken in Synapse when it tries to provision the account.
+    // Accounts are backfilled by syncToHomeserver after the user's first login.
+    return;
+  }
   const matrixUserId = toMatrixUserId(iamUserId, serverName());
-  await registerMatrixUser(iamUserId, displayName, isMasManaged() ? undefined : defaultPassword());
+  await registerMatrixUser(iamUserId, displayName, defaultPassword());
   await prisma.matrixAccount.upsert({
     where: { iamUserId },
     update: { matrixUserId, homeserver: serverName() },
@@ -372,27 +379,35 @@ export async function syncToHomeserver(): Promise<{
   }
 
   // ── 3. Sync accounts (homeserver = "pending") ─────────────────────────────
-  // When MAS is managing auth (MSC3861), register the account via Synapse admin API
-  // without a password — MAS owns authentication. Accounts created at identity-creation
-  // time via backgroundProvisionMatrixAccount are already registered; this loop catches
-  // any that fell through (e.g. created before this feature shipped).
+  // In MAS mode: MAS creates Synapse accounts on first Element login. We check via
+  // profile API whether the user exists yet (no registration — that would block MAS).
+  // In non-MAS mode: register via AS token as before.
 
   const pendingAccounts = await prisma.matrixAccount.findMany({
     where: { homeserver: "pending" },
   });
 
   if (isMasManaged()) {
+    const hsUrl = process.env.MATRIX_HOMESERVER_URL!;
     for (const account of pendingAccounts) {
       try {
         const matrixUserId = toMatrixUserId(account.iamUserId, serverName());
-        await registerMatrixUser(account.iamUserId, account.iamUserId); // no password — MAS owns auth
+        // Check if MAS has created the Synapse account (user's first login has happened)
+        const profileRes = await fetch(
+          `${hsUrl}/_matrix/client/v3/profile/${encodeURIComponent(matrixUserId)}`,
+        );
+        if (profileRes.status === 404) {
+          // User hasn't logged into Element yet — skip until they do
+          result.accounts.skipped++;
+          continue;
+        }
         await prisma.matrixAccount.update({
           where: { id: account.id },
           data: { matrixUserId, homeserver: serverName() },
         });
         result.accounts.synced++;
       } catch (err) {
-        console.error(`[MatrixSync] MAS account provision failed: ${account.iamUserId}`, err);
+        console.error(`[MatrixSync] MAS account check failed: ${account.iamUserId}`, err);
         result.accounts.failed.push(account.iamUserId);
       }
     }
@@ -502,7 +517,7 @@ export async function syncGroupRoomJoin(
     return;
   }
 
-  // Account is pending (race: group-join fired before registration completed) — provision now.
+  // Account is pending — resolve before joining.
   if (!account || account.homeserver === "pending") {
     if (!isHomeserverConfigured()) {
       console.warn(
@@ -510,11 +525,32 @@ export async function syncGroupRoomJoin(
       );
       return;
     }
-    await preProvisionOnHomeserver(iamUserId, iamUserId);
+    const matrixUserId = toMatrixUserId(iamUserId, serverName());
+    if (isMasManaged()) {
+      // In MAS mode never pre-register (blocks MAS login). Check if the user's
+      // first Element login has already happened via the profile endpoint.
+      const hsUrl = process.env.MATRIX_HOMESERVER_URL!;
+      const profileRes = await fetch(
+        `${hsUrl}/_matrix/client/v3/profile/${encodeURIComponent(matrixUserId)}`,
+      );
+      if (profileRes.status === 404) {
+        console.warn(
+          `[MatrixProvision] MAS user ${iamUserId} hasn't logged into Element yet — skipping join`,
+        );
+        return;
+      }
+      await prisma.matrixAccount.upsert({
+        where: { iamUserId },
+        update: { matrixUserId, homeserver: serverName() },
+        create: { iamUserId, matrixUserId, homeserver: serverName() },
+      });
+    } else {
+      await preProvisionOnHomeserver(iamUserId, iamUserId);
+    }
     account = await prisma.matrixAccount.findUnique({ where: { iamUserId } });
     if (!account || account.homeserver === "pending") {
       console.warn(
-        `[MatrixProvision] Could not provision MatrixAccount for user ${iamUserId} — skipping join`,
+        `[MatrixProvision] Could not resolve MatrixAccount for user ${iamUserId} — skipping join`,
       );
       return;
     }
