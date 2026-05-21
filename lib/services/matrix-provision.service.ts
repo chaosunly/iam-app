@@ -28,7 +28,6 @@ import { prisma } from "@/lib/db";
 import { logAudit } from "./audit.service";
 import {
   registerMatrixUser,
-  ensureMatrixUserExists,
   toMatrixUserId,
   createMatrixRoom as createMatrixRoomOnHomeserver,
   addRoomToSpace,
@@ -295,20 +294,11 @@ async function preProvisionOnHomeserver(iamUserId: string, displayName: string):
       console.log(`[MatrixProvision] MAS account created: ${matrixUserId}`);
       return true;
     }
-    // MAS admin API unavailable — fall back to Synapse admin PUT (idempotent,
-    // appservice_id=NULL, so MAS can adopt the account on first login).
-    if (process.env.MATRIX_ADMIN_TOKEN) {
-      const matrixUserId = toMatrixUserId(iamUserId, serverName());
-      await ensureMatrixUserExists(matrixUserId, iamUserId);
-      await prisma.matrixAccount.upsert({
-        where: { iamUserId },
-        update: { matrixUserId, homeserver: serverName() },
-        create: { iamUserId, matrixUserId, homeserver: serverName() },
-      });
-      console.log(`[MatrixProvision] Synapse admin account created: ${matrixUserId}`);
-      return true;
-    }
-    console.warn(`[MatrixProvision] No provisioning method available for ${iamUserId}, staying pending`);
+    // No safe pre-registration path available. Any Synapse-level pre-creation
+    // (AS token or admin PUT) causes MAS to show "Localpart not available" on
+    // first login because Synapse's /register/available returns false.
+    // syncPendingAccounts() will activate the account after the user's first login.
+    console.warn(`[MatrixProvision] MAS admin API unavailable for ${iamUserId}, staying pending`);
     return false;
   }
   const matrixUserId = toMatrixUserId(iamUserId, serverName());

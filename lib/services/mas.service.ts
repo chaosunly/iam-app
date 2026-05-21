@@ -64,16 +64,16 @@ export async function createMasUser(uuid: string): Promise<MasUser | null> {
 
   try {
     const token = await getAdminToken();
-    const res   = await fetch(`${masUrl}/api/admin/v0/users`, {
+    const res   = await fetch(`${masUrl}/api/admin/v1/users`, {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${token}`,
         "Content-Type":  "application/json",
       },
-      body: JSON.stringify({ username: uuid, admin: false }),
+      body: JSON.stringify({ username: uuid }),
     });
 
-    if (res.status === 409) {
+    if (res.status === 409 || res.status === 422) {
       // User already exists in MAS — fetch them instead
       const existing = await getMasUserByUsername(uuid);
       return existing;
@@ -86,6 +86,7 @@ export async function createMasUser(uuid: string): Promise<MasUser | null> {
     }
 
     const json = await res.json();
+    // v1 returns { data: { type: "user", id: "...", attributes: { username: "..." } } }
     return { id: json.data?.id ?? json.id, username: uuid };
   } catch (err) {
     console.error("[MAS] createMasUser error:", err);
@@ -100,7 +101,7 @@ async function getMasUserByUsername(username: string): Promise<MasUser | null> {
   try {
     const token = await getAdminToken();
     const res   = await fetch(
-      `${masUrl}/api/admin/v0/users?filter[username]=${encodeURIComponent(username)}`,
+      `${masUrl}/api/admin/v1/users?filter[username]=${encodeURIComponent(username)}`,
       { headers: { "Authorization": `Bearer ${token}` } },
     );
     if (!res.ok) return null;
