@@ -177,6 +177,38 @@ async function registerWithSharedSecret(
 }
 
 /**
+ * Creates (or updates) a Synapse user via the admin PUT endpoint.
+ *
+ * Unlike registerMatrixUser, this NEVER uses the AS token register path, so it
+ * creates the user with appservice_id=NULL. MAS can safely adopt these users on
+ * first login (it calls the same idempotent PUT internally). Use this in MAS mode
+ * to pre-provision accounts without causing "Localpart not available" conflicts.
+ *
+ * Requires MATRIX_ADMIN_TOKEN to be a Synapse server-admin token.
+ */
+export async function ensureMatrixUserExists(
+  matrixUserId: string,
+  displayName: string,
+): Promise<void> {
+  const { url, token } = cfg();
+  if (!token) throw new Error("MATRIX_ADMIN_TOKEN is required for ensureMatrixUserExists");
+
+  const res = await fetch(
+    `${url}/_synapse/admin/v2/users/${encodeURIComponent(matrixUserId)}`,
+    {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ displayname: displayName, admin: false, deactivated: false }),
+    },
+  );
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`ensureMatrixUserExists ${matrixUserId} → ${res.status}: ${text}`);
+  }
+}
+
+/**
  * Sets or unsets server-admin status for a Matrix user.
  * Requires a proper OAuth2 admin token (mat_...) — compat tokens (mct_...) lack admin scope.
  *

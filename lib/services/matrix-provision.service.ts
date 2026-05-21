@@ -28,6 +28,7 @@ import { prisma } from "@/lib/db";
 import { logAudit } from "./audit.service";
 import {
   registerMatrixUser,
+  ensureMatrixUserExists,
   toMatrixUserId,
   createMatrixRoom as createMatrixRoomOnHomeserver,
   addRoomToSpace,
@@ -261,13 +262,25 @@ export function backgroundProvisionMatrixAccount(
   if (!isEnabled()) return;
   provisionMatrixAccountDb(iamUserId)
     .then(() => preProvisionOnHomeserver(iamUserId, displayName))
+    .then(async (activated) => {
+      if (!activated) return;
+      // Account just became active — join any groups the user is already in.
+      // This handles the race where backgroundSyncGroupRoomJoin fired while
+      // the account was still pending and skipped the join.
+      const { getUserGroups } = await import("./group.service");
+      const groups = await getUserGroups(iamUserId);
+      for (const group of groups) {
+        backgroundSyncGroupRoomJoin(group.id, iamUserId, "member");
+      }
+    })
     .catch((err) => {
       console.error("[MatrixProvision] Account provision failed:", iamUserId, err);
     });
 }
 
-async function preProvisionOnHomeserver(iamUserId: string, displayName: string): Promise<void> {
-  if (!isHomeserverConfigured()) return;
+/** Returns true if the account was activated (written to homeserver), false if still pending. */
+async function preProvisionOnHomeserver(iamUserId: string, displayName: string): Promise<boolean> {
+  if (!isHomeserverConfigured()) return false;
   if (isMasManaged()) {
     // Use MAS admin API to create the user directly — this provisions them in
     // both MAS and Synapse as a proper MAS-managed account (no AS conflict).
@@ -280,23 +293,32 @@ async function preProvisionOnHomeserver(iamUserId: string, displayName: string):
         create: { iamUserId, matrixUserId, homeserver: serverName() },
       });
       console.log(`[MatrixProvision] MAS account created: ${matrixUserId}`);
-    } else {
-      // MAS admin API not available — syncPendingAccounts will activate on first login
-      console.warn(`[MatrixProvision] MAS admin API unavailable for ${iamUserId}, staying pending`);
+      return true;
     }
-    return;
+    // MAS admin API unavailable — fall back to Synapse admin PUT (idempotent,
+    // appservice_id=NULL, so MAS can adopt the account on first login).
+    if (process.env.MATRIX_ADMIN_TOKEN) {
+      const matrixUserId = toMatrixUserId(iamUserId, serverName());
+      await ensureMatrixUserExists(matrixUserId, iamUserId);
+      await prisma.matrixAccount.upsert({
+        where: { iamUserId },
+        update: { matrixUserId, homeserver: serverName() },
+        create: { iamUserId, matrixUserId, homeserver: serverName() },
+      });
+      console.log(`[MatrixProvision] Synapse admin account created: ${matrixUserId}`);
+      return true;
+    }
+    console.warn(`[MatrixProvision] No provisioning method available for ${iamUserId}, staying pending`);
+    return false;
   }
   const matrixUserId = toMatrixUserId(iamUserId, serverName());
   await registerMatrixUser(iamUserId, displayName, defaultPassword());
   await prisma.matrixAccount.upsert({
     where: { iamUserId },
     update: { matrixUserId, homeserver: serverName() },
-    create: {
-      iamUserId,
-      matrixUserId,
-      homeserver: serverName(),
-    },
+    create: { iamUserId, matrixUserId, homeserver: serverName() },
   });
+  return true;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
