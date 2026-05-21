@@ -259,22 +259,45 @@ export function backgroundProvisionMatrixAccount(
   displayName: string,
 ): void {
   if (!isEnabled()) return;
-  provisionMatrixAccountDb(iamUserId)
-    .then(() => preProvisionOnHomeserver(iamUserId, displayName))
-    .then(async (activated) => {
-      if (!activated) return;
-      // Account just became active — join any groups the user is already in.
-      // This handles the race where backgroundSyncGroupRoomJoin fired while
-      // the account was still pending and skipped the join.
-      const { getUserGroups } = await import("./group.service");
-      const groups = await getUserGroups(iamUserId);
-      for (const group of groups) {
-        backgroundSyncGroupRoomJoin(group.id, iamUserId, "member");
+  (async () => {
+    await provisionMatrixAccountDb(iamUserId);
+    let activated = await preProvisionOnHomeserver(iamUserId, displayName);
+
+    // MAS-without-admin-API fallback: preProvisionOnHomeserver can't create the
+    // account ahead of time, so it stays "pending" until the user logs into Element.
+    // Each time this function is called (e.g. on dashboard visit), check the
+    // Synapse profile endpoint — if MAS has now created the account, activate it.
+    if (!activated && isMasManaged() && isHomeserverConfigured()) {
+      const account = await prisma.matrixAccount.findUnique({ where: { iamUserId } });
+      if (account?.homeserver === "pending") {
+        const server = serverName();
+        const matrixUserId = toMatrixUserId(iamUserId, server);
+        const profileRes = await fetch(
+          `${process.env.MATRIX_HOMESERVER_URL!}/_matrix/client/v3/profile/${encodeURIComponent(matrixUserId)}`,
+        );
+        if (profileRes.ok) {
+          await prisma.matrixAccount.update({
+            where: { iamUserId },
+            data: { matrixUserId, homeserver: server },
+          });
+          console.log(`[MatrixProvision] Activated pending MAS account on dashboard visit: ${matrixUserId}`);
+          activated = true;
+        }
       }
-    })
-    .catch((err) => {
-      console.error("[MatrixProvision] Account provision failed:", iamUserId, err);
-    });
+    }
+
+    if (!activated) return;
+    // Account just became active — join any groups the user is already in.
+    // This handles the race where backgroundSyncGroupRoomJoin fired while
+    // the account was still pending and skipped the join.
+    const { getUserGroups } = await import("./group.service");
+    const groups = await getUserGroups(iamUserId);
+    for (const group of groups) {
+      backgroundSyncGroupRoomJoin(group.id, iamUserId, "member");
+    }
+  })().catch((err) => {
+    console.error("[MatrixProvision] Account provision failed:", iamUserId, err);
+  });
 }
 
 /** Returns true if the account was activated (written to homeserver), false if still pending. */
