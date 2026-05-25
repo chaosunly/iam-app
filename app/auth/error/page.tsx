@@ -1,3 +1,5 @@
+import Image from "next/image";
+
 export const dynamic = "force-dynamic";
 
 export default async function ErrorPage({ 
@@ -19,6 +21,7 @@ export default async function ErrorPage({
   return (
     <main className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
       <div className="max-w-2xl w-full bg-white shadow rounded-lg p-6 space-y-4">
+        <Image src="/rexform-logo.png" alt="REXFORM" width={140} height={27} className="dark:invert" priority />
         <h1 className="text-2xl font-semibold text-gray-900">Kratos Error</h1>
         <p className="text-sm text-gray-600">Kratos redirected to /auth/error. This usually means an error occurred during login/OIDC flow.</p>
         
