@@ -27,13 +27,16 @@ export function TalosKeyList() {
   const [keys, setKeys] = useState<ApiKey[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const revoke = useApiMutation<unknown, unknown>("/api/admin/talos/admin/api-keys", {
-    method: "DELETE",
-    onSuccess: () => {
-      toast.success("Key revoked");
-      loadKeys();
+  const revoke = useApiMutation<unknown, unknown>(
+    "/api/admin/talos/admin/api-keys",
+    {
+      method: "DELETE",
+      onSuccess: () => {
+        toast.success("Key revoked");
+        loadKeys();
+      },
     },
-  });
+  );
 
   async function loadKeys() {
     setLoading(true);
@@ -65,9 +68,12 @@ export function TalosKeyList() {
     if (!confirm("Revoke this API key? This cannot be undone.")) return;
     // Talos expects DELETE to /admin/api-keys/:id — use the mutation hook with explicit URL
     try {
-      const res = await fetch(`/api/admin/talos/admin/api-keys/${encodeURIComponent(id)}`, {
-        method: "DELETE",
-      });
+      const res = await fetch(
+        `/api/admin/talos/admin/api-keys/${encodeURIComponent(id)}`,
+        {
+          method: "DELETE",
+        },
+      );
       if (!res.ok) {
         const text = await res.text();
         toast.error(text || "Failed to revoke key");
@@ -85,7 +91,9 @@ export function TalosKeyList() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold">API Keys</h1>
-          <p className="text-muted-foreground mt-1">List of issued Talos API keys</p>
+          <p className="text-muted-foreground mt-1">
+            List of issued Talos API keys
+          </p>
         </div>
         <Button asChild>
           <Link href="/admin/talos/keys/new">Create Key</Link>
@@ -112,7 +120,10 @@ export function TalosKeyList() {
               </TableRow>
             ) : keys.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center text-muted-foreground py-12">
+                <TableCell
+                  colSpan={5}
+                  className="text-center text-muted-foreground py-12"
+                >
                   <KeyRound className="w-10 h-10 mx-auto mb-3 text-muted-foreground/50" />
                   No API keys found.
                 </TableCell>
@@ -126,7 +137,11 @@ export function TalosKeyList() {
                   <TableCell>{k.expires_at || "-"}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
-                      <Button variant="ghost" size="sm" onClick={() => handleRevoke(k.id)}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleRevoke(k.id)}
+                      >
                         <Trash className="w-4 h-4" />
                       </Button>
                     </div>

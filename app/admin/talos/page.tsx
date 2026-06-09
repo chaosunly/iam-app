@@ -28,7 +28,8 @@ export default async function TalosAdminPage() {
     healthStatus = { status: 0, body: (err as Error).message };
   }
 
-  const talosAdminUrl = process.env.ORY_TALOS_ADMIN_URL || "http://localhost:4420";
+  const talosAdminUrl =
+    process.env.ORY_TALOS_ADMIN_URL || "http://localhost:4420";
 
   return (
     <div className="space-y-6 p-6 md:p-8">
@@ -85,10 +86,10 @@ export default async function TalosAdminPage() {
         <AlertDescription>
           <div className="text-sm space-y-2 mt-1">
             <p>
-              This section lets administrators inspect Talos health and open
-              the Talos admin UI. Key issuance, rotation, and revocation can
-              be performed through the Talos admin API which is proxied via
-              the BFF at <strong>/api/admin/talos</strong>.
+              This section lets administrators inspect Talos health and open the
+              Talos admin UI. Key issuance, rotation, and revocation can be
+              performed through the Talos admin API which is proxied via the BFF
+              at <strong>/api/admin/talos</strong>.
             </p>
             <p className="mt-3">
               Further UI actions (issue key, list keys) will be added next.

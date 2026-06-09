@@ -12,17 +12,17 @@ export function CreateKeyForm() {
   const [note, setNote] = useState("");
   const router = useRouter();
 
-  const { mutate, isPending } = useApiMutation<{ name?: string; note?: string }, any>(
-    "/api/admin/talos/admin/api-keys",
-    {
-      method: "POST",
-      onSuccess: (data) => {
-        toast.success("API key created");
-        // If the API returns the key value, show it and navigate back
-        router.push("/admin/talos/keys");
-      },
+  const { mutate, isPending } = useApiMutation<
+    { name?: string; note?: string },
+    any
+  >("/api/admin/talos/admin/api-keys", {
+    method: "POST",
+    onSuccess: (data) => {
+      toast.success("API key created");
+      // If the API returns the key value, show it and navigate back
+      router.push("/admin/talos/keys");
     },
-  );
+  });
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -49,7 +49,12 @@ export function CreateKeyForm() {
         <Button type="submit" disabled={isPending}>
           {isPending ? "Creating…" : "Create Key"}
         </Button>
-        <Button variant="ghost" onClick={() => router.push("/admin/talos/keys")}>Cancel</Button>
+        <Button
+          variant="ghost"
+          onClick={() => router.push("/admin/talos/keys")}
+        >
+          Cancel
+        </Button>
       </div>
     </form>
   );
