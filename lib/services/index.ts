@@ -83,3 +83,6 @@ export {
   createDefaultOrg,
   hasAnyOrgMembership,
 } from "../keto";
+
+// Talos Service (API key management)
+export { proxyTalosAdminRequest, getTalosHealthReady } from "./talos.service";

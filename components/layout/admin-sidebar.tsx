@@ -75,6 +75,7 @@ const sections: NavSection[] = [
     label: "Access",
     items: [
       { href: "/admin/client", label: "Client", icon: KeyRound },
+      { href: "/admin/talos", label: "Talos", icon: KeyRound },
       { type: "permissions" },
     ],
   },
