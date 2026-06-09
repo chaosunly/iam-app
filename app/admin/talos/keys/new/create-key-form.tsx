@@ -35,7 +35,8 @@ export function CreateKeyForm() {
       }
 
       // Try several common response fields for the secret
-      const secret = data.key || data.secret || data.api_key || data.value || null;
+      const secret =
+        data.key || data.secret || data.api_key || data.value || null;
       const id = data.id || data.key_id || data.api_key_id || data.name || null;
       if (secret) {
         setCreatedSecret(secret);
@@ -73,13 +74,20 @@ export function CreateKeyForm() {
             <Button type="submit" disabled={isPending}>
               {isPending ? "Creating…" : "Create Key"}
             </Button>
-            <Button variant="ghost" onClick={() => router.push("/admin/talos/keys")}>Cancel</Button>
+            <Button
+              variant="ghost"
+              onClick={() => router.push("/admin/talos/keys")}
+            >
+              Cancel
+            </Button>
           </div>
         </form>
       ) : (
         <div className="space-y-4 p-6 md:p-8">
           <h2 className="text-lg font-semibold">API Key Created</h2>
-          <p className="text-sm text-muted-foreground">This is the only time the secret will be shown — copy it now.</p>
+          <p className="text-sm text-muted-foreground">
+            This is the only time the secret will be shown — copy it now.
+          </p>
           <div className="mt-4 p-4 rounded border bg-muted">
             <pre className="whitespace-pre-wrap">{createdSecret}</pre>
           </div>
@@ -93,7 +101,9 @@ export function CreateKeyForm() {
             >
               Copy secret
             </Button>
-            <Button variant="ghost" onClick={handleDone}>Done</Button>
+            <Button variant="ghost" onClick={handleDone}>
+              Done
+            </Button>
           </div>
         </div>
       )}

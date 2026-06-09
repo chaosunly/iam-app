@@ -132,7 +132,10 @@ export function TalosKeyList() {
               keys.map((k) => (
                 <TableRow key={k.id}>
                   <TableCell className="font-medium">
-                    <a href={`/admin/talos/keys/${encodeURIComponent(k.id)}`} className="font-medium text-primary underline-offset-2 hover:underline">
+                    <a
+                      href={`/admin/talos/keys/${encodeURIComponent(k.id)}`}
+                      className="font-medium text-primary underline-offset-2 hover:underline"
+                    >
                       {k.id}
                     </a>
                   </TableCell>
