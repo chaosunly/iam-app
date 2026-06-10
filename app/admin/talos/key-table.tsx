@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -44,7 +44,7 @@ export function TalosKeyTable() {
   const [loading, setLoading] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  async function loadKeys() {
+  const loadKeys = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch("/api/admin/talos/admin/api-keys?limit=100", {
@@ -63,7 +63,7 @@ export function TalosKeyTable() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
   useEffect(() => {
     loadKeys();
@@ -159,8 +159,17 @@ export function TalosKeyTable() {
             return (
               <Fragment key={key.id}>
                 <TableRow
+                  role="button"
+                  tabIndex={0}
+                  aria-expanded={expanded}
                   className="cursor-pointer hover:bg-muted/50"
                   onClick={() => toggleExpand(key.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      toggleExpand(key.id);
+                    }
+                  }}
                 >
                   <TableCell className="font-medium flex items-center gap-2">
                     {expanded ? (
@@ -197,6 +206,7 @@ export function TalosKeyTable() {
                             </span>
                             <button
                               type="button"
+                              aria-label="Copy key ID"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 copyToClipboard(key.id);
