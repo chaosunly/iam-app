@@ -43,7 +43,7 @@ export function CreateKeyForm() {
         setCreatedId(id || null);
       } else {
         toast.success("API key created");
-        router.push("/admin/talos/keys");
+        router.push("/admin/talos");
       }
     } catch (err) {
       toast.error("Network error. Could not create key.");
@@ -53,7 +53,7 @@ export function CreateKeyForm() {
   }
 
   function handleDone() {
-    router.push("/admin/talos/keys");
+    router.push("/admin/talos");
   }
 
   return (
@@ -76,7 +76,7 @@ export function CreateKeyForm() {
             </Button>
             <Button
               variant="ghost"
-              onClick={() => router.push("/admin/talos/keys")}
+              onClick={() => router.push("/admin/talos")}
             >
               Cancel
             </Button>
