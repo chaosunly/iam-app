@@ -41,7 +41,7 @@ export default async function TalosAdminPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <a href="/api/admin/talos/health" target="_self">
+        <Link href="/api/admin/talos/health">
           <Card className="hover:border-foreground/30 transition-colors cursor-pointer">
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
@@ -57,9 +57,9 @@ export default async function TalosAdminPage() {
               </div>
             </CardContent>
           </Card>
-        </a>
+        </Link>
 
-        <Link href={talosAdminUrl} target="_blank">
+        <a href={talosAdminUrl} target="_blank" rel="noopener noreferrer">
           <Card className="hover:border-foreground/30 transition-colors cursor-pointer">
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
@@ -75,9 +75,8 @@ export default async function TalosAdminPage() {
               </div>
             </CardContent>
           </Card>
-        </Link>
+        </a>
 
-        <Link href="/admin/talos" className="hidden" />
       </div>
 
       <Alert>
