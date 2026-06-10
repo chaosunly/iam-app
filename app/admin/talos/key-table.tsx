@@ -18,9 +18,10 @@ import Link from "next/link";
 type ApiKey = {
   id: string;
   name?: string;
-  note?: string;
+  actor_id?: string;
   created_at?: string;
   expires_at?: string | null;
+  state?: string;
 };
 
 function relativeDate(iso: string | null | undefined, fallback = "Never"): string {
@@ -47,16 +48,17 @@ export function TalosKeyTable() {
   const loadKeys = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/admin/talos/admin/api-keys?limit=100", {
-        cache: "no-store",
-      });
+      const res = await fetch(
+        "/api/admin/talos/v2alpha1/admin/issuedApiKeys?pageSize=100",
+        { cache: "no-store" }
+      );
       if (!res.ok) {
         toast.error("Failed to load API keys");
         setKeys([]);
         return;
       }
-      const data = (await res.json()) as ApiKey[];
-      setKeys(Array.isArray(data) ? data : []);
+      const data = await res.json();
+      setKeys(Array.isArray(data.issued_api_keys) ? data.issued_api_keys : []);
     } catch {
       toast.error("Network error while loading keys");
       setKeys([]);
@@ -73,8 +75,8 @@ export function TalosKeyTable() {
     if (!confirm("Revoke this API key? This cannot be undone.")) return;
     try {
       const res = await fetch(
-        `/api/admin/talos/admin/api-keys/${encodeURIComponent(id)}`,
-        { method: "DELETE" }
+        `/api/admin/talos/v2alpha1/admin/issuedApiKeys/${encodeURIComponent(id)}:revoke`,
+        { method: "POST" }
       );
       if (!res.ok) {
         toast.error("Failed to revoke key");
@@ -217,12 +219,12 @@ export function TalosKeyTable() {
                             </button>
                           </div>
                         </div>
-                        {key.note && (
+                        {key.actor_id && (
                           <div>
                             <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
-                              Note
+                              Actor
                             </p>
-                            <p>{key.note}</p>
+                            <p className="font-mono text-xs">{key.actor_id}</p>
                           </div>
                         )}
                         <div>

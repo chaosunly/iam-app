@@ -8,10 +8,9 @@ import { useRouter } from "next/navigation";
 
 export function CreateKeyForm() {
   const [name, setName] = useState("");
-  const [note, setNote] = useState("");
+  const [actorId, setActorId] = useState("");
   const [isPending, setIsPending] = useState(false);
   const [createdSecret, setCreatedSecret] = useState<string | null>(null);
-  const [createdId, setCreatedId] = useState<string | null>(null);
   const router = useRouter();
 
   async function handleSubmit(e: React.FormEvent) {
@@ -20,27 +19,28 @@ export function CreateKeyForm() {
       toast.error("Name is required");
       return;
     }
+    if (!actorId.trim()) {
+      toast.error("Actor ID is required");
+      return;
+    }
     setIsPending(true);
     try {
-      const res = await fetch("/api/admin/talos/admin/api-keys", {
+      const res = await fetch("/api/admin/talos/v2alpha1/admin/issuedApiKeys", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim(), note: note.trim() }),
+        body: JSON.stringify({ name: name.trim(), actor_id: actorId.trim() }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const msg = data.error || data.message || "Failed to create key";
+        const msg =
+          data.error?.message || data.message || "Failed to create key";
         toast.error(msg);
         return;
       }
 
-      // Try several common response fields for the secret
-      const secret =
-        data.key || data.secret || data.api_key || data.value || null;
-      const id = data.id || data.key_id || data.api_key_id || data.name || null;
+      const secret = data.credential || data.key || data.secret || null;
       if (secret) {
         setCreatedSecret(secret);
-        setCreatedId(id || null);
       } else {
         toast.success("API key created");
         router.push("/admin/talos");
@@ -66,8 +66,12 @@ export function CreateKeyForm() {
           </div>
 
           <div>
-            <label className="text-sm font-medium">Note</label>
-            <Input value={note} onChange={(e) => setNote(e.target.value)} />
+            <label className="text-sm font-medium">Actor ID</label>
+            <Input
+              value={actorId}
+              onChange={(e) => setActorId(e.target.value)}
+              placeholder="e.g. service-name or user ID"
+            />
           </div>
 
           <div className="flex gap-2">
